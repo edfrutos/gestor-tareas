@@ -1,0 +1,9 @@
+{
+  admin off
+  local_certs
+}
+
+{$SITE_HOST:localhost} {
+  encode gzip
+  reverse_proxy cola-ciudadana:3000
+}

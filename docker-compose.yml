@@ -1,0 +1,28 @@
+services:
+  cola-ciudadana:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NODE_ENV: production
+      # TRUST_PROXY: "1"
+      # FORCE_HTTPS: "0"
+      # HSTS_ENABLED: "0"
+      DB_FILE: /app/data/data.db
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "3000:3000"
+    command: node --watch src/server.js
+    volumes:
+      - ./src:/app/src
+      - cola_data:/app/data
+      - cola_uploads:/app/uploads
+
+volumes:
+  cola_data:
+  cola_uploads:

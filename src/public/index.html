@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gestor de Tareas</title>
+
+  <!-- Leaflet + MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+  <style>
+    :root{
+      color-scheme: light dark;
+      --bg: #0b1116;
+      --panel: rgba(255,255,255,.06);
+      --panel2: rgba(255,255,255,.08);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+      --border: rgba(255,255,255,.14);
+      --border2: rgba(255,255,255,.10);
+      --shadow: 0 16px 50px rgba(0,0,0,.35);
+      --accent: #7c5cff;
+      --ok: #2ecc71;
+      --warn: #f39c12;
+      --bad: #ff5c7a;
+      --chip: rgba(255,255,255,.09);
+      --chip2: rgba(255,255,255,.12);
+      --radius: 18px;
+      --radius2: 14px;
+      --pad: 14px;
+      --gap: 14px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif;
+    }
+    [data-theme="light"]{
+      --bg: #f6f7fb;
+      --panel: rgba(0,0,0,.05);
+      --panel2: rgba(0,0,0,.07);
+      --text: rgba(0,0,0,.88);
+      --muted: rgba(0,0,0,.55);
+      --border: rgba(0,0,0,.12);
+      --border2: rgba(0,0,0,.10);
+      --shadow: 0 18px 55px rgba(0,0,0,.10);
+      --chip: rgba(0,0,0,.06);
+      --chip2: rgba(0,0,0,.08);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--font);
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(124,92,255,.20), transparent 55%),
+                  radial-gradient(1200px 700px at 100% 30%, rgba(46,204,113,.14), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+    }
+    header{
+      position: sticky;
+      top:0;
+      z-index: 30;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(to bottom, rgba(0,0,0,.45), rgba(0,0,0,.10));
+      border-bottom: 1px solid var(--border2);
+    }
+    .topbar{
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 14px 18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      min-width: 260px;
+    }
+    .logo{
+      width:42px; height:42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(124,92,255,.9), rgba(0,199,255,.55));
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: var(--shadow);
+    }
+    .brand h1{ margin:0; font-size: 18px; letter-spacing:.2px; }
+    .brand p{ margin:2px 0 0; font-size: 12.5px; color: var(--muted); }
+
+    .controls{
+      display:flex; align-items:center; gap: 10px; flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+    .chip{
+      display:flex; align-items:center; gap:10px;
+      padding: 10px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 999px;
+      background: var(--chip);
+    }
+    .chip input{
+      width: 320px;
+      max-width: 45vw;
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text);
+      padding: 9px 10px;
+      border-radius: 999px;
+      outline: none;
+    }
+    select{
+      border: 1px solid var(--border2);
+      background: transparent;
+      color: var(--text);
+      padding: 9px 10px;
+      border-radius: 999px;
+      outline: none;
+    }
+    .btn{
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:hover{ background: rgba(124,92,255,.18); border-color: rgba(124,92,255,.45); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ background: rgba(124,92,255,.20); border-color: rgba(124,92,255,.55); }
+    .btn.danger{ background: rgba(255,92,122,.12); border-color: rgba(255,92,122,.35); }
+    .btn.small{ padding: 8px 10px; border-radius: 11px; font-size: 12.5px; }
+
+    main{
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .top-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start; /* Alineación superior */
+    }
+
+    .bottom-panel {
+      width: 100%;
+    }
+
+    @media (max-width: 950px){
+      .top-panel { grid-template-columns: 1fr; }
+    }
+
+    .card{
+      border: 1px solid var(--border2);
+      background: rgba(255,255,255,.04);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* El mapa debe tener altura mínima para verse bien en este layout */
+    #map { 
+      height: 100%; 
+      min-height: 450px; 
+      width: 100%; 
+      flex: 1; /* Ocupa el espacio restante en la tarjeta */
+    }
+    
+    @media (max-width: 950px){ 
+      #map{ min-height: 350px; } 
+    }
+
+    /* Ajustes específicos para que las tarjetas de arriba tengan altura similar si se desea,
+       aunque 'align-items: start' deja que cada una tenga su altura natural. 
+       Si prefieres que el mapa se estire igual que el form, usa 'align-items: stretch' en .top-panel */
+    
+    /* Importante en layouts grid: permite que el contenido no “rompa” el ancho */
+    section.card{ min-width: 0; }
+
+    /* Asegura que la lista y las tarjetas ocupen todo el ancho disponible */
+    #list{ width: 100%; min-width: 0; }
+    .issueCard{ width: 100%; min-width: 0; }
+    .issueMain{ min-width: 0; }
+    .card h2{
+      margin:0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border2);
+      display:flex; align-items:center; justify-content:space-between;
+      font-size: 14px;
+      letter-spacing:.3px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.78);
+      flex: 0 0 auto; /* Header fijo */
+    }
+    [data-theme="light"] .card h2{ color: rgba(0,0,0,.60); }
+    .pad{ padding: 14px 16px; flex: 1; } /* Contenido flexible */
+    .muted{ color: var(--muted); font-size: 12.5px; }
+
+    /* LISTADO / PANEL DERECHA */
+    #list{
+      width: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Fila de incidencia (estilo acordeón horizontal/lista) */
+    .issueRow {
+      display: grid;
+      grid-template-columns: 60px 1fr 110px 100px 120px; /* Thumb | Info | Cat | Estado | Acciones */
+      gap: 16px;
+      align-items: center;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background .15s ease, transform .1s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .issueRow::before {
+      content: "";
+      position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      background: var(--catColor);
+    }
+    .issueRow:hover {
+      background: rgba(255,255,255,.08);
+      transform: translateX(2px);
+    }
+
+    .issueRow .thumb {
+      width: 48px; height: 48px;
+      border-radius: 8px;
+      background: rgba(0,0,0,.2);
+      object-fit: cover;
+    }
+    
+    .issueRow .info {
+      min-width: 0;
+      display: flex; 
+      flex-direction: column;
+      gap: 2px;
+    }
+    .issueRow .title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .issueRow .desc { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .issueRow .date { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Ajuste móvil para filas */
+    @media (max-width: 700px) {
+      .issueRow {
+        grid-template-columns: 50px 1fr 50px; /* Thumb | Info | Action */
+        grid-template-rows: auto;
+        gap: 10px;
+        padding: 10px;
+      }
+      .issueRow .thumb { grid-row: 1; }
+      .issueRow .info { grid-column: 2; }
+      /* Mostrar metadatos compactos en móvil */
+      .issueRow .meta-mobile { display: flex; gap: 8px; font-size: 11px; opacity: 0.8; margin-top:2px; }
+      
+      /* Ocultar columnas desktop menos importantes */
+      .issueRow .col-cat, .issueRow .col-status { display: none; }
+      
+      /* Mantener visibles las acciones */
+      .issueRow .col-action { 
+        display: flex !important; 
+        grid-column: 3; 
+        grid-row: 1; 
+        align-self: center;
+        flex-direction: column; /* Apilar botones si hay poco espacio */
+        gap: 4px;
+      }
+    }
+    
+    /* MODAL DE DETALLE (Reemplaza al simple modal de foto) */
+    .detailModal {
+      position: fixed; 
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      z-index: 10000; /* Reducido para permitir modales superiores */
+      background: rgba(0,0,0,.75);
+      backdrop-filter: blur(4px);
+      display: none; /* flex cuando activo */
+      align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+    /* Clase auxiliar para cuando está activo (por si JS lo usa) */
+    .detailModal[style*="display: flex"] {
+      display: flex !important;
+    }
+
+    .detailCard {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      width: min(900px, 94vw);
+      max-height: 90vh;
+      border-radius: 20px;
+      display: flex; flex-direction: column;
+      box-shadow: 0 50px 100px -20px rgba(0,0,0,0.8);
+      overflow: hidden;
+      position: relative;
+      animation: modalIn 0.2s ease-out;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .detailHeader {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border2);
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--panel);
+    }
+    .detailBody {
+      padding: 20px;
+      overflow-y: auto;
+      display: grid; 
+      grid-template-columns: 1fr 340px; 
+      gap: 24px;
+    }
+    @media (max-width: 800px) { .detailBody { grid-template-columns: 1fr; } }
+    
+    .detailMain { display: flex; flex-direction: column; gap: 16px; }
+    .detailSidebar { 
+      background: var(--panel2); 
+      border-radius: 14px; 
+      padding: 16px; 
+      height: fit-content;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .detailImg {
+      width: 100%; height: 300px;
+      background: #000;
+      border-radius: 12px;
+      object-fit: contain;
+      border: 1px solid var(--border2);
+    }
+    .detailTitle { font-size: 20px; margin: 0; font-weight: 700; line-height: 1.2; }
+    .detailDesc { line-height: 1.6; color: var(--text); opacity: .9; white-space: pre-wrap; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 99px;
+      font-size: 12px; font-weight: 600;
+      background: var(--chip2); border: 1px solid var(--border2);
+    }
+
+  /* ... resto de estilos ... */
+
+
+    label{ display:block; font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+    input, textarea{
+      width: 100%;
+      border: 1px solid var(--border2);
+      background: rgba(0,0,0,.18);
+      color: var(--text);
+      padding: 11px 12px;
+      border-radius: 14px;
+      outline:none;
+    }
+    [data-theme="light"] input, [data-theme="light"] textarea{
+      background: rgba(255,255,255,.7);
+    }
+    textarea{ min-height: 90px; resize: vertical; }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .fileRow{ display:flex; gap: 10px; align-items:center; }
+    .fileRow input[type="file"]{ padding: 9px; }
+    .actions{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .statusLine{ margin-top: 10px; font-size: 13px; }
+    .statusLine.ok{ color: var(--ok); }
+    .statusLine.error{ color: var(--bad); }
+    .statusLine.warn{ color: var(--warn); }
+
+    /* búsqueda dirección */
+    .addrWrap{ position: relative; }
+    .searchResults{
+      position:absolute; left:0; right:0; top: calc(100% + 6px);
+      background: rgba(20,24,34,.98);
+      border:1px solid var(--border2);
+      border-radius: 14px;
+      overflow:hidden;
+      display:none;
+      z-index: 50;
+      max-height: 260px;
+      overflow:auto;
+    }
+    [data-theme="light"] .searchResults{ background: rgba(255,255,255,.98); }
+    .searchResults.open{ display:block; }
+    .sItem{
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border2);
+      font-size: 13px;
+    }
+    .sItem:last-child{ border-bottom:none; }
+    .sItem:hover{ background: rgba(124,92,255,.16); }
+
+    /* preview foto */
+    .preview{
+      margin-top: 10px;
+      border: 1px dashed var(--border2);
+      border-radius: 14px;
+      padding: 10px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      background: rgba(0,0,0,.10);
+    }
+    .preview .thumb{
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid var(--border2);
+      flex: 0 0 auto;
+      background: rgba(127,127,127,.08);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .preview img{ 
+      width: 64px; 
+      height: 64px; 
+      object-fit: cover; 
+      border-radius: 12px;
+      display:block; 
+    }
+    .preview .meta{ font-size: 12.5px; color: var(--muted); }
+
+    /* filtros + contador */
+    .filters{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr .8fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    /* lista */
+    .list{ display:flex; flex-direction: column; gap: 12px; }
+    .issueCard{
+      border: 1px solid var(--border2);
+      background: rgba(255,255,255,.04);
+      border-radius: 18px;
+      overflow:hidden;
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap: 0;
+      position: relative;
+    }
+    .issueCard::before{
+      content:"";
+      position:absolute; left:0; top:0; bottom:0; width: 6px;
+      background: var(--catColor, rgba(124,92,255,.35));
+    }
+    .thumbBox{
+      padding: 10px;
+      display:flex;
+      flex-direction: column;
+      align-items:center;
+      justify-content:center;
+      border-right: 1px solid var(--border2);
+      background: rgba(0,0,0,.08);
+    }
+    .thumbBox img{
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      object-fit: cover;
+      border: 1px solid var(--border2);
+      background: rgba(127,127,127,.08);
+      display:block;
+    }
+    /* Estilo para foto resolución */
+    .resThumbImg {
+      width: 64px !important;
+      height: 64px !important;
+      border-radius: 12px !important;
+      margin-top: 4px;
+      border: 2px solid var(--ok) !important;
+    }
+    .thumbBox .noimg{
+      width: 72px; height:72px;
+      border-radius: 16px;
+      border: 1px dashed var(--border2);
+      display:flex; align-items:center; justify-content:center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .issueMain{ padding: 10px 12px; }
+    .issueTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .issueTitle{
+      font-weight: 700;
+      font-size: 14px;
+      margin: 0;
+    }
+    .badges{ display:flex; gap: 8px; flex-wrap:wrap; align-items:center; margin-top: 6px; }
+    .badge{
+      display:inline-flex; align-items:center; gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border2);
+      background: var(--chip);
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .badge strong{ color: var(--text); font-weight: 700; }
+    .issueDesc{
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+    .issueActions{
+      display:flex;
+      gap: 8px;
+      flex-wrap:wrap;
+      margin-top: 10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .leftBtns{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .rightBtns{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+    /* modal foto (por delante del mapa) */
+    .modal{
+      position: fixed;
+      inset: 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      background: rgba(0,0,0,.55);
+      z-index: 9999;
+    }
+    .modal.open{ display:flex; }
+    .modalCard{
+      width: min(980px, 96vw);
+      border-radius: 18px;
+      border: 1px solid var(--border2);
+      background: rgba(20,24,34,.98);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+    }
+    [data-theme="light"] .modalCard{ background: rgba(255,255,255,.98); }
+    .modalTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border2);
+    }
+    .modalTop .title{
+      display:flex; gap:10px; align-items:center;
+      min-width: 0;
+    }
+    .modalTop .title strong{
+      font-size: 14px;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 70vw;
+    }
+    .modalImg{
+      width: 100%;
+      max-height: 78vh;
+      background: rgba(127,127,127,.06);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .modalImg img{
+      width: 100%;
+      height: auto;
+      max-height: 78vh;
+      object-fit: contain;
+      display:block;
+    }
+
+    .busy-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+    }
+    .busy-overlay.is-on { display: flex; }
+  
+    .busy-overlay__box{
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .busy-overlay__spinner{
+      width: 18px; height: 18px;
+      border: 2px solid rgba(0,0,0,.15);
+      border-top-color: rgba(0,0,0,.55);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg);} }
+
+    @media (prefers-reduced-motion: reduce) {
+      .busy-overlay__spinner{
+        animation: none !important;
+        transform: none !important;
+      }
+      @keyframes spin {
+        from { transform: none; }
+        to { transform: none; }
+      }
+    }
+  
+    button.busy { opacity: .75; cursor: wait; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">📋</div>
+        <div>
+          <h1>Gestor de Tareas</h1>
+          <p>Gestión de tareas sobre plano</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <span class="chip" title="API key para crear/editar/borrar (x-api-key)">
+          🔑 <input id="apiKey" placeholder="API Key (solo la clave)" autocomplete="off" />
+          <button class="btn" id="btnSaveKey" type="button">Guardar</button>
+        </span>
+
+        <span class="chip" title="Tema">
+          🌓
+          <select id="themeSelect">
+            <option value="auto">Auto</option>
+            <option value="light">Claro</option>
+            <option value="dark">Oscuro</option>
+          </select>
+        </span>
+
+        <button class="btn" id="btnRefresh" type="button">↻ Refrescar</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="top-panel">
+      <!-- Mapa -->
+      <section class="card">
+        <h2>
+          <span>🗺️ Mapa</span>
+          <span class="muted" id="mapHint">Clic para ubicar</span>
+        </h2>
+        <div id="map"></div>
+        <div class="pad">
+          <div class="muted">
+            Consejo: “Mi ubicación” intentará centrar el mapa.
+          </div>
+        </div>
+      </section>
+
+      <!-- Nueva Tarea -->
+      <section class="card">
+        <h2>➕ Nueva tarea</h2>
+        <div class="pad">
+          <form id="incidentForm">
+            <label>Título</label>
+            <input id="title" name="title" placeholder="Ej: Farola apagada" required />
+
+            <div class="row">
+              <div>
+                <label>Categoría</label>
+                <input id="category" name="category" list="categoryOptions" placeholder="Selecciona..." required />
+                <datalist id="categoryOptions">
+                  <option value="alumbrado">💡 Alumbrado</option>
+                  <option value="limpieza">🧹 Limpieza</option>
+                  <option value="baches">🕳️ Baches</option>
+                  <option value="ruido">🔊 Ruido</option>
+                  <option value="otros">📌 Otros</option>
+                </datalist>
+              </div>
+              <div>
+                <label>Adjuntos</label>
+                <div class="fileRow" style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <label for="photo" class="btn small" style="cursor:pointer; display:flex; align-items:center; gap:6px;">📷 Foto <input id="photo" name="photo" type="file" accept="image/*" style="display:none" /></label>
+                  
+                  <label for="file" class="btn small" style="cursor:pointer; display:flex; align-items:center; gap:6px;">📄 Documento <input id="file" name="file" type="file" accept=".pdf,.txt,.md,.markdown" style="display:none" /></label>
+                </div>
+              </div>
+            </div>
+
+            <label>Descripción</label>
+            <textarea id="description" name="description" placeholder="Describe el problema…" required></textarea>
+
+            <label style="display:none;">Ubicación (Dirección o clic en mapa)</label>
+            <div class="addrWrap" style="display:none;">
+              <input id="addr" placeholder="Ej: Pasillo A, Planta 1" autocomplete="off" />
+              <div id="addrResults" class="searchResults" aria-label="Resultados dirección"></div>
+            </div>
+
+            <!-- Coordenadas ocultas visualmente pero funcionales -->
+            <div class="row" style="display:none;"> 
+              <input id="lat" name="lat" inputmode="decimal" />
+              <input id="lng" name="lng" inputmode="decimal" />
+            </div>
+
+            <!-- Previews Separados -->
+            <div id="previewsContainer" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+              <!-- Photo Preview -->
+              <div class="preview" id="photoPreview" style="display:none;">
+                <div class="thumb"><img id="photoPreviewImg" alt="preview" /></div>
+                <div class="meta" id="photoPreviewMeta"></div>
+                <button class="btn small danger" id="btnClearPhotoInput" type="button" style="margin-left:auto;">✕</button>
+              </div>
+              
+              <!-- Doc Preview -->
+              <div class="preview" id="filePreview" style="display:none;">
+                 <div class="thumb" style="font-size:24px; display:flex; align-items:center; justify-content:center;">📄</div>
+                 <div class="meta" id="filePreviewMeta"></div>
+                 <button class="btn small danger" id="btnClearFileInput" type="button" style="margin-left:auto;">✕</button>
+              </div>
+            </div>
+
+            <div class="actions" style="margin-top:14px;">
+              <button class="btn primary" type="submit" style="flex:1;">Crear Tarea</button>
+              <button class="btn danger" type="button" id="btnClear" title="Limpiar formulario">🗑️</button>
+            </div>
+
+            <div class="statusLine" id="status"></div>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <div class="bottom-panel">
+      <section class="card h-full">
+        <h2>
+          <span>🧾 Tareas</span>
+          <span class="muted" id="listHint"></span>
+        </h2>
+
+        <div class="pad">
+          <div class="filters">
+            <input id="q" placeholder="Buscar..." />
+            <select id="fStatus">
+              <option value="">Estado: todos</option>
+              <option value="open">Abierta</option>
+              <option value="in_progress">En curso</option>
+              <option value="resolved">Resuelta</option>
+            </select>
+            <select id="fCategory">
+              <option value="">Categoría: todas</option>
+              <option value="alumbrado">Alumbrado</option>
+              <option value="limpieza">Limpieza</option>
+              <option value="baches">Baches</option>
+              <option value="ruido">Ruido</option>
+              <option value="otros">Otros</option>
+            </select>
+          </div>
+
+          <div class="filters2" style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+            <div class="checks" style="display:flex; gap:10px;">
+              <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis incidencias</label>
+              <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyFavs"> Favoritos ⭐</label>
+            </div>
+            
+            <div class="checks" style="display:flex; gap:8px; align-items:center;">
+              <select id="order" class="small-select">
+                <option value="new">Más nuevas</option>
+                <option value="old">Más antiguas</option>
+                <option value="cat">Categoría</option>
+                <option value="status">Estado</option>
+              </select>
+              <button class="btn small" id="btnMore" type="button">Cargar más</button>
+            </div>
+          </div>
+
+          <div class="list" id="list"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal Detalle Completo -->
+  <div class="detailModal" id="detailModal" role="dialog" aria-hidden="true">
+    <div class="detailCard">
+      <div class="detailHeader">
+        <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:0;">
+          <span id="dmCatIcon" style="font-size:20px;">📌</span>
+          <div style="display:flex; flex-direction:column; min-width:0; flex:1;">
+             <span id="dmTitle" style="font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Título Incidencia</span>
+             <span id="dmDate" style="font-size:11px; opacity:.6;">Fecha</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn small" id="dmBtnEdit">✎ Editar</button>
+          <button class="btn small" id="dmClose">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="detailBody">
+        <div class="detailMain">
+          <div id="dmImgContainer" style="display:none;">
+            <img id="dmImg" class="detailImg" alt="Prueba gráfica" loading="lazy" />
+          </div>
+          
+          <div id="dmDocContainer" style="display:none; padding:14px; background:var(--panel2); border-radius:12px; margin-bottom:16px; border:1px solid var(--border2);">
+             <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--muted);">Documento adjunto</h4>
+             <a id="dmDocLink" href="#" target="_blank" class="btn" style="display:inline-flex; align-items:center; gap:10px; text-decoration:none;">
+                <span style="font-size:20px;">📄</span>
+                <span style="font-weight:600;">Abrir documento</span>
+             </a>
+          </div>
+          
+          <!-- View Mode: Description -->
+          <div id="dmDesc" class="detailDesc"></div>
+          
+          <!-- Edit Mode: Description Input -->
+          <textarea id="dmEditDesc" class="small-input" style="display:none; min-height:120px; font-size:14px; line-height:1.5; padding:10px; width:100%; box-sizing:border-box;" placeholder="Descripción de la situación..."></textarea>
+          
+          <!-- Sección de resolución (View Mode) -->
+          <div id="dmResContainer" style="display:none; margin-top:10px; border-top:1px solid var(--border2); padding-top:14px;">
+             <h4 style="margin:0 0 10px 0; color:var(--ok);">✅ Solución / Resultado</h4>
+             <div id="dmResDesc" class="detailDesc" style="margin-bottom:10px;"></div>
+             <img id="dmResImg" class="detailImg" alt="Foto resolución" style="max-height:200px; display:none;" loading="lazy" />
+             
+             <div id="dmResDocBox" style="display:none; margin-top:10px; padding:10px; background:var(--panel2); border-radius:10px;">
+                <a id="dmResDocLink" href="#" target="_blank" class="btn small" style="display:inline-flex; align-items:center; gap:8px; text-decoration:none;">
+                   <span style="font-size:18px;">📄</span>
+                   <span>Ver documento de resolución</span>
+                </a>
+             </div>
+          </div>
+
+          <!-- Edit Mode: Original Files Replace -->
+          <div id="dmEditOriginals" style="display:none; margin-top:16px; padding:14px; background:rgba(0,0,0,0.2); border-radius:12px; border:1px dashed var(--border2);">
+             <label style="display:block; margin-bottom:8px; font-weight:600;">✏️ Reemplazar archivos originales</label>
+             <div style="font-size:11px; opacity:0.7; margin-bottom:8px;">Sube un archivo solo si deseas sustituir el actual.</div>
+             
+             <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <label class="btn small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                   📷 Foto Orig.
+                   <input type="file" id="dmEditPhotoInput" accept="image/*" style="display:none" />
+                </label>
+                <label class="btn small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                   📄 Doc. Orig.
+                   <input type="file" id="dmEditDocInput" accept=".pdf,.txt,.md,.markdown" style="display:none" />
+                </label>
+             </div>
+             <div id="dmEditPhotoPreview" style="font-size:12px; margin-top:6px; color:var(--muted);"></div>
+             <div id="dmEditDocPreview" style="font-size:12px; margin-top:2px; color:var(--muted);"></div>
+          </div>
+
+          <!-- Edit Mode: Resolution Uploads -->
+          <div id="dmEditResContainer" style="display:none; margin-top:16px; padding:14px; background:rgba(0,0,0,0.2); border-radius:12px; border:1px dashed var(--border2);">
+             <label style="display:block; margin-bottom:8px; font-weight:600;">✅ Añadir pruebas de resolución</label>
+             
+             <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <label class="btn small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                   📷 Foto
+                   <input type="file" id="dmResPhotoInput" accept="image/*" style="display:none" />
+                </label>
+                <label class="btn small" style="flex:1; text-align:center; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                   📄 Documento
+                   <input type="file" id="dmResDocInput" accept=".pdf,.txt,.md,.markdown" style="display:none" />
+                </label>
+             </div>
+             
+             <div id="dmResPhotoPreview" style="font-size:12px; margin-top:8px; color:var(--muted);"></div>
+             <div id="dmResDocPreview" style="font-size:12px; margin-top:4px; color:var(--muted);"></div>
+          </div>
+
+        </div>
+        
+        <div class="detailSidebar">
+          <div class="status-box">
+             <label style="margin-bottom:4px;">Estado actual</label>
+             <div id="dmStatusBadge" class="status-badge">Abierta</div>
+             <!-- Edit Mode: Status Select -->
+             <select id="dmEditStatus" class="btn small" style="display:none; width:100%; margin-top:6px; text-align:left;">
+               <option value="open">🟦 Abierta</option>
+               <option value="in_progress">🟧 En proceso</option>
+               <option value="resolved">🟩 Resuelta</option>
+             </select>
+          </div>
+          
+          <div style="height:1px; background:var(--border2); margin:4px 0;"></div>
+          
+          <!-- View Mode Actions -->
+          <div id="dmActionsView" style="display:grid; gap:8px;">
+            <label>Acciones</label>
+            <button class="btn small" id="dmBtnMap">📍 Ver en mapa</button>
+            <button class="btn small" id="dmBtnFav">⭐ Favorito</button>
+            <div style="height:1px; background:var(--border2); margin:4px 0;"></div>
+            <button class="btn danger small" id="dmBtnDelete">🗑️ Eliminar</button>
+          </div>
+
+          <!-- Edit Mode Actions -->
+          <div id="dmActionsEdit" style="display:none; gap:8px; flex-direction:column;">
+            <button class="btn primary" id="dmBtnSaveEdit">Guardar Cambios</button>
+            <button class="btn" id="dmBtnCancelEdit">Cancelar</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Foto Rápido -->
+  <div class="modal" id="photoModal" style="display:none; position:fixed; inset:0; z-index:11000; background:rgba(0,0,0,.85); align-items:center; justify-content:center; padding:20px;">
+    <div style="position:relative; max-width:95vw; max-height:95vh;">
+      <button id="photoClose" class="btn" style="position:absolute; top:-40px; right:0; color:#fff; background:rgba(255,255,255,.1);">✕ Cerrar</button>
+      <img id="photoImg" src="" style="max-width:100%; max-height:85vh; border-radius:8px; box-shadow:0 0 40px rgba(0,0,0,.5);" />
+    </div>
+  </div>
+
+  <!-- Modal Documento -->
+  <div class="modal" id="docModal" style="display:none; position:fixed; inset:0; z-index:11000; background:rgba(0,0,0,.85); align-items:center; justify-content:center; padding:20px;">
+    <div style="position:relative; width:min(1000px, 95vw); height:90vh; background:#fff; border-radius:8px; overflow:hidden; display:flex; flex-direction:column;">
+      <div style="padding:10px; background:#f0f0f0; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ccc; color:#222;">
+         <span id="docModalTitle" style="font-weight:bold;">Documento</span>
+         <button id="docClose" class="btn small" style="color:#222; border-color:#aaa;">✕ Cerrar</button>
+      </div>
+      <iframe id="docFrame" style="flex:1; border:none; width:100%; height:100%; background:#fff; display:none;"></iframe>
+      <div id="docTextContent" style="flex:1; width:100%; height:100%; overflow:auto; padding:20px; display:none; white-space:pre-wrap; font-family:monospace; background:#fff; color:#000;"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="https://unpkg.com/marked@12.0.0/marked.min.js" defer></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
+  <script src="ui/app.js?v=3" defer></script>
+</body>
+</html>

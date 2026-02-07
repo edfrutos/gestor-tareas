@@ -1,0 +1,54 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Env ---
+.env
+.env.*
+
+# --- SQLite ---
+*.sqlite
+*.sqlite3
+data/
+db/*.db
+
+# --- Uploads ---
+uploads/
+uploads/thumbs/
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Temp ---
+tmp/
+.cache/
+
+# --- Build ---
+dist/
+build/
+
+# --- Docs ---
+docs/
+notas/
+
+# --- Patches ---
+*.patch
+
+# --- Local TLS / Certs (NO versionar) ---
+.certs/
+caddy-local-root.crt
+caddy-local-root.key
+localhost+*.pem
+*.pem
+*.key

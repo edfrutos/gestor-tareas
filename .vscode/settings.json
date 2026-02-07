@@ -1,0 +1,21 @@
+{
+  "cSpell.configFile": "${workspaceFolder}/cspell.json",
+  "cSpell.language": "es,en",
+  "cSpell.allowCompoundWords": true
+}
+{
+    "cSpell.words": [
+        "ancestors",
+        "aplícalo",
+        "appspecific",
+        "Caddy",
+        "cleaned",
+        "disclosure",
+        "elem",
+        "Forbidden",
+        "Hardening",
+        "Healthcheck",
+        "healthchecks",
+        "hsts"
+    ]
+}

@@ -1,0 +1,21 @@
+services:
+  caddy:
+    profiles: ["local-https"]
+    build:
+      context: ./caddy
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
+    depends_on:
+      - cola-ciudadana
+    environment:
+      SITE_HOST: localhost
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

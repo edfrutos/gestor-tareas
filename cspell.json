@@ -1,0 +1,31 @@
+{
+  "version": "0.2",
+  "language": "es,en",
+  "allowCompoundWords": true,
+  "dictionaries": ["project-terms"],
+  "dictionaryDefinitions": [
+    {
+      "name": "project-terms",
+      "path": "./cspell-terms.txt",
+      "addWords": true
+    }
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "package-lock.json",
+    "data.db",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.webp",
+    "**/*.ico",
+    "**/*.zip",
+    "**/*.der",
+    "**/*.crt",
+    "**/*.key",
+    "**/*.pem",
+    ".certs/**"
+  ]
+}
