@@ -32,37 +32,42 @@ Al tomar el proyecto, la aplicación presentaba una arquitectura funcional basad
 *   **Recuperación del Mapa:** Se corrigió la ruta relativa del plano (`ui/plano.jpg` → `/ui/plano.jpg`) que impedía su carga en ciertas rutas.
 *   **Corrección de Sintaxis:** Se reparó un error de sintaxis en `app.js` (cierre de función `wireUi`) que bloqueaba la ejecución total del Javascript.
 
-### Fase 3: Nueva Funcionalidad - Distinción de Archivos
-Se implementó una separación lógica y visual completa entre **Imágenes** y **Documentos**:
+### Fase 4: Refactorización y Modularización (Frontend)
+Para mejorar la mantenibilidad y escalabilidad, se transformó el frontend monolítico en una arquitectura modular moderna:
 
-#### Base de Datos
-*   Añadidas columnas: `text_url`, `resolution_photo_url`, `resolution_thumb_url`, `resolution_text_url`.
-
-#### Backend
-*   Reconfiguración de `multer` para aceptar múltiples campos específicos: `photo`, `file`, `resolution_photo`, `resolution_doc`.
-*   Nuevos endpoints: `GET /categories` para alimentar los desplegables del frontend de forma dinámica.
-
-#### Frontend
-*   **Creación:** Formulario con dos botones de subida independientes ("📷 Foto" y "📄 Documento").
-*   **Edición Completa:** Se añadió la capacidad de **sustituir la foto y el documento original** desde el modal de edición, además de las pruebas de resolución.
-*   **Categorías Dinámicas:** Los desplegables se pueblan automáticamente con las categorías existentes en la base de datos.
-*   **UX y Visualización:**
-    *   **Visor de Documentos Integrado:** Implementado un modal que usa `fetch` para leer archivos `.txt` y `.md`.
-    *   **Renderizado Markdown:** Integración de la librería `marked.js` para visualizar archivos Markdown con formato rico (encabezados, negritas, etc.).
-    *   **Corrección de Flujo:** Los botones de documentos en el listado ahora abren el visor en lugar de forzar la descarga.
-    *   **Gestión de Capas (Z-Index):** Ajuste de niveles de profundidad para que los visores de archivos aparezcan siempre por encima del modal de detalle.
+*   **Arquitectura de Módulos ES6:** Se dividió `app.js` (~2000 líneas) en 9 módulos especializados dentro de `src/public/ui/modules/`:
+    *   `config.js`: Constantes y configuración centralizada.
+    *   `store.js`: Gestión del estado global y persistencia local (Favs/Mine).
+    *   `utils.js`: Funciones auxiliares de UI, formateo y decoradores (`withBusy`).
+    *   `api.js`: Lógica de comunicación con el backend y gestión CSRF.
+    *   `map.js`: Abstracción completa de la lógica de Leaflet y marcadores.
+    *   `list.js`: Motor de renderizado del listado de tareas y filtros.
+    *   `details.js`: Gestión compleja del modal de detalle, visualización de evidencias y modo edición.
+    *   `modals.js`: Controladores para los visores de fotos y documentos.
+    *   `forms.js`: Lógica de los formularios de creación y configuración.
+*   **Optimización de Carga:** Se actualizó `index.html` para usar `<script type="module">`, permitiendo al navegador gestionar las dependencias de forma nativa.
+*   **Resolución de Conflictos TDZ:** Se corrigieron problemas de dependencias circulares mediante el uso de declaraciones de funciones hoisted.
 
 ---
 
 ## 3. Estado Actual
-La aplicación es funcional, estable y ofrece una gestión documental avanzada.
-*   **Soporte Multi-archivo:** Gestión independiente de evidencias gráficas y documentales.
-*   **Visualización Rica:** Lectura de informes en Markdown directamente en la app.
-*   **Dinamicidad:** Las categorías crecen orgánicamente con el uso de la aplicación.
+La aplicación es funcional, estable y presenta un código limpio y profesional:
+*   **Gestión Documental:** Separación clara entre imágenes y documentos de texto en todo el stack.
+*   **Visualización Avanzada:** Renderizado rico de Markdown y visor de documentos integrado.
+*   **Backend Robusto:** Logs detallados, validaciones regionales y resiliencia ante fallos de conexión a DB.
+*   **Frontend Mantenible:** Estructura modular que permite añadir funcionalidades sin aumentar la complejidad técnica.
 
 ---
 
 ## 4. Sugerencias y Próximos Pasos
+
+### 🛠️ Técnicas
 1.  **Limpieza de Archivos Huérfanos:** Implementar lógica en el backend para borrar archivos físicos del disco cuando se sustituyen mediante `PATCH`.
-2.  **Modularización:** Considerar separar `app.js` en módulos para facilitar el mantenimiento a largo plazo.
-3.  **Búsqueda Avanzada:** Añadir filtros por rango de fechas en el listado de tareas.
+2.  **Validación de Esquema:** Migrar a una librería de validación como `Zod` o `Joi` en el backend para manejar la complejidad creciente de los campos de archivos.
+3.  **Unit Testing:** Restaurar y ampliar los tests (`supertest` / `jest`) para cubrir la nueva lógica de múltiples archivos.
+
+### ✨ Funcionales
+1.  **Exportación de Informes:** Botón para generar un PDF o CSV consolidado de las tareas filtradas.
+2.  **Búsqueda por Fecha:** Añadir un selector de rango de fechas en la barra de filtros.
+3.  **Historial de Cambios:** Guardar un log de quién y cuándo cambió el estado de una tarea (requeriría tabla de logs).
+4.  **Notificaciones Visuales:** Implementar un sistema de "badge" o contador de tareas abiertas en tiempo real (vía Polling o WebSockets).

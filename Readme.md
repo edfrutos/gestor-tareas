@@ -7,12 +7,14 @@
 ## 🚀 Características Principales
 
 - **Mapa/Plano Interactivo:** Visualización de tareas sobre una imagen local mediante Leaflet.
+- **Gestión Documental Dual:** Soporte independiente para **Imágenes** (evidencias gráficas) y **Documentos** (PDF, TXT, Markdown).
+- **Visor Integrado:** Previsualización de documentos y renderizado rico de **Markdown** sin salir de la aplicación.
+- **Categorías Dinámicas:** Los desplegables se alimentan automáticamente de las categorías existentes en la base de datos.
 - **Posicionamiento Simple:** Ubicación manual intuitiva mediante clic sobre el plano.
-- **Gestión Completa:** Ciclo de vida de incidencias (Abierta 🟦, En proceso 🟧, Resuelta 🟩).
-- **Dashboard Dual:** Interfaz dividida con herramientas de creación arriba y listado expandido abajo.
-- **Modo Edición:** Posibilidad de actualizar descripciones y añadir fotos de resolución una vez solucionado el problema.
-- **Privacidad Local:** Sistema de favoritos y "Mis incidencias" persistido en el navegador (localStorage).
-- **Entorno Seguro:** HTTPS local automático, protección CSRF, Rate Limiting y políticas CSP.
+- **Gestión Completa:** Ciclo de vida de tareas (Abierta 🟦, En proceso 🟧, Resuelta 🟩).
+- **Modo Edición Avanzado:** Posibilidad de sustituir archivos originales y añadir pruebas de resolución por separado.
+- **Privacidad Local:** Sistema de favoritos y "Mis tareas" persistido en el navegador (localStorage).
+- **Entorno Seguro:** HTTPS local automático (Caddy), protección CSRF y Rate Limiting.
 
 ---
 
@@ -113,15 +115,16 @@ Caddy genera una CA local automáticamente. Para confiar en ella:
 
 ```text
 ├── src/
-│   ├── app.js          # Lógica principal Express
-│   ├── server.js       # Punto de entrada
+│   ├── app.js          # Configuración Express y Seguridad
+│   ├── server.js       # Punto de entrada del servidor
 │   ├── db/             # Capa de persistencia (SQLite)
-│   ├── middleware/     # Seguridad, Logger, Rate-Limit
-│   ├── public/         # Frontend (HTML, CSS, UI JS)
+│   ├── public/         # Frontend
+│   │   ├── index.html  # Aplicación Single Page (SPA)
+│   │   └── ui/         # Activos UI y Orquestador JS
+│   │       └── modules/# Módulos ES6 (Api, Map, List, Forms...)
 │   ├── routes/         # Definición de Endpoints API
 │   └── scripts/        # Herramientas de mantenimiento
-├── docs/               # Manuales detallados (ignorados por Git)
-├── uploads/            # Almacenamiento de imágenes (fotos/thumbs)
+├── uploads/            # Almacenamiento de archivos y miniaturas
 └── tests/              # Tests funcionales de la API
 ```
 
