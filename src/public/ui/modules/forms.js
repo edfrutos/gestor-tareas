@@ -1,7 +1,7 @@
 import { API_BASE, LS_API_KEY } from "./config.js";
 import { fetchJson, getApiKey } from "./api.js";
 import { $, withBusy, setStatus, setButtonBusy, setGlobalLoading, toast, safeText } from "./utils.js";
-import { loadIssues } from "./list.js";
+import { loadIssues } from "./list.v2.js";
 import { setLatLng, ensureMap } from "./map.js";
 import { state, markMine } from "./store.js";
 

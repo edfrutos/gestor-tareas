@@ -209,6 +209,34 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+const { get } = require("./db/sqlite");
+
+async function checkDatabaseConnection() {
+  try {
+    await get("SELECT 1");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function checkUploadsDir() {
+  try {
+    await fs.access(uploadDir, fs.constants.W_OK);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function checkExternalService() {
+  return { ok: true, skipped: true };
+}
+
+function msSince(start) {
+  return Date.now() - start;
+}
+
 // health
 app.get("/health", async (req, res) => {
   const startedAt = Date.now();

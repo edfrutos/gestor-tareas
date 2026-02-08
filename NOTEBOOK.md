@@ -48,6 +48,28 @@ Para mejorar la mantenibilidad y escalabilidad, se transformó el frontend monol
 *   **Optimización de Carga:** Se actualizó `index.html` para usar `<script type="module">`, permitiendo al navegador gestionar las dependencias de forma nativa.
 *   **Resolución de Conflictos TDZ:** Se corrigieron problemas de dependencias circulares mediante el uso de declaraciones de funciones hoisted.
 
+### Fase 5: Mantenimiento y Calidad
+*   **Limpieza de Archivos Huérfanos:**
+    *   Se implementó lógica en `src/routes/issues.routes.js` (endpoints `PATCH` y `DELETE`) para eliminar automáticamente archivos físicos (imágenes y documentos) cuando son reemplazados o la tarea es eliminada.
+    *   Se creó `tests/files.test.js` para validar este comportamiento.
+*   **Corrección de Bugs Silenciosos:**
+    *   Se reparó el endpoint `GET /health` en `src/app.js` que fallaba por funciones no definidas (`checkDatabaseConnection`, etc.).
+    *   Se restauró la ejecución de tests unitarios (`npm test`) reinstalando dependencias de desarrollo (`supertest`).
+*   **Validación de Esquema (Zod):**
+    *   Se migró la validación manual de datos a **Zod**, centralizando las reglas en `src/schemas/issue.schema.js`.
+    *   Se refactorizó `src/routes/issues.routes.js` (GET, POST, PATCH) para usar `createIssueSchema`, `updateIssueSchema` y `getIssuesSchema`.
+    *   Se eliminaron funciones helpers obsoletas (`toInt`, `clamp`, `toNum`) simplificando el controlador.
+
+### Fase 6: Funcionalidades Avanzadas de Usuario
+*   **Exportación de Informes (CSV):**
+    *   Se implementó el endpoint `GET /v1/issues/export` que genera un archivo CSV respetando los filtros activos.
+    *   Se añadió un botón "📥 CSV" en la barra de herramientas del Frontend.
+*   **Búsqueda por Fecha:**
+    *   Se añadieron campos de fecha (`Desde`, `Hasta`) en la interfaz de usuario.
+    *   Se actualizó el esquema Zod y la lógica SQL para filtrar por rango de creación (`created_at`).
+    *   Se refactorizó la lógica de construcción de queries (`buildWhereClause`) para compartirla entre el listado y la exportación.
+    *   **Corrección:** Se ajustó `validateSchema` para manejar correctamente los errores de Zod v3 (`.issues`).
+
 ---
 
 ## 3. Estado Actual
@@ -55,19 +77,18 @@ La aplicación es funcional, estable y presenta un código limpio y profesional:
 *   **Gestión Documental:** Separación clara entre imágenes y documentos de texto en todo el stack.
 *   **Visualización Avanzada:** Renderizado rico de Markdown y visor de documentos integrado.
 *   **Backend Robusto:** Logs detallados, validaciones regionales y resiliencia ante fallos de conexión a DB.
+*   **Seguridad y Calidad:** Validaciones estrictas con Zod y tests unitarios funcionales.
 *   **Frontend Mantenible:** Estructura modular que permite añadir funcionalidades sin aumentar la complejidad técnica.
+*   **Ciclo de Vida de Archivos:** El sistema ahora se autogestiona, evitando la acumulación de basura digital.
+*   **Herramientas de Análisis:** Capacidad de filtrar por fechas y exportar datos para análisis externo.
 
 ---
 
 ## 4. Sugerencias y Próximos Pasos
 
 ### 🛠️ Técnicas
-1.  **Limpieza de Archivos Huérfanos:** Implementar lógica en el backend para borrar archivos físicos del disco cuando se sustituyen mediante `PATCH`.
-2.  **Validación de Esquema:** Migrar a una librería de validación como `Zod` o `Joi` en el backend para manejar la complejidad creciente de los campos de archivos.
-3.  **Unit Testing:** Restaurar y ampliar los tests (`supertest` / `jest`) para cubrir la nueva lógica de múltiples archivos.
+1.  **Unit Testing:** Ampliar la cobertura de tests (`tests/api.test.js` y `tests/files.test.js` ya cubren lo crítico, pero faltan casos borde).
 
 ### ✨ Funcionales
-1.  **Exportación de Informes:** Botón para generar un PDF o CSV consolidado de las tareas filtradas.
-2.  **Búsqueda por Fecha:** Añadir un selector de rango de fechas en la barra de filtros.
-3.  **Historial de Cambios:** Guardar un log de quién y cuándo cambió el estado de una tarea (requeriría tabla de logs).
-4.  **Notificaciones Visuales:** Implementar un sistema de "badge" o contador de tareas abiertas en tiempo real (vía Polling o WebSockets).
+1.  **Historial de Cambios:** Guardar un log de quién y cuándo cambió el estado de una tarea (requeriría tabla de logs).
+2.  **Notificaciones Visuales:** Implementar un sistema de "badge" o contador de tareas abiertas en tiempo real (vía Polling o WebSockets).

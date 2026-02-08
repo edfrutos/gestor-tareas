@@ -4,7 +4,7 @@ import { fetchJson } from "./api.js";
 import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, withBusy, setButtonBusy, toast } from "./utils.js";
 import { setLatLng } from "./map.js";
 import { showDocModal } from "./modals.js";
-import { loadIssues } from "./list.js";
+import { loadIssues } from "./list.v2.js";
 
 let currentDetailId = null;
 

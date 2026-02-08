@@ -7,7 +7,7 @@ import { openDetailModal } from "./details.js";
 import { showPhotoModal, showDocModal } from "./modals.js";
 
 // Filtros
-let qEl, fStatusEl, fCategoryEl, sortEl, onlyMineEl, onlyFavsEl, btnMoreEl;
+let qEl, fStatusEl, fCategoryEl, sortEl, onlyMineEl, onlyFavsEl, btnMoreEl, btnExportEl, startDateEl, endDateEl;
 
 export function ensureFiltersBar() {
   qEl = $("#q");
@@ -17,6 +17,12 @@ export function ensureFiltersBar() {
   onlyMineEl = $("#onlyMine");
   onlyFavsEl = $("#onlyFavs");
   btnMoreEl = $("#btnMore");
+  btnExportEl = $("#btnExport");
+  startDateEl = $("#startDate");
+  endDateEl = $("#endDate");
+
+  console.log("[DEBUG] StartDate element found:", !!startDateEl);
+  console.log("[DEBUG] EndDate element found:", !!endDateEl);
 
   // Inyectar si no existen (lógica simplificada, asumo que existen en index.html o se inyectan igual que antes)
   // ... (omito la inyección HTML larga para brevedad, asumo index.html completo)
@@ -24,7 +30,10 @@ export function ensureFiltersBar() {
   if (ensureFiltersBar._bound) return;
   ensureFiltersBar._bound = true;
 
-  const reload = () => loadIssues({ reset: true });
+  const reload = () => {
+      console.log("[DEBUG] Reload triggered. StartDate value:", startDateEl?.value);
+      loadIssues({ reset: true });
+  };
 
   let qTimer = null;
   if (qEl) qEl.addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(reload, 250); });
@@ -36,8 +45,17 @@ export function ensureFiltersBar() {
   if (sortEl) sortEl.addEventListener("change", reload);
   if (onlyMineEl) onlyMineEl.addEventListener("change", reload);
   if (onlyFavsEl) onlyFavsEl.addEventListener("change", reload);
+  if (startDateEl) startDateEl.addEventListener("change", reload);
+  if (endDateEl) endDateEl.addEventListener("change", reload);
 
   if (btnMoreEl) btnMoreEl.addEventListener("click", () => loadIssues({ reset: false }));
+  if (btnExportEl) btnExportEl.addEventListener("click", downloadExport);
+}
+
+function downloadExport() {
+  const qs = buildQuery(1); // Page doesn't matter for export, but filters do
+  const url = `${API_BASE}/issues/export?${qs}`;
+  window.open(url, "_blank");
 }
 
 function buildQuery(page) {
@@ -50,8 +68,19 @@ function buildQuery(page) {
   if (fStatusEl?.value) params.set("status", fStatusEl.value);
   if (fCategoryEl?.value) params.set("category", fCategoryEl.value.trim());
   if (sortEl?.value) params.set("order", sortEl.value);
+  
+  if (startDateEl?.value) {
+    console.log("Fecha Inicio seleccionada:", startDateEl.value);
+    params.set("startDate", startDateEl.value);
+  }
+  if (endDateEl?.value) {
+    console.log("Fecha Fin seleccionada:", endDateEl.value);
+    params.set("endDate", endDateEl.value);
+  }
 
-  return params.toString();
+  const qs = params.toString();
+  console.log("Enviando consulta al servidor:", qs);
+  return qs;
 }
 
 function renderEmptyState() {

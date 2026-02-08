@@ -1,5 +1,5 @@
 import { wireForms, loadCategories } from "./modules/forms.js";
-import { loadIssues } from "./modules/list.js";
+import { loadIssues } from "./modules/list.v2.js";
 import { getConfig } from "./modules/api.js";
 import { ensureMap } from "./modules/map.js";
 import { setStatus, $ } from "./modules/utils.js";

@@ -9,8 +9,21 @@ const sharp = require("sharp");
 const { run, all, get } = require("../db/sqlite");
 const requireApiKey = require("../middleware/apiKey.middleware");
 const { getUploadDir, getThumbsDir } = require("../config/paths");
+const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 
 const router = express.Router();
+
+function validateSchema(schema, data) {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const issues = result.error.issues || [];
+    const errorMessages = issues.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+    const err = new Error(`Validation Error: ${errorMessages}`);
+    err.status = 400;
+    throw err;
+  }
+  return result.data;
+}
 
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
@@ -69,21 +82,6 @@ const uploadMiddleware = upload.fields([
   { name: "resolution_doc", maxCount: 1 }
 ]);
 
-function toInt(v, def) {
-  const n = Number.parseInt(String(v ?? ""), 10);
-  return Number.isFinite(n) ? n : def;
-}
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n));
-}
-function toNum(v) {
-  if (typeof v === "string") {
-    v = v.replace(",", ".");
-  }
-  const n = Number(v);
-  return Number.isFinite(n) ? n : NaN;
-}
-
 function photoToThumbUrl(photoUrl) {
   if (!photoUrl) return null;
   if (!photoUrl.startsWith("/uploads/")) return null;
@@ -113,47 +111,77 @@ async function makeThumbIfNeeded(photoFilename) {
   }
 }
 
+function deleteFileByUrl(url) {
+  if (!url || !url.startsWith("/uploads/")) return;
+  const filename = url.replace("/uploads/", "");
+  const filepath = path.join(uploadDir, filename);
+  
+  fs.unlink(filepath, (err) => {
+    if (err && err.code !== "ENOENT") console.error(`Error deleting file ${filepath}:`, err);
+  });
+
+  // Intentar borrar thumb si es imagen (por si acaso)
+  const thumbPath = path.join(thumbsDir, `${filename}.webp`);
+  fs.unlink(thumbPath, (err) => {
+    if (err && err.code !== "ENOENT") {
+      // Ignoramos error en thumb porque no todos los archivos tienen thumb
+    }
+  });
+}
+
+// Helper para construir cláusula WHERE
+function buildWhereClause(query) {
+  const { status, category, q, startDate, endDate } = query;
+  const where = [];
+  const params = [];
+
+  if (status) {
+    where.push("status = ?");
+    params.push(status);
+  }
+  if (category) {
+    where.push("category = ?");
+    params.push(category);
+  }
+  if (q) {
+    where.push("(title LIKE ? OR description LIKE ?)");
+    params.push(`%${q}%`, `%${q}%`);
+  }
+  if (startDate) {
+    where.push("created_at >= ?");
+    params.push(`${startDate}T00:00:00`);
+  }
+  if (endDate) {
+    where.push("created_at <= ?");
+    params.push(`${endDate}T23:59:59`);
+  }
+
+  return {
+    sql: where.length ? `WHERE ${where.join(" AND ")}` : "",
+    params
+  };
+}
+
 // GET /v1/issues?page=1&pageSize=10&status=open&category=alumbrado&q=farola&order=new|old|cat|status (legacy: sort=newest|oldest)
 router.get("/", async (req, res, next) => {
   try {
-    const page = clamp(toInt(req.query.page, 1), 1, 10_000);
-    const pageSize = clamp(toInt(req.query.pageSize, 10), 1, 100);
-    const offset = (page - 1) * pageSize;
+    const query = validateSchema(getIssuesSchema, req.query);
+    const { page, pageSize, status, category, q, sort } = query;
+    let { order } = query;
 
-    const status = req.query.status ? String(req.query.status) : "";
-    const category = req.query.category ? String(req.query.category) : "";
-    const q = req.query.q ? String(req.query.q).trim() : "";
-
-    // UI nueva manda `order=new|old|cat|status`. Por compatibilidad aceptamos `sort=newest|oldest`.
+    // Legacy support logic moved from manual parsing
     const orderRaw = req.query.order ? String(req.query.order) : "";
     const sortLegacy = req.query.sort ? String(req.query.sort) : "";
 
-    let order = (orderRaw || "").trim();
-    if (!order && sortLegacy) {
+    if (!orderRaw && sortLegacy) {
       order = sortLegacy.trim() === "oldest" ? "old" : "new";
     }
-    if (!order) order = "new";
-
-    // allowlist
+    
+    // Default fallback provided by schema, but ensure valid enum if legacy overrode it poorly (though schema catches most)
     if (!["new", "old", "cat", "status"].includes(order)) order = "new";
 
-    const where = [];
-    const params = [];
-
-    if (status) {
-      where.push("status = ?");
-      params.push(status);
-    }
-    if (category) {
-      where.push("category = ?");
-      params.push(category);
-    }
-    if (q) {
-      where.push("(title LIKE ? OR description LIKE ?)");
-      params.push(`%${q}%`, `%${q}%`);
-    }
-
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const offset = (page - 1) * pageSize;
+    const { sql: whereSql, params } = buildWhereClause(query);
 
     let orderSql = "ORDER BY datetime(created_at) DESC"; // default: new
 
@@ -218,6 +246,86 @@ router.get("/categories", async (req, res, next) => {
   }
 });
 
+// GET /v1/issues/export (CSV)
+router.get("/export", async (req, res, next) => {
+  try {
+    // Validamos query params (reutilizamos el esquema de GET, aunque ignoraremos page/pageSize)
+    const query = validateSchema(getIssuesSchema, req.query);
+    let { order } = query;
+
+    // Legacy support logic
+    const orderRaw = req.query.order ? String(req.query.order) : "";
+    const sortLegacy = req.query.sort ? String(req.query.sort) : "";
+
+    if (!orderRaw && sortLegacy) {
+      order = sortLegacy.trim() === "oldest" ? "old" : "new";
+    }
+    if (!["new", "old", "cat", "status"].includes(order)) order = "new";
+
+    const { sql: whereSql, params } = buildWhereClause(query);
+    
+    let orderSql = "ORDER BY datetime(created_at) DESC";
+    if (order === "old") orderSql = "ORDER BY datetime(created_at) ASC";
+    else if (order === "cat") orderSql = "ORDER BY lower(category) ASC, datetime(created_at) DESC";
+    else if (order === "status") {
+       orderSql = `ORDER BY CASE status
+        WHEN 'open' THEN 0
+        WHEN 'in_progress' THEN 1
+        WHEN 'resolved' THEN 2
+        ELSE 9
+      END ASC, datetime(created_at) DESC`;
+    }
+
+    // Sin límite de paginación para exportar todo lo filtrado
+    const items = await all(
+      `
+      SELECT id, title, category, description, lat, lng, status, created_at, photo_url, text_url
+      FROM issues
+      ${whereSql}
+      ${orderSql}
+      `,
+      params
+    );
+
+    // Generar CSV
+    const headers = ["ID", "Fecha", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
+    
+    // Helper para escapar CSV (comillas dobles -> dobles comillas dobles, envolver en comillas si hay comas o saltos)
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return "";
+      const str = String(val);
+      if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const csvRows = items.map(it => {
+      return [
+        it.id,
+        it.created_at,
+        it.status,
+        it.category,
+        it.title,
+        it.description,
+        it.lat,
+        it.lng,
+        it.photo_url || "",
+        it.text_url || ""
+      ].map(escapeCsv).join(",");
+    });
+
+    const csvContent = [headers.join(","), ...csvRows].join("\n");
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="issues.csv"');
+    res.send(csvContent);
+
+  } catch (e) {
+    next(e);
+  }
+});
+
 // POST /v1/issues (multipart con file opcional) - API KEY requerida
 router.post("/", requireApiKey(), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
@@ -229,24 +337,8 @@ router.post("/", requireApiKey(), (req, res, next) => {
   });
 }, async (req, res, next) => {
   try {
-    const body = req.body || {};
-
-    const title = body.title != null ? String(body.title).trim() : "";
-    const category = body.category != null ? String(body.category).trim() : "";
-    const description = body.description != null ? String(body.description).trim() : "";
-
-    const lat = toNum(body.lat);
-    const lng = toNum(body.lng);
-
-    if (!title || !category || !description || Number.isNaN(lat) || Number.isNaN(lng)) {
-      return res.status(400).json({
-        error: {
-          code: "bad_request",
-          message: "Campos requeridos: title, category, description, lat, lng",
-          requestId: req.id,
-        },
-      });
-    }
+    const body = validateSchema(createIssueSchema, req.body);
+    const { title, category, description, lat, lng } = body;
 
     const createdAt = new Date().toISOString();
 
@@ -300,36 +392,37 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
   });
 }, async (req, res, next) => {
   try {
-    const id = toInt(req.params.id, 0);
-    const body = req.body || {};
-    
-    // Permitir updates parciales
-    const status = body.status ? String(body.status) : null;
-    const description = body.description ? String(body.description).trim() : null;
+    const id = Number(req.params.id);
+    // Validar cuerpo
+    const body = validateSchema(updateIssueSchema, req.body || {});
+    const { status, description } = body;
 
-    if (!id) {
+    if (!id || !Number.isInteger(id)) {
       return res.status(400).json({
         error: { code: "bad_request", message: "id inválido", requestId: req.id },
       });
     }
 
+    // 1. Obtener estado actual para comparar archivos
+    const currentIssue = await get(`SELECT * FROM issues WHERE id = ?`, [id]);
+    if (!currentIssue) {
+      return res.status(404).json({
+        error: { code: "not_found", message: "Issue no encontrada", requestId: req.id },
+      });
+    }
+
     const updates = [];
     const params = [];
+    const filesToDelete = []; // Lista de archivos viejos a borrar si el update es exitoso
 
-    // Validar status si viene
+    // Validar status si viene (ya validado por schema, solo añadir a query)
     if (status) {
-      const allowed = new Set(["open", "in_progress", "resolved"]);
-      if (!allowed.has(status)) {
-        return res.status(400).json({
-          error: { code: "bad_request", message: "status inválido", requestId: req.id },
-        });
-      }
       updates.push("status = ?");
       params.push(status);
     }
 
     // Validar description si viene
-    if (description !== null) {
+    if (description !== undefined && description !== null) {
       updates.push("description = ?");
       params.push(description);
     }
@@ -346,6 +439,8 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
       updates.push("thumb_url = ?");
       params.push(thumbUrl);
 
+      if (currentIssue.photo_url) filesToDelete.push(currentIssue.photo_url);
+
       try {
         await makeThumbIfNeeded(f.filename);
       } catch (_e) { /* ignore */ }
@@ -358,6 +453,8 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
 
       updates.push("text_url = ?");
       params.push(textUrl);
+
+      if (currentIssue.text_url) filesToDelete.push(currentIssue.text_url);
     }
 
     // Procesar foto de resolución
@@ -372,6 +469,8 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
       updates.push("resolution_thumb_url = ?");
       params.push(thumbUrl);
 
+      if (currentIssue.resolution_photo_url) filesToDelete.push(currentIssue.resolution_photo_url);
+
       try {
         await makeThumbIfNeeded(f.filename);
       } catch (_e) { /* ignore */ }
@@ -384,6 +483,8 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
 
       updates.push("resolution_text_url = ?");
       params.push(textUrl);
+
+      if (currentIssue.resolution_text_url) filesToDelete.push(currentIssue.resolution_text_url);
     }
 
     if (updates.length === 0) {
@@ -396,16 +497,15 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     params.push(id);
     await run(`UPDATE issues SET ${updates.join(", ")} WHERE id = ?`, params);
 
+    // Si todo salió bien, borramos los archivos viejos
+    for (const url of filesToDelete) {
+      deleteFileByUrl(url);
+    }
+
     const updated = await get(
       `SELECT * FROM issues WHERE id = ?`,
       [id]
     );
-
-    if (!updated) {
-      return res.status(404).json({
-        error: { code: "not_found", message: "Issue no encontrada", requestId: req.id },
-      });
-    }
 
     res.setHeader("Cache-Control", "no-store");
     res.json({
@@ -424,25 +524,19 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
 // DELETE /v1/issues/:id
 router.delete("/:id", requireApiKey(), async (req, res, next) => {
   try {
-    const id = toInt(req.params.id, 0);
-    if (!id) {
+    const id = Number(req.params.id);
+    if (!id || !Number.isInteger(id)) {
       return res.status(400).json({
         error: { code: "bad_request", message: "id inválido", requestId: req.id },
       });
     }
 
-    const row = await get(`SELECT photo_url, resolution_photo_url FROM issues WHERE id = ?`, [id]);
+    const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url FROM issues WHERE id = ?`, [id]);
     await run(`DELETE FROM issues WHERE id = ?`, [id]);
 
     if (row) {
-      const urls = [row.photo_url, row.resolution_photo_url].filter((u) => u && u.startsWith("/uploads/"));
-      urls.forEach((u) => {
-        const filename = u.replace("/uploads/", "");
-        const photoPath = path.join(uploadDir, filename);
-        const thumbPath = path.join(thumbsDir, `${filename}.webp`);
-        fs.unlink(photoPath, () => {});
-        fs.unlink(thumbPath, () => {});
-      });
+      // Borrar todos los archivos asociados
+      [row.photo_url, row.resolution_photo_url, row.text_url, row.resolution_text_url].forEach(u => deleteFileByUrl(u));
     }
 
     res.setHeader("Cache-Control", "no-store");

@@ -782,6 +782,11 @@
             </select>
           </div>
 
+          <div class="filters-dates" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <input type="date" id="startDate" title="Desde fecha" style="color-scheme:dark;" />
+            <input type="date" id="endDate" title="Hasta fecha" style="color-scheme:dark;" />
+          </div>
+
           <div class="filters2" style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
             <div class="checks" style="display:flex; gap:10px;">
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis incidencias</label>
@@ -795,6 +800,7 @@
                 <option value="cat">Categoría</option>
                 <option value="status">Estado</option>
               </select>
+              <button class="btn small" id="btnExport" type="button" title="Descargar CSV filtrado">📥 CSV</button>
               <button class="btn small" id="btnMore" type="button">Cargar más</button>
             </div>
           </div>
@@ -952,6 +958,6 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="https://unpkg.com/marked@12.0.0/marked.min.js" defer></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
-  <script src="ui/app.js?v=4" type="module"></script>
+  <script src="ui/app.js?v=10" type="module"></script>
 </body>
 </html>
