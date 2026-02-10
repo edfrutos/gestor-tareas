@@ -834,6 +834,12 @@
       </div>
       <div class="detailBody">
         <div class="detailMain">
+          <!-- Edit Mode: Category -->
+          <div id="dmEditCatContainer" style="display:none; margin-bottom:12px;">
+             <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Categoría</label>
+             <input id="dmEditCategory" class="small-input" list="categoryOptions" placeholder="Selecciona categoría..." style="width:100%; padding:10px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px;" />
+          </div>
+
           <div id="dmImgContainer" style="display:none;">
             <img id="dmImg" class="detailImg" alt="Prueba gráfica" loading="lazy" />
           </div>
@@ -849,11 +855,6 @@
           <!-- View Mode: Description -->
           <div id="dmDesc" class="detailDesc"></div>
           
-          <!-- Edit Mode: Category & Description -->
-          <div id="dmEditCatContainer" style="display:none; margin-bottom:10px;">
-             <label style="font-size:12px; color:var(--muted); margin-bottom:4px;">Categoría</label>
-             <input id="dmEditCategory" class="small-input" list="categoryOptions" placeholder="Selecciona categoría..." style="width:100%; padding:8px 10px;" />
-          </div>
           <textarea id="dmEditDesc" class="small-input" style="display:none; min-height:120px; font-size:14px; line-height:1.5; padding:10px; width:100%; box-sizing:border-box;" placeholder="Descripción de la situación..."></textarea>
           
           <!-- Sección de resolución (View Mode) -->

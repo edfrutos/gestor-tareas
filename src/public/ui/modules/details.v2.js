@@ -79,7 +79,6 @@ function translateStatus(s) {
 }
 
 function toggleEditMode(enable) {
-  console.log("toggleEditMode", enable);
   const displayView = enable ? "none" : "block";
   const displayEdit = enable ? "block" : "none";
   const displayFlexView = enable ? "none" : "grid"; 
@@ -87,7 +86,6 @@ function toggleEditMode(enable) {
 
   const catContainer = $("#dmEditCatContainer");
   if(catContainer) catContainer.style.display = displayEdit;
-  else console.warn("dmEditCatContainer not found");
 
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;

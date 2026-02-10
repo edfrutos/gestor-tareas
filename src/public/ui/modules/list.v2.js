@@ -3,7 +3,7 @@ import { API_BASE } from "./config.js";
 import { fetchJson } from "./api.js";
 import { $, safeText, statusLabel, catColor, resolveSameOriginUrl, setImgFallback, withBusy, setStatus, toast } from "./utils.js";
 import { addMarkers, clearMarkers } from "./map.js";
-import { openDetailModal } from "./details.js";
+import { openDetailModal } from "./details.v2.js";
 import { showPhotoModal, showDocModal } from "./modals.js";
 
 // Filtros
