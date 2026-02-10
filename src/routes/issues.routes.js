@@ -131,7 +131,7 @@ function deleteFileByUrl(url) {
 
 // Helper para construir cláusula WHERE
 function buildWhereClause(query) {
-  const { status, category, q, startDate, endDate } = query;
+  const { status, category, q, from, to } = query;
   const where = [];
   const params = [];
 
@@ -147,19 +147,31 @@ function buildWhereClause(query) {
     where.push("(title LIKE ? OR description LIKE ?)");
     params.push(`%${q}%`, `%${q}%`);
   }
-  if (startDate) {
+  if (from) {
     where.push("created_at >= ?");
-    params.push(`${startDate}T00:00:00`);
+    params.push(`${from}T00:00:00`);
   }
-  if (endDate) {
+  if (to) {
     where.push("created_at <= ?");
-    params.push(`${endDate}T23:59:59`);
+    params.push(`${to}T23:59:59`);
   }
 
   return {
     sql: where.length ? `WHERE ${where.join(" AND ")}` : "",
     params
   };
+}
+
+async function logChange(issueId, action, oldValue = null, newValue = null) {
+  const createdAt = new Date().toISOString();
+  try {
+    await run(
+      `INSERT INTO issue_logs (issue_id, action, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [issueId, action, oldValue ? String(oldValue) : null, newValue ? String(newValue) : null, createdAt]
+    );
+  } catch (err) {
+    console.error(`Error logging change for issue ${issueId}:`, err);
+  }
 }
 
 // GET /v1/issues?page=1&pageSize=10&status=open&category=alumbrado&q=farola&order=new|old|cat|status (legacy: sort=newest|oldest)
@@ -226,6 +238,45 @@ router.get("/", async (req, res, next) => {
       total: row ? row.total : 0,
       items: withThumbs,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /v1/issues/:id/logs
+router.get("/:id/logs", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || !Number.isInteger(id)) {
+      return res.status(400).json({ error: { code: "bad_request", message: "ID inválido" } });
+    }
+    const logs = await all(
+      `SELECT * FROM issue_logs WHERE issue_id = ? ORDER BY datetime(created_at) DESC`,
+      [id]
+    );
+    res.json(logs);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /v1/issues/stats (conteo rápido)
+router.get("/stats", async (req, res, next) => {
+  try {
+    const rows = await all(`SELECT status, COUNT(*) as count FROM issues GROUP BY status`);
+    const stats = {
+      open: 0,
+      in_progress: 0,
+      resolved: 0,
+      total: 0
+    };
+    rows.forEach(r => {
+      stats[r.status] = r.count;
+      stats.total += r.count;
+    });
+    // Evitar caché
+    res.setHeader("Cache-Control", "no-store");
+    res.json(stats);
   } catch (e) {
     next(e);
   }
@@ -372,6 +423,9 @@ router.post("/", requireApiKey(), (req, res, next) => {
       [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt]
     );
 
+    // Log creation
+    await logChange(result.lastID, "create");
+
     const created = await get(
       `SELECT * FROM issues WHERE id = ?`,
       [result.lastID]
@@ -496,6 +550,29 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     // Ejecutar UPDATE
     params.push(id);
     await run(`UPDATE issues SET ${updates.join(", ")} WHERE id = ?`, params);
+
+    // Logging de cambios
+    const logPromises = [];
+    if (status && status !== currentIssue.status) {
+      logPromises.push(logChange(id, "update_status", currentIssue.status, status));
+    }
+    if (description !== undefined && description !== currentIssue.description) {
+      logPromises.push(logChange(id, "update_description", currentIssue.description, description));
+    }
+    // Si se subieron archivos, registrar
+    if (updates.some(u => u.startsWith("photo_url"))) {
+      logPromises.push(logChange(id, "update_photo", currentIssue.photo_url, "new_photo"));
+    }
+    if (updates.some(u => u.startsWith("text_url"))) {
+      logPromises.push(logChange(id, "update_doc", currentIssue.text_url, "new_doc"));
+    }
+    if (updates.some(u => u.startsWith("resolution_photo_url"))) {
+      logPromises.push(logChange(id, "resolution_photo", currentIssue.resolution_photo_url, "new_resolution_photo"));
+    }
+    if (updates.some(u => u.startsWith("resolution_text_url"))) {
+      logPromises.push(logChange(id, "resolution_doc", currentIssue.resolution_text_url, "new_resolution_doc"));
+    }
+    await Promise.all(logPromises);
 
     // Si todo salió bien, borramos los archivos viejos
     for (const url of filesToDelete) {

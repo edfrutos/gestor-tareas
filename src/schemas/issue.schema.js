@@ -17,8 +17,8 @@ const getIssuesSchema = z.object({
   q: z.string().optional(),
   order: z.enum(["new", "old", "cat", "status"]).optional().default("new"),
   sort: z.string().optional(), // legacy support
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 // Esquema para creación (POST /v1/issues)

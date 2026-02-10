@@ -57,9 +57,18 @@ function migrate() {
       created_at TEXT NOT NULL
     );
 
-    CREATE INDEX IF NOT EXISTS idx_issues_created_at ON issues(created_at);
-    CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
-    CREATE INDEX IF NOT EXISTS idx_issues_category ON issues(category);
+    CREATE TABLE IF NOT EXISTS issue_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      issue_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      old_value TEXT,
+      new_value TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id);
+    CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at);
   `);
 
   // Migración “suave” para bases existentes:

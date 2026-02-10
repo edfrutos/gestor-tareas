@@ -760,6 +760,11 @@
       <section class="card h-full">
         <h2>
           <span>🧾 Tareas</span>
+          <div id="statsBadges" style="display:inline-flex; gap:6px; margin-left:10px; vertical-align:middle;">
+             <span id="badgeOpen" class="badge" style="display:none; background:#3498db; color:#fff; font-weight:700; font-size:11px; padding:2px 8px;" title="Abiertas">0</span>
+             <span id="badgeProgress" class="badge" style="display:none; background:var(--warn); color:#000; font-weight:700; font-size:11px; padding:2px 8px;" title="En Proceso">0</span>
+             <span id="badgeResolved" class="badge" style="display:none; background:var(--ok); color:#fff; font-weight:700; font-size:11px; padding:2px 8px;" title="Resueltas">0</span>
+          </div>
           <span class="muted" id="listHint"></span>
         </h2>
 

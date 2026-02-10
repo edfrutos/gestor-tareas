@@ -4,6 +4,7 @@ import { getConfig } from "./modules/api.js";
 import { ensureMap } from "./modules/map.js";
 import { setStatus, $ } from "./modules/utils.js";
 import { LS_THEME } from "./modules/config.js";
+import { startStatsPolling } from "./modules/stats.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
@@ -67,6 +68,9 @@ function initTheme() {
     await getConfig();
     await loadCategories();
     await loadIssues({ reset: true });
+    
+    // Iniciar polling de stats
+    startStatsPolling();
     
   } catch (e) {
     console.error(e);

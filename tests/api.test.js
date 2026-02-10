@@ -149,4 +149,73 @@ describe("API Functional Tests", () => {
     const found = check.body.items.find((i) => i.id === createdIssueId);
     expect(found).toBeUndefined();
   });
+
+  describe("Edge Cases & Validation", () => {
+    test("POST /v1/issues fails with invalid coordinates", async () => {
+      const res = await request(app)
+        .post("/v1/issues")
+        .set("x-api-key", process.env.API_KEY)
+        .send({
+          title: "Error de coordenadas",
+          category: "test",
+          lat: 100, // Inválido (>90)
+          lng: -3.7,
+        });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBeDefined();
+    });
+
+    test("POST /v1/issues accepts coordinates with comma (Spanish format)", async () => {
+      const res = await request(app)
+        .post("/v1/issues")
+        .set("x-api-key", process.env.API_KEY)
+        .send({
+          title: "Coordenada con coma",
+          category: "test",
+          description: "Descripción obligatoria",
+          lat: "40,416",
+          lng: "-3,703",
+        });
+      expect(res.statusCode).toBe(201);
+      expect(Number(res.body.lat)).toBe(40.416);
+    });
+
+    test("GET /v1/issues filters by date range", async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+
+      // Filtrar por hoy: debería encontrar las creadas en este test
+      const resToday = await request(app).get(`/v1/issues?from=${today}&to=${today}`);
+      expect(resToday.body.total).toBeGreaterThan(0);
+
+      // Filtrar por mañana: debería estar vacío
+      const resFuture = await request(app).get(`/v1/issues?from=${tomorrow}`);
+      expect(resFuture.body.total).toBe(0);
+
+      // Filtrar con formato inválido: debería fallar (400) por validación Zod
+      const resInvalid = await request(app).get("/v1/issues?from=invalid-date");
+      expect(resInvalid.statusCode).toBe(400);
+    });
+
+    test("PATCH /v1/issues/:id fails with invalid status", async () => {
+      // Usamos el ID de la issue creada anteriormente con coma
+      const setup = await request(app).get("/v1/issues");
+      const id = setup.body.items[0].id;
+
+      const res = await request(app)
+        .patch(`/v1/issues/${id}`)
+        .set("x-api-key", process.env.API_KEY)
+        .send({ status: "invalid_status_name" });
+      
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("GET /v1/issues/export returns CSV", async () => {
+      const res = await request(app).get("/v1/issues/export");
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["content-type"]).toContain("text/csv");
+      // Cabeceras reales en español: ID,Fecha,Estado,Categoría,Título...
+      expect(res.text).toContain("ID,Fecha,Estado,Categoría,Título");
+    });
+  });
 });
