@@ -449,7 +449,7 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     const id = Number(req.params.id);
     // Validar cuerpo
     const body = validateSchema(updateIssueSchema, req.body || {});
-    const { status, description } = body;
+    const { status, description, category } = body;
 
     if (!id || !Number.isInteger(id)) {
       return res.status(400).json({
@@ -479,6 +479,12 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     if (description !== undefined && description !== null) {
       updates.push("description = ?");
       params.push(description);
+    }
+
+    // Validar category si viene
+    if (category) {
+      updates.push("category = ?");
+      params.push(category);
     }
 
     // Procesar foto original reemplazo
@@ -558,6 +564,9 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     }
     if (description !== undefined && description !== currentIssue.description) {
       logPromises.push(logChange(id, "update_description", currentIssue.description, description));
+    }
+    if (category && category !== currentIssue.category) {
+      logPromises.push(logChange(id, "update_category", currentIssue.category, category));
     }
     // Si se subieron archivos, registrar
     if (updates.some(u => u.startsWith("photo_url"))) {

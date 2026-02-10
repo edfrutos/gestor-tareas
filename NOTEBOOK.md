@@ -1,6 +1,6 @@
 # Notebook de Seguimiento - Gestor de Tareas
 
-**Fecha:** 7 de Febrero de 2026
+**Fecha:** 10 de Febrero de 2026
 **Contexto:** Intervención técnica sobre repositorio `gestor-tareas`.
 
 ## 1. Estado Inicial
@@ -33,62 +33,51 @@ Al tomar el proyecto, la aplicación presentaba una arquitectura funcional basad
 *   **Corrección de Sintaxis:** Se reparó un error de sintaxis en `app.js` (cierre de función `wireUi`) que bloqueaba la ejecución total del Javascript.
 
 ### Fase 4: Refactorización y Modularización (Frontend)
-Para mejorar la mantenibilidad y escalabilidad, se transformó el frontend monolítico en una arquitectura modular moderna:
-
-*   **Arquitectura de Módulos ES6:** Se dividió `app.js` (~2000 líneas) en 9 módulos especializados dentro de `src/public/ui/modules/`:
-    *   `config.js`: Constantes y configuración centralizada.
-    *   `store.js`: Gestión del estado global y persistencia local (Favs/Mine).
-    *   `utils.js`: Funciones auxiliares de UI, formateo y decoradores (`withBusy`).
-    *   `api.js`: Lógica de comunicación con el backend y gestión CSRF.
-    *   `map.js`: Abstracción completa de la lógica de Leaflet y marcadores.
-    *   `list.js`: Motor de renderizado del listado de tareas y filtros.
-    *   `details.js`: Gestión compleja del modal de detalle, visualización de evidencias y modo edición.
-    *   `modals.js`: Controladores para los visores de fotos y documentos.
-    *   `forms.js`: Lógica de los formularios de creación y configuración.
-*   **Optimización de Carga:** Se actualizó `index.html` para usar `<script type="module">`, permitiendo al navegador gestionar las dependencias de forma nativa.
-*   **Resolución de Conflictos TDZ:** Se corrigieron problemas de dependencias circulares mediante el uso de declaraciones de funciones hoisted.
+*   **Arquitectura de Módulos ES6:** Se dividió `app.js` en 9 módulos especializados (`api`, `store`, `map`, `list`, `details`, etc.).
+*   **Optimización de Carga:** Se actualizó `index.html` para usar `<script type="module">`.
+*   **Resolución de Conflictos TDZ:** Se corrigieron problemas de dependencias circulares.
 
 ### Fase 5: Mantenimiento y Calidad
-*   **Limpieza de Archivos Huérfanos:**
-    *   Se implementó lógica en `src/routes/issues.routes.js` (endpoints `PATCH` y `DELETE`) para eliminar automáticamente archivos físicos (imágenes y documentos) cuando son reemplazados o la tarea es eliminada.
-    *   Se creó `tests/files.test.js` para validar este comportamiento.
-*   **Corrección de Bugs Silenciosos:**
-    *   Se reparó el endpoint `GET /health` en `src/app.js` que fallaba por funciones no definidas (`checkDatabaseConnection`, etc.).
-    *   Se restauró la ejecución de tests unitarios (`npm test`) reinstalando dependencias de desarrollo (`supertest`).
-*   **Validación de Esquema (Zod):**
-    *   Se migró la validación manual de datos a **Zod**, centralizando las reglas en `src/schemas/issue.schema.js`.
-    *   Se refactorizó `src/routes/issues.routes.js` (GET, POST, PATCH) para usar `createIssueSchema`, `updateIssueSchema` y `getIssuesSchema`.
-    *   Se eliminaron funciones helpers obsoletas (`toInt`, `clamp`, `toNum`) simplificando el controlador.
+*   **Limpieza de Archivos Huérfanos:** Implementada lógica para borrar adjuntos físicos al borrar/actualizar tareas.
+*   **Validación de Esquema (Zod):** Migración completa a Zod para validación de datos en backend.
+*   **Corrección de Bugs Silenciosos:** Reparado endpoint `/health` y tests unitarios.
 
 ### Fase 6: Funcionalidades Avanzadas de Usuario
-*   **Exportación de Informes (CSV):**
-    *   Se implementó el endpoint `GET /v1/issues/export` que genera un archivo CSV respetando los filtros activos.
-    *   Se añadió un botón "📥 CSV" en la barra de herramientas del Frontend.
-*   **Búsqueda por Fecha:**
-    *   Se añadieron campos de fecha (`Desde`, `Hasta`) en la interfaz de usuario.
-    *   Se actualizó el esquema Zod y la lógica SQL para filtrar por rango de creación (`created_at`).
-    *   Se refactorizó la lógica de construcción de queries (`buildWhereClause`) para compartirla entre el listado y la exportación.
-    *   **Corrección:** Se ajustó `validateSchema` para manejar correctamente los errores de Zod v3 (`.issues`).
+*   **Exportación CSV:** Endpoint y botón para descargar informes filtrados.
+*   **Búsqueda por Fecha:** Filtros `from` y `to` implementados y corregidos.
+
+### Fase 7: Auditoría y Experiencia de Usuario (10 Feb 2026)
+*   **Historial de Cambios (Audit Log):**
+    *   **Base de Datos:** Tabla `issue_logs` creada.
+    *   **Backend:** Logging automático de acciones (`create`, `update`, etc.).
+    *   **Frontend:** Visualización del historial integrada en el modal de detalle con iconos y formato amigable.
+*   **Notificaciones Visuales (Polling):**
+    *   **UI:** Badges de colores (Azul/Naranja/Verde) en el encabezado mostrando tareas Abiertas/En Proceso/Resueltas en tiempo real (Polling 30s).
+*   **Infraestructura y DevOps:**
+    *   **Backups:** Script diario (`src/cron/backup.js`) para respaldar DB y adjuntos.
+    *   **CI/CD:** Flujo de GitHub Actions (`.github/workflows/ci.yml`) configurado para ejecutar tests en cada push.
 
 ---
 
 ## 3. Estado Actual
 La aplicación es funcional, estable y presenta un código limpio y profesional:
-*   **Gestión Documental:** Separación clara entre imágenes y documentos de texto en todo el stack.
+*   **Gestión Documental:** Separación clara entre imágenes y documentos de texto.
 *   **Visualización Avanzada:** Renderizado rico de Markdown y visor de documentos integrado.
-*   **Backend Robusto:** Logs detallados, validaciones regionales y resiliencia ante fallos de conexión a DB.
+*   **Backend Robusto:** Logs detallados, validaciones regionales y resiliencia ante fallos.
 *   **Seguridad y Calidad:** Validaciones estrictas con Zod y tests unitarios funcionales.
-*   **Frontend Mantenible:** Estructura modular que permite añadir funcionalidades sin aumentar la complejidad técnica.
-*   **Ciclo de Vida de Archivos:** El sistema ahora se autogestiona, evitando la acumulación de basura digital.
-*   **Herramientas de Análisis:** Capacidad de filtrar por fechas y exportar datos para análisis externo.
+*   **Auditoría Completa:** Traza de cambios visible para el usuario.
+*   **UX Reactiva:** Contadores de estado en tiempo real.
+*   **Automatización:** Backups diarios y CI/CD configurados.
 
 ---
 
 ## 4. Sugerencias y Próximos Pasos
 
 ### 🛠️ Técnicas
-1.  **Unit Testing:** Ampliar la cobertura de tests (`tests/api.test.js` y `tests/files.test.js` ya cubren lo crítico, pero faltan casos borde).
+1.  **Optimización de Imágenes:** Implementar compresión más agresiva (WebP con menor calidad) para miniaturas en móviles si el tráfico aumenta.
+2.  **Rate Limiting por IP:** Ajustar los límites de peticiones en `src/middleware/rateLimit.js` si se despliega públicamente para evitar abuso.
 
 ### ✨ Funcionales
-1.  **Historial de Cambios:** Guardar un log de quién y cuándo cambió el estado de una tarea (requeriría tabla de logs).
-2.  **Notificaciones Visuales:** Implementar un sistema de "badge" o contador de tareas abiertas en tiempo real (vía Polling o WebSockets).
+1.  **Autenticación Real:** Actualmente se usa una API Key compartida. Implementar usuarios reales (Login/Registro) para mejorar la auditoría (`user_id`).
+2.  **Comentarios:** Permitir añadir notas de texto a una tarea sin cambiar su estado.
+3.  **Geolocalización Inversa:** Mostrar la dirección postal aproximada (calle, número) obtenida de las coordenadas al crear una tarea.

@@ -3,6 +3,9 @@ const app = require("./app");
 const { migrate, openDb, closeDb } = require("./db/sqlite");
 const { logger } = require("./middleware/logger");
 
+// Backup system
+require("./cron/backup");
+
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 

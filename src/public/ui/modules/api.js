@@ -64,6 +64,10 @@ async function getCsrfToken() {
   return csrfInFlight;
 }
 
+export async function getIssueLogs(id) {
+  return await fetchJson(`${API_BASE}/issues/${id}/logs`);
+}
+
 export async function getConfig() {
   try {
     const res = await fetch(`${API_BASE}/config`, { credentials: "include" });

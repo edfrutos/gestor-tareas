@@ -40,12 +40,23 @@ export async function loadCategories() {
   try {
     const cats = await fetchJson(`${API_BASE}/issues/categories`);
     if (!Array.isArray(cats)) return;
-    const fill = (id) => {
-      const dl = document.getElementById(id);
-      if(dl) dl.innerHTML = cats.map(c => `<option value="${safeText(c)}"></option>`).join("");
-    };
-    fill("categoryOptions");
-    fill("categoryOptionsFilter");
+    
+    // Fill Datalist (Creation)
+    const dl = document.getElementById("categoryOptions");
+    if(dl) dl.innerHTML = cats.map(c => `<option value="${safeText(c)}"></option>`).join("");
+
+    // Fill Select (Filter)
+    const sel = document.getElementById("fCategory");
+    if(sel) {
+      const current = sel.value;
+      const opts = ['<option value="">Categoría: todas</option>'];
+      cats.forEach(c => {
+        const s = safeText(c);
+        opts.push(`<option value="${s}">${s.charAt(0).toUpperCase() + s.slice(1)}</option>`);
+      });
+      sel.innerHTML = opts.join("");
+      sel.value = current; // Mantener selección si existía
+    }
   } catch (e) { console.warn(e); }
 }
 
@@ -91,6 +102,7 @@ const createIssueMultipart = withBusy(async () => {
 
     toast("Creada ✅", "ok");
     await loadIssues({ reset: true });
+    await loadCategories(); // Actualizar desplegables con posibles nuevas categorías
     
     if (data?.id) {
       markMine(data.id);

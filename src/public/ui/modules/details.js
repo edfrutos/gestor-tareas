@@ -1,6 +1,6 @@
 import { state, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, getIssueLogs } from "./api.js";
 import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, withBusy, setButtonBusy, toast } from "./utils.js";
 import { setLatLng } from "./map.js";
 import { showDocModal } from "./modals.js";
@@ -8,11 +8,86 @@ import { loadIssues } from "./list.v2.js";
 
 let currentDetailId = null;
 
+function renderHistory(logs) {
+  const container = $("#dmHistoryItems");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!logs || logs.length === 0) {
+    container.innerHTML = "<span style='color:var(--muted); font-style:italic;'>Sin cambios registrados.</span>";
+    return;
+  }
+
+  logs.forEach(log => {
+    const date = new Date(log.created_at).toLocaleString();
+    let text = `Acción: ${log.action}`;
+    let icon = "🔹";
+
+    switch(log.action) {
+      case "create":
+        text = "Tarea creada";
+        icon = "✨";
+        break;
+      case "update_status":
+        text = `Estado: ${translateStatus(log.old_value)} ➝ <strong>${translateStatus(log.new_value)}</strong>`;
+        icon = "🔄";
+        break;
+      case "update_description":
+        text = "Descripción actualizada";
+        icon = "📝";
+        break;
+      case "update_category":
+        text = `Categoría: ${log.old_value} ➝ <strong>${log.new_value}</strong>`;
+        icon = "🏷️";
+        break;
+      case "update_photo":
+        text = "Foto actualizada";
+        icon = "📷";
+        break;
+      case "update_doc":
+        text = "Documento actualizado";
+        icon = "📄";
+        break;
+      case "resolution_photo":
+        text = "Foto de resolución añadida";
+        icon = "✅";
+        break;
+      case "resolution_doc":
+        text = "Documento de resolución añadido";
+        icon = "📑";
+        break;
+    }
+
+    const row = document.createElement("div");
+    row.style.padding = "6px 8px";
+    row.style.borderBottom = "1px solid var(--border2)";
+    row.innerHTML = `
+      <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:10px;">
+        <span>${date}</span>
+      </div>
+      <div style="margin-top:2px;">${icon} ${text}</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function translateStatus(s) {
+  if (s === "open") return "Abierta";
+  if (s === "in_progress") return "En curso";
+  if (s === "resolved") return "Resuelta";
+  return s || "-";
+}
+
 function toggleEditMode(enable) {
+  console.log("toggleEditMode", enable);
   const displayView = enable ? "none" : "block";
   const displayEdit = enable ? "block" : "none";
   const displayFlexView = enable ? "none" : "grid"; 
   const displayFlexEdit = enable ? "flex" : "none";
+
+  const catContainer = $("#dmEditCatContainer");
+  if(catContainer) catContainer.style.display = displayEdit;
+  else console.warn("dmEditCatContainer not found");
 
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;
@@ -34,6 +109,7 @@ async function saveDetailChanges() {
 
   try {
     const desc = $("#dmEditDesc").value.trim();
+    const cat = $("#dmEditCategory").value.trim();
     const status = $("#dmEditStatus").value;
     
     const photoInput = $("#dmResPhotoInput");
@@ -43,6 +119,7 @@ async function saveDetailChanges() {
     
     const fd = new FormData();
     fd.set("description", desc);
+    fd.set("category", cat);
     fd.set("status", status);
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
@@ -82,6 +159,7 @@ export function openDetailModal(it) {
   $("#dmDate").textContent = it.created_at ? new Date(it.created_at).toLocaleString() : "";
   $("#dmDesc").textContent = it.description || "";
   $("#dmEditDesc").value = it.description || "";
+  $("#dmEditCategory").value = it.category || "";
   $("#dmEditStatus").value = it.status;
 
   ["dmResPhotoInput", "dmResDocInput", "dmEditPhotoInput", "dmEditDocInput"].forEach(id => {
@@ -155,6 +233,29 @@ export function openDetailModal(it) {
     setLatLng(it.lat, it.lng, { pan: true, setPin: true });
     $("#map")?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const btnHistory = $("#dmBtnHistory");
+  const historyList = $("#dmHistoryList");
+  if (historyList) historyList.style.display = "none"; // Reset al abrir
+
+  if (btnHistory) {
+    btnHistory.onclick = async () => {
+      const isVisible = historyList.style.display === "block";
+      if (isVisible) {
+        historyList.style.display = "none";
+      } else {
+        historyList.style.display = "block";
+        const items = $("#dmHistoryItems");
+        if (items) items.innerHTML = "<div style='text-align:center; padding:10px;'>Cargando...</div>";
+        try {
+          const logs = await getIssueLogs(it.id);
+          renderHistory(logs);
+        } catch (e) {
+          if (items) items.innerHTML = "<div style='color:var(--bad); padding:10px;'>Error al cargar historial.</div>";
+        }
+      }
+    };
+  }
 
   const btnFav = $("#dmBtnFav");
   const updateFavBtn = () => btnFav.textContent = isFav(it.id) ? "⭐ Quitar Favorito" : "☆ Marcar Favorito";
