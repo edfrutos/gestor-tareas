@@ -60,19 +60,37 @@ function migrate() {
     CREATE TABLE IF NOT EXISTS issue_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       issue_id INTEGER NOT NULL,
+      user_id INTEGER,
       action TEXT NOT NULL,
       old_value TEXT,
       new_value TEXT,
       created_at TEXT NOT NULL,
-      FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE
+      FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id);
     CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
   `);
 
   // Migración “suave” para bases existentes:
-  // - si la columna no existe, la añadimos
+  d.all(`PRAGMA table_info(issue_logs);`, (err, cols) => {
+    if (err) return;
+    const names = new Set((cols || []).map((c) => c.name));
+    if (!names.has("user_id")) {
+      d.exec(`ALTER TABLE issue_logs ADD COLUMN user_id INTEGER;`);
+    }
+  });
+
   d.all(`PRAGMA table_info(issues);`, (err, cols) => {
     if (err) return; // no reventamos migración por esto
 

@@ -648,6 +648,11 @@
       </div>
 
       <div class="controls">
+        <span id="userInfo" style="display:none; font-size:13px; color:var(--muted); margin-right:10px;">
+          👤 <strong id="userName" style="color:var(--text);"></strong>
+        </span>
+        <button class="btn small" id="btnLogout" style="display:none; margin-right:10px;">Salir</button>
+
         <span class="chip" title="API key para crear/editar/borrar (x-api-key)">
           🔑 <input id="apiKey" placeholder="API Key (solo la clave)" autocomplete="off" />
           <button class="btn" id="btnSaveKey" type="button">Guardar</button>
@@ -969,6 +974,58 @@
       </div>
       <iframe id="docFrame" style="flex:1; border:none; width:100%; height:100%; background:#fff; display:none;"></iframe>
       <div id="docTextContent" style="flex:1; width:100%; height:100%; overflow:auto; padding:20px; display:none; white-space:pre-wrap; font-family:monospace; background:#fff; color:#000;"></div>
+    </div>
+  </div>
+
+  <!-- Modal Login -->
+  <div class="modal" id="loginModal" style="display:none; z-index:20000; background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); position:fixed; inset:0; align-items:center; justify-content:center;">
+    <div class="modalCard" style="max-width:400px; padding:30px; border-radius:20px; background:var(--bg); border:1px solid var(--border);">
+      <div style="text-align:center; margin-bottom:20px;">
+         <div class="logo" style="margin:0 auto 15px; width:60px; height:60px; font-size:30px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--accent), #00c7ff); border-radius:18px;">📋</div>
+         <h2 style="margin:0; font-size:20px;">Gestor de Tareas</h2>
+         <p style="opacity:0.7; font-size:14px; margin-top:5px;">Identifícate para continuar</p>
+      </div>
+      <form id="loginForm">
+        <label>Usuario</label>
+        <input id="loginUser" type="text" required placeholder="Tu usuario" style="margin-bottom:10px;" />
+        
+        <label>Contraseña</label>
+        <div style="position:relative;">
+          <input id="loginPass" type="password" required placeholder="Tu contraseña" style="width:100%; padding-right:40px;" />
+          <button type="button" id="togglePass" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;">👁️</button>
+        </div>
+
+        <div style="margin-top:25px;">
+          <button class="btn primary" type="submit" style="width:100%; padding:14px; font-weight:700;">Entrar</button>
+        </div>
+
+        <div style="margin-top:16px; display:flex; justify-content:space-between; font-size:12.5px;">
+           <a href="#" id="lnkRegister" style="color:var(--accent); text-decoration:none;">Crear cuenta</a>
+           <a href="#" id="lnkRecovery" style="color:var(--muted); text-decoration:none;">Recuperar clave</a>
+        </div>
+
+        <div id="loginError" style="color:var(--bad); font-size:13px; margin-top:15px; text-align:center; min-height:20px;"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Perfil -->
+  <div class="modal" id="profileModal" style="display:none; z-index:15000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="max-width:350px; padding:20px; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0;">Mi Perfil</h3>
+        <button class="btn small" id="profileClose">✕</button>
+      </div>
+      <form id="changePassForm">
+        <label>Contraseña actual</label>
+        <input id="currentPass" type="password" required style="margin-bottom:10px;" />
+        <label>Nueva contraseña (min 6)</label>
+        <input id="newPass" type="password" required minlength="6" />
+        <div style="margin-top:20px;">
+          <button class="btn primary" type="submit" style="width:100%;">Cambiar contraseña</button>
+        </div>
+        <div id="profileStatus" style="margin-top:10px; font-size:13px; min-height:16px; text-align:center;"></div>
+      </form>
     </div>
   </div>
 

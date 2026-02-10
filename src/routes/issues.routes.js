@@ -7,7 +7,7 @@ const multer = require("multer");
 const sharp = require("sharp");
 
 const { run, all, get } = require("../db/sqlite");
-const requireApiKey = require("../middleware/apiKey.middleware");
+const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 
@@ -162,12 +162,12 @@ function buildWhereClause(query) {
   };
 }
 
-async function logChange(issueId, action, oldValue = null, newValue = null) {
+async function logChange(issueId, userId, action, oldValue = null, newValue = null) {
   const createdAt = new Date().toISOString();
   try {
     await run(
-      `INSERT INTO issue_logs (issue_id, action, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?)`,
-      [issueId, action, oldValue ? String(oldValue) : null, newValue ? String(newValue) : null, createdAt]
+      `INSERT INTO issue_logs (issue_id, user_id, action, old_value, new_value, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      [issueId, userId || null, action, oldValue ? String(oldValue) : null, newValue ? String(newValue) : null, createdAt]
     );
   } catch (err) {
     console.error(`Error logging change for issue ${issueId}:`, err);
@@ -377,8 +377,8 @@ router.get("/export", async (req, res, next) => {
   }
 });
 
-// POST /v1/issues (multipart con file opcional) - API KEY requerida
-router.post("/", requireApiKey(), (req, res, next) => {
+// POST /v1/issues (multipart con file opcional) - Autenticación requerida
+router.post("/", requireAuth(), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
     if (err) {
       const status = err.status || 400;
@@ -423,8 +423,8 @@ router.post("/", requireApiKey(), (req, res, next) => {
       [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt]
     );
 
-    // Log creation
-    await logChange(result.lastID, "create");
+    // Log creation with userId
+    await logChange(result.lastID, req.user?.id, "create");
 
     const created = await get(
       `SELECT * FROM issues WHERE id = ?`,
@@ -439,7 +439,7 @@ router.post("/", requireApiKey(), (req, res, next) => {
 });
 
 // PATCH /v1/issues/:id (multipart opcional: status, description, resolution_file)
-router.patch("/:id", requireApiKey(), (req, res, next) => {
+router.patch("/:id", requireAuth(), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
       if (err) return res.status(400).json({ error: { code: "upload_error", message: err.message } });
       next();
@@ -558,28 +558,29 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
     await run(`UPDATE issues SET ${updates.join(", ")} WHERE id = ?`, params);
 
     // Logging de cambios
+    const userId = req.user?.id;
     const logPromises = [];
     if (status && status !== currentIssue.status) {
-      logPromises.push(logChange(id, "update_status", currentIssue.status, status));
+      logPromises.push(logChange(id, userId, "update_status", currentIssue.status, status));
     }
     if (description !== undefined && description !== currentIssue.description) {
-      logPromises.push(logChange(id, "update_description", currentIssue.description, description));
+      logPromises.push(logChange(id, userId, "update_description", currentIssue.description, description));
     }
     if (category && category !== currentIssue.category) {
-      logPromises.push(logChange(id, "update_category", currentIssue.category, category));
+      logPromises.push(logChange(id, userId, "update_category", currentIssue.category, category));
     }
     // Si se subieron archivos, registrar
     if (updates.some(u => u.startsWith("photo_url"))) {
-      logPromises.push(logChange(id, "update_photo", currentIssue.photo_url, "new_photo"));
+      logPromises.push(logChange(id, userId, "update_photo", currentIssue.photo_url, "new_photo"));
     }
     if (updates.some(u => u.startsWith("text_url"))) {
-      logPromises.push(logChange(id, "update_doc", currentIssue.text_url, "new_doc"));
+      logPromises.push(logChange(id, userId, "update_doc", currentIssue.text_url, "new_doc"));
     }
     if (updates.some(u => u.startsWith("resolution_photo_url"))) {
-      logPromises.push(logChange(id, "resolution_photo", currentIssue.resolution_photo_url, "new_resolution_photo"));
+      logPromises.push(logChange(id, userId, "resolution_photo", currentIssue.resolution_photo_url, "new_resolution_photo"));
     }
     if (updates.some(u => u.startsWith("resolution_text_url"))) {
-      logPromises.push(logChange(id, "resolution_doc", currentIssue.resolution_text_url, "new_resolution_doc"));
+      logPromises.push(logChange(id, userId, "resolution_doc", currentIssue.resolution_text_url, "new_resolution_doc"));
     }
     await Promise.all(logPromises);
 
@@ -608,7 +609,7 @@ router.patch("/:id", requireApiKey(), (req, res, next) => {
 });
 
 // DELETE /v1/issues/:id
-router.delete("/:id", requireApiKey(), async (req, res, next) => {
+router.delete("/:id", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!id || !Number.isInteger(id)) {

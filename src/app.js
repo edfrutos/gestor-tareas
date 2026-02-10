@@ -336,6 +336,7 @@ app.get("/v1/config", (req, res) => {
 
 const issuesRoutes = require("./routes/issues.routes");
 const photosRoutes = require("./routes/photos.routes");
+const { router: authRoutes } = require("./routes/auth.routes");
 
 // -------------------- rate limit (API) --------------------
 const { makeRateLimiter } = require("./middleware/rateLimit");
@@ -357,8 +358,10 @@ if (RATE_LIMIT_ENABLED) {
 }
 
 // La UI suele usar API_BASE="/v1". Mantenemos /api por compatibilidad.
+app.use("/v1/auth", authRoutes);
 app.use("/v1/issues", issuesRoutes);
 app.use("/v1/photos", photosRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/issues", issuesRoutes);
 app.use("/api/photos", photosRoutes);
 

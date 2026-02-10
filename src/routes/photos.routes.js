@@ -5,7 +5,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const multer = require("multer");
 
-const requireApiKey = require("../middleware/apiKey.middleware");
+const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir } = require("../config/paths");
 
 const router = express.Router();
@@ -42,7 +42,7 @@ const upload = multer({
 });
 
 // POST /v1/photos (multipart campo "file")
-router.post("/", requireApiKey(), upload.single("file"), (req, res) => {
+router.post("/", requireAuth(), upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       error: { code: "bad_request", message: "Falta el archivo (campo form-data: file)" },

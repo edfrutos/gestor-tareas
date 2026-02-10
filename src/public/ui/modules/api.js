@@ -1,4 +1,5 @@
 import { API_BASE, LS_API_KEY } from "./config.js";
+import { getToken } from "./auth.js";
 
 function isMutating(m) {
   const mm = String(m || "GET").toUpperCase();
@@ -83,8 +84,11 @@ export async function fetchJson(url, opts = {}) {
   const headers = new Headers(opts.headers || {});
   headers.set("accept", "application/json");
 
+  const token = getToken();
+  if (token) headers.set("authorization", `Bearer ${token}`);
+
   const key = getApiKey();
-  if (key) headers.set("x-api-key", key);
+  if (key && !token) headers.set("x-api-key", key);
 
   const method = String(opts.method || "GET").toUpperCase();
   if (isMutating(method)) {
