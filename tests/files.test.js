@@ -29,8 +29,7 @@ function createDummyFile(name, content = "dummy content") {
 }
 
 beforeAll(async () => {
-  migrate();
-  await new Promise((r) => setTimeout(r, 100));
+  await migrate();
 });
 
 afterAll(async () => {
@@ -106,7 +105,9 @@ describe("File Cleanup Logic", () => {
 
   test("DELETE /v1/issues removes all remaining files", async () => {
     // Recuperar estado actual para saber qué borrar
-    const current = await request(app).get("/v1/issues");
+    const current = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     const issue = current.body.items.find(i => i.id === issueId);
     
     const currentPhotoPath = path.join(UPLOAD_DIR, issue.photo_url.replace("/uploads/", ""));

@@ -15,8 +15,7 @@ const app = require("../src/app");
 const { migrate, closeDb } = require("../src/db/sqlite");
 
 beforeAll(async () => {
-  migrate();
-  await new Promise((r) => setTimeout(r, 100));
+  await migrate();
 });
 
 afterAll(async () => {

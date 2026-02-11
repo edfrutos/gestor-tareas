@@ -1,5 +1,21 @@
 import { state } from "./store.js";
+import { getUser } from "./auth.js";
 import { $, catColor, statusLabel, safeText } from "./utils.js";
+
+// Inicializar módulo: listeners
+export function initMapModule() {
+  document.addEventListener("mapChanged", (e) => {
+    const mapData = e.detail;
+    if (mapData && state.map) {
+      updateMapImage(mapData.file_url);
+    }
+  });
+}
+
+// Inicializar Geo (placeholder si no existía)
+export function initGeoModule() {
+  // Lógica de geolocalización si es necesaria
+}
 
 export function ensureMap() {
   if (state.map || typeof L === "undefined") return;
@@ -14,9 +30,11 @@ export function ensureMap() {
   });
 
   const bounds = [[0, 0], [1000, 1000]];
-  const imageUrl = "/ui/plano.jpg"; 
+  
+  // Imagen inicial (fallback o state.currentMap)
+  const imageUrl = state.currentMap ? state.currentMap.file_url : "/ui/plano.jpg";
 
-  L.imageOverlay(imageUrl, bounds).addTo(state.map);
+  state.mapOverlay = L.imageOverlay(imageUrl, bounds).addTo(state.map);
   state.map.fitBounds(bounds);
 
   state.markersLayer = L.layerGroup().addTo(state.map);
@@ -27,13 +45,28 @@ export function ensureMap() {
   });
 }
 
+export function updateMapImage(url) {
+  if (!state.map || !state.mapOverlay) {
+    console.warn("Map not ready for image update");
+    return;
+  }
+  state.mapOverlay.setUrl(url);
+}
+
 export function clearMarkers() {
   if (state.markersLayer) state.markersLayer.clearLayers();
+  // También limpiar el pin de "nueva tarea" si se desea
+  if (state.markerPin) {
+    state.markerPin.remove();
+    state.markerPin = null;
+  }
 }
 
 export function addMarkers(items, onClickMarker) {
   ensureMap();
   if (!state.markersLayer || !Array.isArray(items)) return;
+
+  const currentUser = getUser();
 
   items.forEach((it) => {
     if (!it || it.lat == null || it.lng == null) return;
@@ -41,19 +74,28 @@ export function addMarkers(items, onClickMarker) {
     const lng = Number(it.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    // TODO: Importar catColor de utils.js si queremos colores dinámicos
-    // Para simplificar, usaremos un color default o importaremos catColor
-    // Como map.js es "bajo nivel", mejor que el color venga o se calcule fuera, o importar utils.
-    // Importaré catColor dinámicamente si es necesario, o asumo que el caller configura el estilo?
-    // Mejor importo catColor de utils.js
+    // Solo mostrar marcadores del mapa actual (si se desea filtrar visualmente)
+    // OJO: La API ya debería filtrar las issues por mapa, pero por seguridad visual:
+    // if (state.currentMap && it.map_id !== state.currentMap.id) return; 
+    // (Asumimos que loadIssues ya filtra por map_id si implementamos el filtro en backend)
+
+    const isMine = currentUser && it.created_by === currentUser.id;
+    const color = catColor(it.category);
     
-    const m = L.circleMarker([lat, lng], { radius: 7, weight: 2, opacity: 0.9, fillOpacity: 0.6 });
-    m.setStyle({ color: catColor(it.category), fillColor: catColor(it.category) });
+    const m = L.circleMarker([lat, lng], { 
+      radius: 7, 
+      weight: isMine ? 2 : 4,
+      opacity: 0.9, 
+      fillOpacity: 0.6,
+      color: isMine ? color : "#ffffff",
+      fillColor: color 
+    });
 
     const title = safeText(it.title);
     const cat = safeText(it.category);
     const st = safeText(statusLabel(it.status));
-    m.bindPopup(`<strong>${title}</strong><br>${cat} · ${st}`);
+    const author = it.created_by_username ? `<br><small>👤 ${safeText(it.created_by_username)}</small>` : '';
+    m.bindPopup(`<strong>${title}</strong><br>${cat} · ${st}${author}`);
     
     m.on("click", () => onClickMarker(it));
     state.markersLayer.addLayer(m);

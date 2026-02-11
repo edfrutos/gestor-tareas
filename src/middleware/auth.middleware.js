@@ -28,7 +28,7 @@ function requireAuth(options = {}) {
           const a = Buffer.from(String(providedKey));
           const b = Buffer.from(String(expectedKey));
           if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
-            req.user = { id: 0, username: "system", role: "admin" };
+            req.user = { id: 1, username: "system", role: "admin" };
             return next();
           }
        } catch (e) {}
@@ -36,7 +36,7 @@ function requireAuth(options = {}) {
 
     // 3. Si estamos en DEV sin clave configurada, dejamos pasar
     if (!expectedKey && process.env.NODE_ENV !== "production") {
-      req.user = { id: 0, username: "dev-anonymous", role: "admin" };
+      req.user = { id: 1, username: "dev-anonymous", role: "admin" };
       return next();
     }
 

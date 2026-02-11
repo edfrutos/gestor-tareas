@@ -84,6 +84,10 @@ const createIssueMultipart = withBusy(async () => {
     fd.set("lat", lat);
     fd.set("lng", lng);
     
+    if (state.currentMap) {
+      fd.set("map_id", state.currentMap.id);
+    }
+    
     const fPhoto = $("#photo")?.files[0];
     const fDoc = $("#file")?.files[0];
     if (fPhoto) fd.set("photo", fPhoto);

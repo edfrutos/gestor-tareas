@@ -38,86 +38,129 @@ function openDb() {
 function migrate() {
   const d = openDb();
 
-  // Tabla base (para instalaciones nuevas)
-  d.exec(`
-    CREATE TABLE IF NOT EXISTS issues (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL,
-      description TEXT NOT NULL,
-      lat REAL NOT NULL,
-      lng REAL NOT NULL,
-      photo_url TEXT,
-      thumb_url TEXT,
-      text_url TEXT,
-      resolution_photo_url TEXT,
-      resolution_thumb_url TEXT,
-      resolution_text_url TEXT,
-      status TEXT NOT NULL DEFAULT 'open',
-      created_at TEXT NOT NULL
-    );
+  return new Promise((resolve, reject) => {
+    d.serialize(() => {
+      // 1. Tablas en orden (Users primero por FKs)
+      d.run(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'user',
+          created_at TEXT NOT NULL
+        )
+      `);
 
-    CREATE TABLE IF NOT EXISTS issue_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      issue_id INTEGER NOT NULL,
-      user_id INTEGER,
-      action TEXT NOT NULL,
-      old_value TEXT,
-      new_value TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE,
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-    );
+      d.run(`
+        CREATE TABLE IF NOT EXISTS maps (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          file_url TEXT NOT NULL,
+          thumb_url TEXT,
+          created_by INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
 
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user',
-      created_at TEXT NOT NULL
-    );
+      d.run(`
+        CREATE TABLE IF NOT EXISTS issues (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL,
+          description TEXT NOT NULL,
+          lat REAL NOT NULL,
+          lng REAL NOT NULL,
+          photo_url TEXT,
+          thumb_url TEXT,
+          text_url TEXT,
+          resolution_photo_url TEXT,
+          resolution_thumb_url TEXT,
+          resolution_text_url TEXT,
+          status TEXT NOT NULL DEFAULT 'open',
+          created_at TEXT NOT NULL,
+          created_by INTEGER,
+          map_id INTEGER,
+          FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+          FOREIGN KEY(map_id) REFERENCES maps(id) ON DELETE SET NULL
+        )
+      `);
 
-    CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id);
-    CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at);
-    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-  `);
+      d.run(`
+        CREATE TABLE IF NOT EXISTS issue_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          issue_id INTEGER NOT NULL,
+          user_id INTEGER,
+          action TEXT NOT NULL,
+          old_value TEXT,
+          new_value TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE,
+          FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+      `);
 
-  // Migración “suave” para bases existentes:
-  d.all(`PRAGMA table_info(issue_logs);`, (err, cols) => {
-    if (err) return;
-    const names = new Set((cols || []).map((c) => c.name));
-    if (!names.has("user_id")) {
-      d.exec(`ALTER TABLE issue_logs ADD COLUMN user_id INTEGER;`);
-    }
-  });
+      // 2. Índices
+      d.run(`CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id)`);
+      d.run(`CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at)`);
+      d.run(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
 
-  d.all(`PRAGMA table_info(issues);`, (err, cols) => {
-    if (err) return; // no reventamos migración por esto
+      // 3. Datos por defecto (Admin y Mapa)
+      const now = new Date().toISOString();
+      d.run(
+        "INSERT OR IGNORE INTO users (id, username, password_hash, role, created_at) VALUES (1, 'admin', 'system-locked', 'admin', ?)",
+        [now]
+      );
 
-    const names = new Set((cols || []).map((c) => c.name));
-    if (!names.has("thumb_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);
-    }
-    if (!names.has("photo_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN photo_url TEXT;`);
-    }
-    // lat/lng deberían existir ya, pero si vienes de una BD antigua rara:
-    if (!names.has("lat")) d.exec(`ALTER TABLE issues ADD COLUMN lat REAL;`);
-    if (!names.has("lng")) d.exec(`ALTER TABLE issues ADD COLUMN lng REAL;`);
-    if (!names.has("resolution_photo_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN resolution_photo_url TEXT;`);
-    }
-    if (!names.has("resolution_thumb_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN resolution_thumb_url TEXT;`);
-    }
-    if (!names.has("text_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN text_url TEXT;`);
-    }
-    if (!names.has("resolution_text_url")) {
-      d.exec(`ALTER TABLE issues ADD COLUMN resolution_text_url TEXT;`);
-    }
+      d.run(
+        "INSERT OR IGNORE INTO maps (id, name, file_url, created_by, created_at) VALUES (1, 'Plano Principal', '/ui/plano.jpg', 1, ?)",
+        [now],
+        () => {
+          // Asignar mapa a issues huérfanas
+          d.run("UPDATE issues SET map_id = 1 WHERE map_id IS NULL");
+        }
+      );
+
+      // 4. Migraciones suaves (columnas extra)
+      d.all(`PRAGMA table_info(issue_logs);`, (err, cols) => {
+        if (err) return;
+        const names = new Set((cols || []).map((c) => c.name));
+        if (!names.has("user_id")) d.run(`ALTER TABLE issue_logs ADD COLUMN user_id INTEGER;`);
+      });
+
+      d.all(`PRAGMA table_info(issues);`, (err, cols) => {
+        if (err) return;
+        const names = new Set((cols || []).map((c) => c.name));
+        if (!names.has("thumb_url")) d.run(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);
+        if (!names.has("photo_url")) d.run(`ALTER TABLE issues ADD COLUMN photo_url TEXT;`);
+        if (!names.has("lat")) d.run(`ALTER TABLE issues ADD COLUMN lat REAL;`);
+        if (!names.has("lng")) d.run(`ALTER TABLE issues ADD COLUMN lng REAL;`);
+        if (!names.has("resolution_photo_url")) d.run(`ALTER TABLE issues ADD COLUMN resolution_photo_url TEXT;`);
+        if (!names.has("resolution_thumb_url")) d.run(`ALTER TABLE issues ADD COLUMN resolution_thumb_url TEXT;`);
+        if (!names.has("text_url")) d.run(`ALTER TABLE issues ADD COLUMN text_url TEXT;`);
+        if (!names.has("resolution_text_url")) d.run(`ALTER TABLE issues ADD COLUMN resolution_text_url TEXT;`);
+        
+        if (!names.has("created_by")) {
+          d.run(`ALTER TABLE issues ADD COLUMN created_by INTEGER REFERENCES users(id) ON DELETE SET NULL;`, () => {
+            d.run(`UPDATE issues SET created_by = 1 WHERE created_by IS NULL;`);
+          });
+        }
+        if (!names.has("map_id")) {
+          d.run(`ALTER TABLE issues ADD COLUMN map_id INTEGER REFERENCES maps(id) ON DELETE SET NULL;`, () => {
+             d.run("UPDATE issues SET map_id = 1 WHERE map_id IS NULL");
+          });
+        }
+      });
+
+      // Finalizar
+      d.get("SELECT 1", (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   });
 }
+
 
 function closeDb() {
   return new Promise((resolve, reject) => {

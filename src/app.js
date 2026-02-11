@@ -336,6 +336,8 @@ app.get("/v1/config", (req, res) => {
 
 const issuesRoutes = require("./routes/issues.routes");
 const photosRoutes = require("./routes/photos.routes");
+const usersRoutes = require("./routes/users.routes");
+const mapsRoutes = require("./routes/maps.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
 
 // -------------------- rate limit (API) --------------------
@@ -361,6 +363,8 @@ if (RATE_LIMIT_ENABLED) {
 app.use("/v1/auth", authRoutes);
 app.use("/v1/issues", issuesRoutes);
 app.use("/v1/photos", photosRoutes);
+app.use("/v1/users", usersRoutes);
+app.use("/v1/maps", mapsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issuesRoutes);
 app.use("/api/photos", photosRoutes);

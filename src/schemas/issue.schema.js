@@ -19,6 +19,7 @@ const getIssuesSchema = z.object({
   sort: z.string().optional(), // legacy support
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  mapId: z.coerce.number().optional(),
 });
 
 // Esquema para creación (POST /v1/issues)
@@ -34,6 +35,7 @@ const createIssueSchema = z.object({
     coordinatePreprocessor,
     z.number({ invalid_type_error: "Lng must be a number" })
   ),
+  map_id: z.coerce.number().optional()
 });
 
 // Esquema para actualización (PATCH /v1/issues/:id)

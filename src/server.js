@@ -14,7 +14,7 @@ const FORCE_MS = Number(process.env.SHUTDOWN_FORCE_MS || 6000);
 
 async function main() {
   openDb();
-  migrate();
+  await migrate();
 
   const server = app.listen(PORT, HOST, () => {
     logger.info({ HOST, PORT }, "[server] listening");

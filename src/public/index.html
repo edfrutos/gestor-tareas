@@ -651,6 +651,8 @@
         <span id="userInfo" style="display:none; font-size:13px; color:var(--muted); margin-right:10px;">
           👤 <strong id="userName" style="color:var(--text);"></strong>
         </span>
+        <button class="btn small" id="btnMaps" title="Gestionar Planos" style="margin-right:6px;">🗺️ Planos</button>
+        <button class="btn small" id="btnUsers" style="display:none; margin-right:6px;">👥 Usuarios</button>
         <button class="btn small" id="btnLogout" style="display:none; margin-right:10px;">Salir</button>
 
         <span class="chip" title="API key para crear/editar/borrar (x-api-key)">
@@ -677,7 +679,7 @@
       <!-- Mapa -->
       <section class="card">
         <h2>
-          <span>🗺️ Mapa</span>
+          <span id="mapTitle">🗺️ Mapa</span>
           <span class="muted" id="mapHint">Clic para ubicar</span>
         </h2>
         <div id="map"></div>
@@ -1026,6 +1028,99 @@
         </div>
         <div id="profileStatus" style="margin-top:10px; font-size:13px; min-height:16px; text-align:center;"></div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal Gestión Usuarios -->
+  <div class="modal" id="usersModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="width:min(600px, 95vw); max-height:85vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
+        <h3 style="margin:0; font-size:16px;">👥 Gestión de Usuarios</h3>
+        <button class="btn small" id="usersClose">✕</button>
+      </div>
+      <div style="padding:0; overflow-y:auto; flex:1;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead style="background:var(--panel2); position:sticky; top:0;">
+            <tr>
+              <th style="padding:10px 14px; text-align:left; color:var(--muted); font-weight:600;">Usuario</th>
+              <th style="padding:10px 14px; text-align:left; color:var(--muted); font-weight:600;">Rol</th>
+              <th style="padding:10px 14px; text-align:left; color:var(--muted); font-weight:600;">Fecha Registro</th>
+              <th style="padding:10px 14px; text-align:right; color:var(--muted); font-weight:600;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="usersListBody">
+             <!-- JS -->
+          </tbody>
+        </table>
+      </div>
+      <div id="usersPagination" style="padding:10px 20px; border-top:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel2);">
+         <span id="usersTotal" style="font-size:12px; color:var(--muted);">Total: 0</span>
+         <div style="display:flex; gap:8px;">
+            <button class="btn small" id="btnUsersPrev">«</button>
+            <span id="usersPageInfo" style="font-size:12px; align-self:center;">1</span>
+            <button class="btn small" id="btnUsersNext">»</button>
+         </div>
+      </div>
+      <div style="padding:10px 20px; border-top:1px solid var(--border2); background:var(--panel2); font-size:12px; color:var(--muted);">
+         Nota: No puedes borrar tu propio usuario.
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Usuario (Submodal) -->
+  <div class="modal" id="editUserModal" style="display:none; z-index:17000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="max-width:350px; padding:20px; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <h3 style="margin:0 0 14px 0;">Editar Usuario</h3>
+      <form id="editUserForm">
+        <input type="hidden" id="editUserId" />
+        <label>Usuario</label>
+        <input id="editUserName" disabled style="opacity:0.7; margin-bottom:10px;" />
+        
+        <label>Rol</label>
+        <select id="editUserRole" style="width:100%; margin-bottom:10px; padding:10px; border-radius:12px; background:var(--chip); border:1px solid var(--border2);">
+           <option value="user">Usuario</option>
+           <option value="admin">Administrador</option>
+        </select>
+
+        <label>Nueva Contraseña (Opcional)</label>
+        <input id="editUserPass" type="password" placeholder="Dejar en blanco para no cambiar" minlength="6" />
+
+        <div style="margin-top:20px; display:flex; gap:10px;">
+          <button class="btn primary" type="submit" style="flex:1;">Guardar</button>
+          <button class="btn" type="button" id="editUserCancel" style="flex:1;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Gestión Mapas -->
+  <div class="modal" id="mapsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="width:min(500px, 95vw); max-height:85vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
+        <h3 style="margin:0; font-size:16px;">🗺️ Biblioteca de Planos</h3>
+        <button class="btn small" id="mapsClose">✕</button>
+      </div>
+      
+      <div style="padding:14px 20px; border-bottom:1px solid var(--border2);">
+         <form id="uploadMapForm" style="display:flex; gap:10px; flex-direction:column;">
+            <label style="margin:0;">Subir nuevo plano</label>
+            <div style="display:flex; gap:8px;">
+               <input id="mapName" placeholder="Nombre (ej. Planta 1)" style="flex:1;" required />
+               <label class="btn small" style="cursor:pointer; display:flex; align-items:center;">
+                  📂 <input type="file" id="mapFile" accept="image/*" style="display:none" required />
+               </label>
+               <button class="btn small primary" type="submit">Subir</button>
+            </div>
+         </form>
+      </div>
+
+      <div style="padding:0; overflow-y:auto; flex:1;" id="mapsList">
+         <!-- JS -->
+      </div>
+      
+      <div style="padding:10px 20px; border-top:1px solid var(--border2); background:var(--panel2); font-size:12px; color:var(--muted);">
+         Selecciona un plano para ver sus tareas asociadas.
+      </div>
     </div>
   </div>
 

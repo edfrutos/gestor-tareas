@@ -19,9 +19,7 @@ const { migrate, closeDb, run } = require("../src/db/sqlite");
 
 beforeAll(async () => {
   // Inicializar DB
-  migrate();
-  // Esperar un poco para asegurar que la migración terminó (es síncrona en sqlite.js pero por seguridad)
-  await new Promise((r) => setTimeout(r, 100));
+  await migrate();
 });
 
 afterAll(async () => {
@@ -40,7 +38,9 @@ describe("API Functional Tests", () => {
   });
 
   test("GET /v1/issues returns empty list initially", async () => {
-    const res = await request(app).get("/v1/issues");
+    const res = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     expect(res.statusCode).toBe(200);
     expect(res.body.items).toEqual([]);
     expect(res.body.total).toBe(0);
@@ -78,7 +78,9 @@ describe("API Functional Tests", () => {
   });
 
   test("GET /v1/issues returns created issue", async () => {
-    const res = await request(app).get("/v1/issues");
+    const res = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     expect(res.statusCode).toBe(200);
     expect(res.body.total).toBe(1);
     expect(res.body.items[0].id).toBe(createdIssueId);
@@ -98,10 +100,14 @@ describe("API Functional Tests", () => {
         lng: -3.704,
       });
 
-    const resAll = await request(app).get("/v1/issues");
+    const resAll = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     expect(resAll.body.total).toBe(2);
 
-    const resFilter = await request(app).get("/v1/issues?category=alumbrado");
+    const resFilter = await request(app)
+      .get("/v1/issues?category=alumbrado")
+      .set("x-api-key", process.env.API_KEY);
     expect(resFilter.body.total).toBe(1);
     expect(resFilter.body.items[0].title).toBe("Farola rota");
   });
@@ -133,7 +139,9 @@ describe("API Functional Tests", () => {
     expect(res.body.status).toBe("resolved");
 
     // Verificar persistencia
-    const check = await request(app).get("/v1/issues");
+    const check = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     const issue = check.body.items.find((i) => i.id === createdIssueId);
     expect(issue.status).toBe("resolved");
   });
@@ -145,7 +153,9 @@ describe("API Functional Tests", () => {
 
     expect(res.statusCode).toBe(200);
 
-    const check = await request(app).get("/v1/issues");
+    const check = await request(app)
+      .get("/v1/issues")
+      .set("x-api-key", process.env.API_KEY);
     const found = check.body.items.find((i) => i.id === createdIssueId);
     expect(found).toBeUndefined();
   });
@@ -185,21 +195,29 @@ describe("API Functional Tests", () => {
       const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
       // Filtrar por hoy: debería encontrar las creadas en este test
-      const resToday = await request(app).get(`/v1/issues?from=${today}&to=${today}`);
+      const resToday = await request(app)
+        .get(`/v1/issues?from=${today}&to=${today}`)
+        .set("x-api-key", process.env.API_KEY);
       expect(resToday.body.total).toBeGreaterThan(0);
 
       // Filtrar por mañana: debería estar vacío
-      const resFuture = await request(app).get(`/v1/issues?from=${tomorrow}`);
+      const resFuture = await request(app)
+        .get(`/v1/issues?from=${tomorrow}`)
+        .set("x-api-key", process.env.API_KEY);
       expect(resFuture.body.total).toBe(0);
 
       // Filtrar con formato inválido: debería fallar (400) por validación Zod
-      const resInvalid = await request(app).get("/v1/issues?from=invalid-date");
+      const resInvalid = await request(app)
+        .get("/v1/issues?from=invalid-date")
+        .set("x-api-key", process.env.API_KEY);
       expect(resInvalid.statusCode).toBe(400);
     });
 
     test("PATCH /v1/issues/:id fails with invalid status", async () => {
       // Usamos el ID de la issue creada anteriormente con coma
-      const setup = await request(app).get("/v1/issues");
+      const setup = await request(app)
+        .get("/v1/issues")
+        .set("x-api-key", process.env.API_KEY);
       const id = setup.body.items[0].id;
 
       const res = await request(app)
@@ -211,11 +229,13 @@ describe("API Functional Tests", () => {
     });
 
     test("GET /v1/issues/export returns CSV", async () => {
-      const res = await request(app).get("/v1/issues/export");
+      const res = await request(app)
+        .get("/v1/issues/export")
+        .set("x-api-key", process.env.API_KEY);
       expect(res.statusCode).toBe(200);
       expect(res.headers["content-type"]).toContain("text/csv");
-      // Cabeceras reales en español: ID,Fecha,Estado,Categoría,Título...
-      expect(res.text).toContain("ID,Fecha,Estado,Categoría,Título");
+      // Cabeceras reales en español: ID,Fecha,Creado Por,Estado,Categoría,Título...
+      expect(res.text).toContain("ID,Fecha,Creado Por,Estado,Categoría,Título");
     });
   });
 });

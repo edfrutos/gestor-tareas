@@ -1,3 +1,4 @@
+import { getToken, getUser } from "./auth.js";
 import { state, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
 import { fetchJson, getIssueLogs } from "./api.js";
@@ -144,17 +145,48 @@ export function openDetailModal(it) {
   const modal = $("#detailModal");
   if (!modal) return;
   
+  const currentUser = getUser();
+  const isAdmin = currentUser?.role === 'admin';
+  const isOwner = currentUser?.id === it.created_by;
+  const canEdit = isAdmin || isOwner;
+  
   toggleEditMode(false);
 
   $("#dmClose").onclick = () => modal.style.display = "none";
   modal.onclick = (e) => { if (e.target === modal) modal.style.display = "none"; };
 
-  $("#dmBtnEdit").onclick = () => toggleEditMode(true);
-  $("#dmBtnCancelEdit").onclick = () => toggleEditMode(false);
-  $("#dmBtnSaveEdit").onclick = saveDetailChanges;
+  // Control de permisos para botones
+  const btnEdit = $("#dmBtnEdit");
+  const btnDel = $("#dmBtnDelete");
+  
+  if (btnEdit) btnEdit.style.display = canEdit ? "inline-block" : "none";
+  if (btnDel) btnDel.style.display = canEdit ? "inline-block" : "none";
+
+  if (canEdit) {
+    $("#dmBtnEdit").onclick = () => toggleEditMode(true);
+    $("#dmBtnCancelEdit").onclick = () => toggleEditMode(false);
+    $("#dmBtnSaveEdit").onclick = saveDetailChanges;
+    
+    btnDel.onclick = async () => {
+        if(!confirm("¿Borrar?")) return;
+        setButtonBusy(btnDel, true, "Borrando...");
+        try {
+          await fetchJson(`${API_BASE}/issues/${it.id}`, { method: "DELETE" });
+          toast("Borrada", "ok");
+          modal.style.display = "none";
+          loadIssues({ reset: true });
+        } catch(e) { toast(e.message, "error"); }
+        finally { setButtonBusy(btnDel, false); }
+    };
+  }
 
   $("#dmTitle").textContent = safeText(it.title);
-  $("#dmDate").textContent = it.created_at ? new Date(it.created_at).toLocaleString() : "";
+  
+  // Mostrar Fecha y Autor
+  const dateStr = it.created_at ? new Date(it.created_at).toLocaleString() : "";
+  const authorStr = it.created_by_username ? ` • Por: ${safeText(it.created_by_username)}` : "";
+  $("#dmDate").textContent = dateStr + authorStr;
+
   $("#dmDesc").textContent = it.description || "";
   $("#dmEditDesc").value = it.description || "";
   $("#dmEditCategory").value = it.category || "";
@@ -259,19 +291,6 @@ export function openDetailModal(it) {
   const updateFavBtn = () => btnFav.textContent = isFav(it.id) ? "⭐ Quitar Favorito" : "☆ Marcar Favorito";
   updateFavBtn();
   btnFav.onclick = () => { toggleFav(it.id); updateFavBtn(); loadIssues({ reset: false }).catch(()=>{}); };
-
-  const btnDel = $("#dmBtnDelete");
-  btnDel.onclick = async () => {
-    if(!confirm("¿Borrar?")) return;
-    setButtonBusy(btnDel, true, "Borrando...");
-    try {
-      await fetchJson(`${API_BASE}/issues/${it.id}`, { method: "DELETE" });
-      toast("Borrada", "ok");
-      modal.style.display = "none";
-      loadIssues({ reset: true });
-    } catch(e) { toast(e.message, "error"); }
-    finally { setButtonBusy(btnDel, false); }
-  };
 
   // Wire previews for edit inputs (simplificado)
   const wirePreview = (inputId, previewId) => {

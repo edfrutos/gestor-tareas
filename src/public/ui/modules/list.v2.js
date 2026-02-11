@@ -1,6 +1,7 @@
 import { state, isMine, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
 import { fetchJson } from "./api.js";
+import { getUser } from "./auth.js";
 import { $, safeText, statusLabel, catColor, resolveSameOriginUrl, setImgFallback, withBusy, setStatus, toast } from "./utils.js";
 import { addMarkers, clearMarkers } from "./map.js";
 import { openDetailModal } from "./details.v2.js";
@@ -64,6 +65,10 @@ function buildQuery(page) {
   params.set("pageSize", "10");
   params.set("_t", String(Date.now()));
 
+  if (state.currentMap) {
+    params.set("mapId", String(state.currentMap.id));
+  }
+
   if (qEl?.value) params.set("q", qEl.value.trim());
   if (fStatusEl?.value) params.set("status", fStatusEl.value);
   if (fCategoryEl?.value) params.set("category", fCategoryEl.value.trim());
@@ -99,36 +104,58 @@ function renderList(items, mode) {
   if (!listEl) return;
   
   if (mode === "replace") {
+    // Limpiar lista anterior
     listEl.innerHTML = "";
-    if (!items.length) { renderEmptyState(); return; }
+    if (!items || items.length === 0) {
+       renderEmptyState();
+       return;
+    }
   }
 
+  const currentUser = getUser();
+  const isAdmin = currentUser?.role === 'admin';
+
   items.forEach(it => {
-    state.allItemsById.set(it.id, it);
+    state.allItemsById.set(it.id, it); // Cache para detalle
     
     const row = document.createElement("div");
     row.className = "issueRow";
-    row.id = `issue-${it.id}`;
-    row.style.setProperty("--catColor", catColor(it.category));
-    row.setAttribute("role", "button");
-    row.setAttribute("tabindex", "0");
-    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") openDetailModal(it); });
+    // ...
     
+    // Preparar datos visuales
     const title = safeText(it.title);
     const desc = safeText(it.description);
     const dateStr = it.created_at ? new Date(it.created_at).toLocaleDateString() : "";
+    
+    // Admin ve el autor
+    let authorHtml = "";
+    if (isAdmin && it.created_by_username) {
+       authorHtml = `<span style="color:var(--accent); margin-left:6px; font-size:11px;">👤 ${safeText(it.created_by_username)}</span>`;
+    }
+
     const thumbUrl = resolveSameOriginUrl(it.thumb_url);
     const hasThumb = !!thumbUrl;
     const hasDoc = !!it.text_url;
-
+    
     let thumbHtml;
-    if (hasThumb) thumbHtml = `<img class="thumb" src="${thumbUrl}" alt="foto" loading="lazy">`;
-    else if (hasDoc) thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(255,255,255,.08);">📄</div>`;
-    else thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(255,255,255,.2);">📷</div>`;
+    if (hasThumb) {
+       thumbHtml = `<img class="thumb" src="${thumbUrl}" alt="foto" loading="lazy">`;
+    } else if (hasDoc) {
+       thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(255,255,255,.08);">📄</div>`;
+    } else {
+       thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(255,255,255,.2);">📷</div>`;
+    }
 
+    // HTML de la fila
     row.innerHTML = `
       ${thumbHtml}
-      <div class="info"><div class="title">${title}</div><div class="desc">${desc}</div><div class="meta-mobile">${statusLabel(it.status)} · ${dateStr}</div></div>
+      <div class="info">
+         <div class="title">${title}</div>
+         <div class="desc">${desc}</div>
+         <div class="meta-mobile">
+            ${statusLabel(it.status)} · ${dateStr} ${authorHtml}
+         </div>
+      </div>
       <div class="col-cat"><span class="badge" style="background:var(--chip2);border:1px solid rgba(255,255,255,.1);">${safeText(it.category)}</span></div>
       <div class="col-status"><span class="badge" style="color:var(--text);opacity:.8;">${statusLabel(it.status)}</span></div>
       <div class="col-action" style="text-align:right;display:flex;gap:6px;justify-content:flex-end;">
@@ -138,12 +165,16 @@ function renderList(items, mode) {
         <button class="btn small" style="padding:6px 10px;">➔</button>
       </div>
     `;
-
+    
+    // Imagen fallback
     const imgEl = row.querySelector("img");
     if (imgEl) setImgFallback(imgEl, { fallbackSrc: resolveSameOriginUrl(it.photo_url), onFailReplace: false });
 
+    // Click en fila -> detalle
     row.addEventListener("click", () => openDetailModal(it));
-
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") openDetailModal(it); });
+    
+    // Botón Favorito Rápido
     row.querySelector(".btn-fav-quick").addEventListener("click", (e) => {
       e.stopPropagation();
       toggleFav(it.id);

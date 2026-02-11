@@ -131,28 +131,32 @@ function deleteFileByUrl(url) {
 
 // Helper para construir cláusula WHERE
 function buildWhereClause(query) {
-  const { status, category, q, from, to } = query;
+  const { status, category, q, from, to, mapId } = query;
   const where = [];
   const params = [];
 
+  if (mapId) {
+    where.push("i.map_id = ?");
+    params.push(mapId);
+  }
   if (status) {
-    where.push("status = ?");
+    where.push("i.status = ?");
     params.push(status);
   }
   if (category) {
-    where.push("category = ?");
+    where.push("i.category = ?");
     params.push(category);
   }
   if (q) {
-    where.push("(title LIKE ? OR description LIKE ?)");
+    where.push("(i.title LIKE ? OR i.description LIKE ?)");
     params.push(`%${q}%`, `%${q}%`);
   }
   if (from) {
-    where.push("created_at >= ?");
+    where.push("i.created_at >= ?");
     params.push(`${from}T00:00:00`);
   }
   if (to) {
-    where.push("created_at <= ?");
+    where.push("i.created_at <= ?");
     params.push(`${to}T23:59:59`);
   }
 
@@ -175,7 +179,7 @@ async function logChange(issueId, userId, action, oldValue = null, newValue = nu
 }
 
 // GET /v1/issues?page=1&pageSize=10&status=open&category=alumbrado&q=farola&order=new|old|cat|status (legacy: sort=newest|oldest)
-router.get("/", async (req, res, next) => {
+router.get("/", requireAuth(), async (req, res, next) => {
   try {
     const query = validateSchema(getIssuesSchema, req.query);
     const { page, pageSize, status, category, q, sort } = query;
@@ -193,29 +197,45 @@ router.get("/", async (req, res, next) => {
     if (!["new", "old", "cat", "status"].includes(order)) order = "new";
 
     const offset = (page - 1) * pageSize;
-    const { sql: whereSql, params } = buildWhereClause(query);
+    
+    // Construir WHERE
+    const { sql: whereBase, params } = buildWhereClause(query);
+    let whereSql = whereBase;
 
-    let orderSql = "ORDER BY datetime(created_at) DESC"; // default: new
+    // RBAC: Si no es admin, solo ver sus tareas
+    if (req.user.role !== 'admin') {
+      if (whereSql) {
+        whereSql += " AND i.created_by = ?";
+      } else {
+        whereSql = "WHERE i.created_by = ?";
+      }
+      params.push(req.user.id);
+    }
+
+    let orderSql = "ORDER BY datetime(i.created_at) DESC"; // default: new
 
     if (order === "old") {
-      orderSql = "ORDER BY datetime(created_at) ASC";
+      orderSql = "ORDER BY datetime(i.created_at) ASC";
     } else if (order === "cat") {
       // por categoría (alfabético), y dentro por más nuevas
-      orderSql = "ORDER BY lower(category) ASC, datetime(created_at) DESC";
+      orderSql = "ORDER BY lower(i.category) ASC, datetime(i.created_at) DESC";
     } else if (order === "status") {
       // open -> in_progress -> resolved, y dentro por más nuevas
-      orderSql = `ORDER BY CASE status
+      orderSql = `ORDER BY CASE i.status
         WHEN 'open' THEN 0
         WHEN 'in_progress' THEN 1
         WHEN 'resolved' THEN 2
         ELSE 9
-      END ASC, datetime(created_at) DESC`;
+      END ASC, datetime(i.created_at) DESC`;
     }
 
     const items = await all(
       `
-      SELECT id, title, category, description, lat, lng, photo_url, thumb_url, text_url, resolution_photo_url, resolution_thumb_url, resolution_text_url, status, created_at
-      FROM issues
+      SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.photo_url, i.thumb_url, i.text_url, 
+             i.resolution_photo_url, i.resolution_thumb_url, i.resolution_text_url, i.status, i.created_at,
+             i.created_by, i.map_id, u.username as created_by_username
+      FROM issues i
+      LEFT JOIN users u ON i.created_by = u.id
       ${whereSql}
       ${orderSql}
       LIMIT ? OFFSET ?
@@ -223,7 +243,7 @@ router.get("/", async (req, res, next) => {
       [...params, pageSize, offset]
     );
 
-    const row = await get(`SELECT COUNT(*) AS total FROM issues ${whereSql}`, params);
+    const row = await get(`SELECT COUNT(*) AS total FROM issues i ${whereSql}`, params);
 
     const withThumbs = items.map((it) => ({
       ...it,
@@ -261,9 +281,19 @@ router.get("/:id/logs", async (req, res, next) => {
 });
 
 // GET /v1/issues/stats (conteo rápido)
-router.get("/stats", async (req, res, next) => {
+router.get("/stats", requireAuth(), async (req, res, next) => {
   try {
-    const rows = await all(`SELECT status, COUNT(*) as count FROM issues GROUP BY status`);
+    let sql = `SELECT status, COUNT(*) as count FROM issues`;
+    const params = [];
+    
+    if (req.user.role !== 'admin') {
+      sql += ` WHERE created_by = ?`;
+      params.push(req.user.id);
+    }
+    
+    sql += ` GROUP BY status`;
+
+    const rows = await all(sql, params);
     const stats = {
       open: 0,
       in_progress: 0,
@@ -298,7 +328,7 @@ router.get("/categories", async (req, res, next) => {
 });
 
 // GET /v1/issues/export (CSV)
-router.get("/export", async (req, res, next) => {
+router.get("/export", requireAuth(), async (req, res, next) => {
   try {
     // Validamos query params (reutilizamos el esquema de GET, aunque ignoraremos page/pageSize)
     const query = validateSchema(getIssuesSchema, req.query);
@@ -313,25 +343,39 @@ router.get("/export", async (req, res, next) => {
     }
     if (!["new", "old", "cat", "status"].includes(order)) order = "new";
 
-    const { sql: whereSql, params } = buildWhereClause(query);
+    // Construir WHERE base
+    const { sql: whereBase, params } = buildWhereClause(query);
+    let whereSql = whereBase;
+
+    // RBAC
+    if (req.user.role !== 'admin') {
+      if (whereSql) {
+        whereSql += " AND i.created_by = ?";
+      } else {
+        whereSql = "WHERE i.created_by = ?";
+      }
+      params.push(req.user.id);
+    }
     
-    let orderSql = "ORDER BY datetime(created_at) DESC";
-    if (order === "old") orderSql = "ORDER BY datetime(created_at) ASC";
-    else if (order === "cat") orderSql = "ORDER BY lower(category) ASC, datetime(created_at) DESC";
+    let orderSql = "ORDER BY datetime(i.created_at) DESC";
+    if (order === "old") orderSql = "ORDER BY datetime(i.created_at) ASC";
+    else if (order === "cat") orderSql = "ORDER BY lower(i.category) ASC, datetime(i.created_at) DESC";
     else if (order === "status") {
-       orderSql = `ORDER BY CASE status
+       orderSql = `ORDER BY CASE i.status
         WHEN 'open' THEN 0
         WHEN 'in_progress' THEN 1
         WHEN 'resolved' THEN 2
         ELSE 9
-      END ASC, datetime(created_at) DESC`;
+      END ASC, datetime(i.created_at) DESC`;
     }
 
     // Sin límite de paginación para exportar todo lo filtrado
     const items = await all(
       `
-      SELECT id, title, category, description, lat, lng, status, created_at, photo_url, text_url
-      FROM issues
+      SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.status, i.created_at, i.photo_url, i.text_url,
+             u.username as created_by_username
+      FROM issues i
+      LEFT JOIN users u ON i.created_by = u.id
       ${whereSql}
       ${orderSql}
       `,
@@ -339,7 +383,7 @@ router.get("/export", async (req, res, next) => {
     );
 
     // Generar CSV
-    const headers = ["ID", "Fecha", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
+    const headers = ["ID", "Fecha", "Creado Por", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
     
     // Helper para escapar CSV (comillas dobles -> dobles comillas dobles, envolver en comillas si hay comas o saltos)
     const escapeCsv = (val) => {
@@ -355,6 +399,7 @@ router.get("/export", async (req, res, next) => {
       return [
         it.id,
         it.created_at,
+        it.created_by_username || "Desconocido",
         it.status,
         it.category,
         it.title,
@@ -386,15 +431,18 @@ router.post("/", requireAuth(), (req, res, next) => {
     }
     next();
   });
-}, async (req, res, next) => {
+  }, async (req, res, next) => {
   try {
     const body = validateSchema(createIssueSchema, req.body);
     const { title, category, description, lat, lng } = body;
+    // Si no se proporciona map_id, por defecto es 1 (Plano Principal)
+    const mapId = body.map_id || 1;
 
     const createdAt = new Date().toISOString();
 
     let photoUrl = null;
     let thumbUrl = null;
+
     let textUrl = null;
 
     // Procesar Foto
@@ -415,16 +463,18 @@ router.post("/", requireAuth(), (req, res, next) => {
       textUrl = `/uploads/${f.filename}`;
     }
 
+    const userId = req.user.id; // Asumimos que requireAuth() ya validó y populó esto
+
     const result = await run(
       `
-      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
+      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at, created_by, map_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
       `,
-      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt]
+      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt, userId, mapId]
     );
 
     // Log creation with userId
-    await logChange(result.lastID, req.user?.id, "create");
+    await logChange(result.lastID, userId, "create");
 
     const created = await get(
       `SELECT * FROM issues WHERE id = ?`,
@@ -462,6 +512,13 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (!currentIssue) {
       return res.status(404).json({
         error: { code: "not_found", message: "Issue no encontrada", requestId: req.id },
+      });
+    }
+
+    // RBAC Check: Si no es admin y no es el dueño, rechazar
+    if (req.user.role !== 'admin' && currentIssue.created_by !== req.user.id) {
+       return res.status(403).json({
+        error: { code: "forbidden", message: "No tienes permiso para editar esta tarea", requestId: req.id },
       });
     }
 
@@ -618,7 +675,19 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
       });
     }
 
-    const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url FROM issues WHERE id = ?`, [id]);
+    const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url, created_by FROM issues WHERE id = ?`, [id]);
+    
+    if (!row) {
+        return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+    }
+
+    // RBAC Check
+    if (req.user.role !== 'admin' && row.created_by !== req.user.id) {
+       return res.status(403).json({
+        error: { code: "forbidden", message: "No tienes permiso para borrar esta tarea", requestId: req.id },
+      });
+    }
+
     await run(`DELETE FROM issues WHERE id = ?`, [id]);
 
     if (row) {

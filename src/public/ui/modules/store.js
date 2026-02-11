@@ -13,6 +13,10 @@ export const state = {
   allItemsById: new Map(),
   manualLocationArmed: false,
   
+  // Mapas
+  currentMap: null, // Objeto mapa activo
+  mapsList: [],
+
   // Elementos DOM cacheados que se usan en múltiples sitios
   els: {} 
 };

@@ -1,11 +1,13 @@
 import { wireForms, loadCategories } from "./modules/forms.js";
 import { loadIssues } from "./modules/list.v2.js";
 import { getConfig } from "./modules/api.js";
-import { ensureMap } from "./modules/map.js";
+import { ensureMap, initMapModule } from "./modules/map.js";
 import { setStatus, $ } from "./modules/utils.js";
 import { LS_THEME } from "./modules/config.js";
 import { startStatsPolling } from "./modules/stats.js";
 import { isAuthenticated, getUser, login, logout, register, changePassword } from "./modules/auth.js";
+import { initUsersModule } from "./modules/users.js";
+import { initMapsModule, loadMaps } from "./modules/maps.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
@@ -214,12 +216,25 @@ async function initAuth() {
     const isAuth = await initAuth();
     if (!isAuth) return; // Detener carga si no está autenticado
 
+    // Inicializar módulo de usuarios
+    initUsersModule();
+    initMapsModule();
+    initMapModule();
+    
+    // Mostrar botón de usuarios si es admin
+    const currentUser = getUser();
+    if (currentUser && currentUser.role === 'admin') {
+       const btnUsers = $("#btnUsers");
+       if (btnUsers) btnUsers.style.display = "inline-block";
+    }
+
     wireForms();
     initTheme();
     ensureMap(); 
     
     await getConfig();
     await loadCategories();
+    await loadMaps(); // Cargar mapas antes
     await loadIssues({ reset: true });
     
     // Iniciar polling de stats

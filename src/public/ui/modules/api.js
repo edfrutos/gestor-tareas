@@ -131,3 +131,49 @@ export async function fetchJson(url, opts = {}) {
     throw err;
   }
 }
+
+export async function fetchUpload(url, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  // NO establecer Content-Type para que el navegador ponga el boundary multipart
+  headers.set("accept", "application/json");
+
+  const token = getToken();
+  if (token) headers.set("authorization", `Bearer ${token}`);
+
+  const key = getApiKey();
+  if (key && !token) headers.set("x-api-key", key);
+
+  const method = String(opts.method || "POST").toUpperCase();
+  if (isMutating(method)) {
+    const csrf = await getCsrfToken();
+    if (csrf) headers.set("x-csrf-token", csrf);
+  }
+
+  try {
+    const res = await fetch(url, {
+      ...opts,
+      credentials: "include",
+      headers,
+    });
+
+    const ct = res.headers.get("content-type") || "";
+    let data = null;
+    if (ct.includes("application/json")) {
+      data = await res.json().catch(() => null);
+    } else {
+      const txt = await res.text().catch(() => "");
+      data = { error: { message: txt || `Error HTTP ${res.status}` } };
+    }
+
+    if (!res.ok) {
+      const msg = data?.error?.message || data?.message || `HTTP ${res.status}`;
+      const err = new Error(msg);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  } catch (err) {
+    throw err;
+  }
+}
