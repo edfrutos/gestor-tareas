@@ -72,18 +72,42 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   **Resiliencia:** El sistema ahora asegura la existencia de un usuario admin (ID 1) por defecto para evitar fallos de integridad en instalaciones nuevas o tests.
 
 ### Fase 11: Biblioteca de Planos Multi-usuario ✅
+
 *   **Base de Datos:**
+
     *   Tabla `maps` creada para almacenar metadatos de planos (nombre, archivo, dueño).
+
     *   Columna `map_id` añadida a `issues` para vincular tareas a un plano específico.
+
     *   Migración automática: Mapa "Principal" por defecto creado y asignado a tareas existentes.
+
 *   **Gestión de Mapas:**
+
     *   Nuevo módulo UI "🗺️ Planos" accesible desde el header.
+
     *   Funcionalidad para **subir nuevos planos** (imágenes) y **seleccionar el activo**.
+
     *   RBAC: Usuarios ven sus propios planos y los del sistema (admin); Admins ven todos.
+
 *   **Integración en Mapa y Tareas:**
+
     *   El visor de mapa carga dinámicamente la imagen del plano seleccionado.
+
     *   Al crear una tarea, se asocia automáticamente al plano activo (`map_id`).
+
     *   El listado de tareas filtra visualmente las incidencias según el plano seleccionado.
+
+
+
+### Fase 12: Refinamiento de Accesibilidad y UX ✅
+
+*   **Formularios:** Añadidos atributos `autocomplete` (`username`, `current-password`, `new-password`) para compatibilidad con gestores de contraseñas.
+
+*   **Accesibilidad ARIA:** Corregido conflicto de `aria-hidden` en modales para mejorar la navegación con lectores de pantalla.
+
+*   **Estabilidad:** Migración de base de datos convertida a asíncrona para garantizar la integridad de las claves foráneas en el arranque y tests.
+
+
 
 ---
 

@@ -824,7 +824,7 @@
   </main>
 
   <!-- Modal Detalle Completo -->
-  <div class="detailModal" id="detailModal" role="dialog" aria-hidden="true">
+  <div class="detailModal" id="detailModal" role="dialog">
     <div class="detailCard">
       <div class="detailHeader">
         <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:0;">
@@ -989,11 +989,11 @@
       </div>
       <form id="loginForm">
         <label>Usuario</label>
-        <input id="loginUser" type="text" required placeholder="Tu usuario" style="margin-bottom:10px;" />
+        <input id="loginUser" type="text" required autocomplete="username" placeholder="Tu usuario" style="margin-bottom:10px;" />
         
         <label>Contraseña</label>
         <div style="position:relative;">
-          <input id="loginPass" type="password" required placeholder="Tu contraseña" style="width:100%; padding-right:40px;" />
+          <input id="loginPass" type="password" required autocomplete="current-password" placeholder="Tu contraseña" style="width:100%; padding-right:40px;" />
           <button type="button" id="togglePass" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:16px; padding:4px;">👁️</button>
         </div>
 
@@ -1019,10 +1019,13 @@
         <button class="btn small" id="profileClose">✕</button>
       </div>
       <form id="changePassForm">
+        <!-- Campo oculto para que el gestor de contraseñas sepa a qué usuario pertenece -->
+        <input type="text" name="username" id="profileStaticUser" style="display:none;" autocomplete="username" />
+        
         <label>Contraseña actual</label>
-        <input id="currentPass" type="password" required style="margin-bottom:10px;" />
+        <input id="currentPass" type="password" required autocomplete="current-password" style="margin-bottom:10px;" />
         <label>Nueva contraseña (min 6)</label>
-        <input id="newPass" type="password" required minlength="6" />
+        <input id="newPass" type="password" required minlength="6" autocomplete="new-password" />
         <div style="margin-top:20px;">
           <button class="btn primary" type="submit" style="width:100%;">Cambiar contraseña</button>
         </div>
@@ -1074,7 +1077,7 @@
       <form id="editUserForm">
         <input type="hidden" id="editUserId" />
         <label>Usuario</label>
-        <input id="editUserName" disabled style="opacity:0.7; margin-bottom:10px;" />
+        <input id="editUserName" disabled autocomplete="username" style="opacity:0.7; margin-bottom:10px;" />
         
         <label>Rol</label>
         <select id="editUserRole" style="width:100%; margin-bottom:10px; padding:10px; border-radius:12px; background:var(--chip); border:1px solid var(--border2);">
@@ -1083,7 +1086,7 @@
         </select>
 
         <label>Nueva Contraseña (Opcional)</label>
-        <input id="editUserPass" type="password" placeholder="Dejar en blanco para no cambiar" minlength="6" />
+        <input id="editUserPass" type="password" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar" minlength="6" />
 
         <div style="margin-top:20px; display:flex; gap:10px;">
           <button class="btn primary" type="submit" style="flex:1;">Guardar</button>
