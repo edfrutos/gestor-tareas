@@ -41,6 +41,10 @@ function renderHistory(logs) {
         text = `Categoría: ${log.old_value} ➝ <strong>${log.new_value}</strong>`;
         icon = "🏷️";
         break;
+      case "update_map":
+        text = `Plano cambiado`;
+        icon = "🗺️";
+        break;
       case "update_photo":
         text = "Foto actualizada";
         icon = "📷";
@@ -88,8 +92,12 @@ function toggleEditMode(enable) {
   const catContainer = $("#dmEditCatContainer");
   if(catContainer) catContainer.style.display = displayEdit;
 
+  const mapContainer = $("#dmEditMapContainer");
+  if(mapContainer) mapContainer.style.display = displayEdit;
+
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;
+
   $("#dmStatusBadge").style.display = displayView;
   $("#dmEditStatus").style.display = displayEdit;
   $("#dmEditOriginals").style.display = displayEdit;
@@ -110,6 +118,7 @@ async function saveDetailChanges() {
     const desc = $("#dmEditDesc").value.trim();
     const cat = $("#dmEditCategory").value.trim();
     const status = $("#dmEditStatus").value;
+    const mapId = $("#dmEditMap")?.value;
     
     const photoInput = $("#dmResPhotoInput");
     const docInput = $("#dmResDocInput");
@@ -120,6 +129,7 @@ async function saveDetailChanges() {
     fd.set("description", desc);
     fd.set("category", cat);
     fd.set("status", status);
+    if(mapId) fd.set("map_id", mapId);
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
     if (docInput?.files[0]) fd.set("resolution_doc", docInput.files[0]);
@@ -139,7 +149,7 @@ async function saveDetailChanges() {
   }
 }
 
-export function openDetailModal(it) {
+export async function openDetailModal(it) {
   if (!it) return;
   currentDetailId = it.id;
   const modal = $("#detailModal");
@@ -154,6 +164,29 @@ export function openDetailModal(it) {
 
   $("#dmClose").onclick = () => modal.style.display = "none";
   modal.onclick = (e) => { if (e.target === modal) modal.style.display = "none"; };
+
+  // Populate Map Select
+  const mapSelect = $("#dmEditMap");
+  if (mapSelect) {
+      mapSelect.innerHTML = "";
+      let maps = state.mapsList;
+      if (!maps || maps.length === 0) {
+          try {
+             maps = await fetchJson(`${API_BASE}/maps`);
+             state.mapsList = maps || []; 
+          } catch(e) { console.error("Error loading maps", e); }
+      }
+      
+      if(state.mapsList) {
+          state.mapsList.forEach(m => {
+              const opt = document.createElement("option");
+              opt.value = m.id;
+              opt.textContent = m.name; 
+              if(it.map_id === m.id) opt.selected = true;
+              mapSelect.appendChild(opt);
+          });
+      }
+  }
 
   // Control de permisos para botones
   const btnEdit = $("#dmBtnEdit");

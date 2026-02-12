@@ -1,3 +1,4 @@
+Ajustes
 API_KEY
 aplícalo
 caddy
@@ -9,6 +10,7 @@ csrf-csrf
 docker
 docker-compose
 elimínalo
+enmtorno
 entorno
 express
 Express
@@ -19,8 +21,10 @@ Leaflet
 localhost
 Node.js
 nodejs
+NOTEBBOK
 openstreetmap
 OpenStreetMap
+proyecto
 redir
 redirecciones
 Refactorización

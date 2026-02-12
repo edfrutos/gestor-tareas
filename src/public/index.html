@@ -651,6 +651,7 @@
         <span id="userInfo" style="display:none; font-size:13px; color:var(--muted); margin-right:10px;">
           👤 <strong id="userName" style="color:var(--text);"></strong>
         </span>
+        <button class="btn small" id="btnStats" title="Ver Estadísticas" style="margin-right:6px;">📊 Estadísticas</button>
         <button class="btn small" id="btnMaps" title="Gestionar Planos" style="margin-right:6px;">🗺️ Planos</button>
         <button class="btn small" id="btnUsers" style="display:none; margin-right:6px;">👥 Usuarios</button>
         <button class="btn small" id="btnLogout" style="display:none; margin-right:10px;">Salir</button>
@@ -777,7 +778,7 @@
 
         <div class="pad">
           <div class="filters">
-            <input id="q" placeholder="Buscar..." />
+            <input id="q" placeholder="Buscar por título, descripción o usuario..." />
             <select id="fStatus">
               <option value="">Estado: todos</option>
               <option value="open">Abierta</option>
@@ -841,6 +842,13 @@
       </div>
       <div class="detailBody">
         <div class="detailMain">
+          <!-- Edit Mode: Map -->
+          <div id="dmEditMapContainer" style="display:none; margin-bottom:12px;">
+             <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Plano / Mapa</label>
+             <select id="dmEditMap" class="small-input" style="width:100%; padding:10px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px;">
+             </select>
+          </div>
+
           <!-- Edit Mode: Category -->
           <div id="dmEditCatContainer" style="display:none; margin-bottom:12px;">
              <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Categoría</label>
@@ -1127,6 +1135,31 @@
     </div>
   </div>
 
+  <!-- Modal Estadísticas -->
+  <div class="modal" id="statsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="width:min(800px, 95vw); max-height:90vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
+        <h3 style="margin:0; font-size:16px;">📊 Estadísticas Generales</h3>
+        <button class="btn small" id="statsClose">✕</button>
+      </div>
+      <div style="padding:20px; overflow-y:auto; flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+         <div>
+           <h4 style="text-align:center; margin-bottom:10px; font-size:13px; color:var(--muted);">Estado de Tareas</h4>
+           <canvas id="chartStatus"></canvas>
+         </div>
+         <div>
+           <h4 style="text-align:center; margin-bottom:10px; font-size:13px; color:var(--muted);">Categorías</h4>
+           <canvas id="chartCategory"></canvas>
+         </div>
+         <div id="chartUserContainer" style="grid-column: 1 / -1; display:none;">
+           <h4 style="text-align:center; margin-bottom:10px; font-size:13px; color:var(--muted);">Top 5 Usuarios (Tareas creadas)</h4>
+           <canvas id="chartUser"></canvas>
+         </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="https://unpkg.com/marked@12.0.0/marked.min.js" defer></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>

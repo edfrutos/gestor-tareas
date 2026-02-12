@@ -148,8 +148,8 @@ function buildWhereClause(query) {
     params.push(category);
   }
   if (q) {
-    where.push("(i.title LIKE ? OR i.description LIKE ?)");
-    params.push(`%${q}%`, `%${q}%`);
+    where.push("(i.title LIKE ? OR i.description LIKE ? OR u.username LIKE ?)");
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (from) {
     where.push("i.created_at >= ?");
@@ -243,7 +243,12 @@ router.get("/", requireAuth(), async (req, res, next) => {
       [...params, pageSize, offset]
     );
 
-    const row = await get(`SELECT COUNT(*) AS total FROM issues i ${whereSql}`, params);
+    const row = await get(`
+      SELECT COUNT(*) AS total 
+      FROM issues i 
+      LEFT JOIN users u ON i.created_by = u.id
+      ${whereSql}
+    `, params);
 
     const withThumbs = items.map((it) => ({
       ...it,
@@ -307,6 +312,43 @@ router.get("/stats", requireAuth(), async (req, res, next) => {
     // Evitar caché
     res.setHeader("Cache-Control", "no-store");
     res.json(stats);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /v1/issues/stats/details - Agrupaciones para gráficas
+router.get("/stats/details", requireAuth(), async (req, res, next) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+    const userId = req.user.id;
+    const where = isAdmin ? "" : "WHERE i.created_by = ?";
+    const params = isAdmin ? [] : [userId];
+
+    // Por Estado
+    const byStatus = await all(`SELECT status, COUNT(*) as count FROM issues i ${where} GROUP BY status`, params);
+    
+    // Por Categoría
+    const byCategory = await all(`SELECT category, COUNT(*) as count FROM issues i ${where} GROUP BY category`, params);
+
+    // Por Usuario (Top 5) - Solo relevante para admins
+    let byUser = [];
+    if (isAdmin) {
+      byUser = await all(`
+        SELECT u.username, COUNT(*) as count 
+        FROM issues i
+        JOIN users u ON i.created_by = u.id
+        GROUP BY i.created_by
+        ORDER BY count DESC
+        LIMIT 5
+      `);
+    }
+
+    res.json({
+      byStatus: byStatus.reduce((acc, r) => ({ ...acc, [r.status]: r.count }), {}),
+      byCategory: byCategory.reduce((acc, r) => ({ ...acc, [r.category]: r.count }), {}),
+      byUser: byUser
+    });
   } catch (e) {
     next(e);
   }
@@ -499,7 +541,7 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     const id = Number(req.params.id);
     // Validar cuerpo
     const body = validateSchema(updateIssueSchema, req.body || {});
-    const { status, description, category } = body;
+    const { status, description, category, map_id } = body;
 
     if (!id || !Number.isInteger(id)) {
       return res.status(400).json({
@@ -542,6 +584,12 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (category) {
       updates.push("category = ?");
       params.push(category);
+    }
+
+    // Validar map_id si viene
+    if (map_id !== undefined && map_id !== null) {
+      updates.push("map_id = ?");
+      params.push(map_id);
     }
 
     // Procesar foto original reemplazo
@@ -626,18 +674,8 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (category && category !== currentIssue.category) {
       logPromises.push(logChange(id, userId, "update_category", currentIssue.category, category));
     }
-    // Si se subieron archivos, registrar
-    if (updates.some(u => u.startsWith("photo_url"))) {
-      logPromises.push(logChange(id, userId, "update_photo", currentIssue.photo_url, "new_photo"));
-    }
-    if (updates.some(u => u.startsWith("text_url"))) {
-      logPromises.push(logChange(id, userId, "update_doc", currentIssue.text_url, "new_doc"));
-    }
-    if (updates.some(u => u.startsWith("resolution_photo_url"))) {
-      logPromises.push(logChange(id, userId, "resolution_photo", currentIssue.resolution_photo_url, "new_resolution_photo"));
-    }
-    if (updates.some(u => u.startsWith("resolution_text_url"))) {
-      logPromises.push(logChange(id, userId, "resolution_doc", currentIssue.resolution_text_url, "new_resolution_doc"));
+    if (map_id !== undefined && map_id !== currentIssue.map_id) {
+      logPromises.push(logChange(id, userId, "update_map", currentIssue.map_id, map_id));
     }
     await Promise.all(logPromises);
 

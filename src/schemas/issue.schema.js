@@ -43,6 +43,7 @@ const updateIssueSchema = z.object({
   status: z.enum(["open", "in_progress", "resolved"]).optional(),
   description: z.string().trim().optional(),
   category: z.string().trim().optional(),
+  map_id: z.coerce.number().optional(),
   // Nota: Multer maneja los archivos por separado, no los validamos aquí en el body
 });
 

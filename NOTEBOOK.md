@@ -153,6 +153,24 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 *   Revisar logs de producción para detectar posibles cuellos de botella en el polling de 30s.
 *   Considerar el uso de WebSockets (Socket.io) en lugar de Polling si el número de usuarios crece.
 
+### Fase 14: Gestión de Planos, Búsqueda Avanzada y Dashboard (12 Feb 2026) ✅
+
+*   **Gestión de Planos en Edición:** Implementada la capacidad de reasignar una tarea a un plano diferente desde el modal de edición, incluyendo actualización en DB y logging.
+*   **Búsqueda Avanzada por Usuario:** La barra de búsqueda global ahora permite filtrar tareas por el nombre de usuario del autor, integrando un `LEFT JOIN` en el backend.
+*   **Dashboard de Estadísticas:**
+    *   Integración de **Chart.js** para visualización dinámica.
+    *   Gráficas de distribución por estado (Doughnut) y categoría (Bar) accesibles para todos.
+    *   Gráfica de productividad por usuario (Top 5) exclusiva para administradores.
+    *   Restauración de la funcionalidad de badges en tiempo real (Polling 30s) integrada en el nuevo módulo de estadísticas.
+
+---
+
+## 5. Próximos Pasos
+
+### Estabilidad y Despliegue
+*   Revisar logs de producción para detectar posibles cuellos de botella en el polling de 30s.
+*   Considerar el uso de WebSockets (Socket.io) en lugar de Polling si el número de usuarios crece.
+
 ### Funcionalidades Pendientes
-*   **Búsqueda avanzada** por nombre de usuario en la lista de incidencias (solo para admins).
-*   **Dashboard de estadísticas gráficas** (usando Chart.js o similar) en el panel de administración.
+*   **Dashboard de estadísticas gráficas:** ✅ Implementado (12 Feb 2026).
+*   **Exportación avanzada:** Permitir exportar las estadísticas directamente a PDF o imagen.

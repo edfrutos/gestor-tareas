@@ -4,7 +4,7 @@ import { getConfig } from "./modules/api.js";
 import { ensureMap, initMapModule } from "./modules/map.js";
 import { setStatus, $ } from "./modules/utils.js";
 import { LS_THEME } from "./modules/config.js";
-import { startStatsPolling } from "./modules/stats.js";
+import { startStatsPolling, initStatsModule } from "./modules/stats.js";
 import { isAuthenticated, getUser, login, logout, register, changePassword } from "./modules/auth.js";
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
@@ -216,10 +216,11 @@ async function initAuth() {
     const isAuth = await initAuth();
     if (!isAuth) return; // Detener carga si no está autenticado
 
-    // Inicializar módulo de usuarios
+    // Inicializar módulos
     initUsersModule();
     initMapsModule();
     initMapModule();
+    initStatsModule();
     
     // Mostrar botón de usuarios si es admin
     const currentUser = getUser();
