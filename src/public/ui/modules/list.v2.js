@@ -65,10 +65,6 @@ function buildQuery(page) {
   params.set("pageSize", "10");
   params.set("_t", String(Date.now()));
 
-  if (state.currentMap) {
-    params.set("mapId", String(state.currentMap.id));
-  }
-
   if (qEl?.value) params.set("q", qEl.value.trim());
   if (fStatusEl?.value) params.set("status", fStatusEl.value);
   if (fCategoryEl?.value) params.set("category", fCategoryEl.value.trim());
@@ -171,8 +167,26 @@ function renderList(items, mode) {
     if (imgEl) setImgFallback(imgEl, { fallbackSrc: resolveSameOriginUrl(it.photo_url), onFailReplace: false });
 
     // Click en fila -> detalle
-    row.addEventListener("click", () => openDetailModal(it));
-    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") openDetailModal(it); });
+    row.addEventListener("click", async () => {
+      // Inversión de Control: Cambiar de plano si es necesario
+      if (it.map_id && state.currentMap?.id !== it.map_id) {
+         const targetMap = state.mapsList.find(m => m.id === it.map_id);
+         if (targetMap) {
+            // Importación dinámica para evitar ciclos
+            const { selectMap } = await import("./maps.js");
+            selectMap(targetMap, false); // false = no recargar issues (ya las tenemos)
+         }
+      }
+      
+      // Centrar en el mapa
+      if (it.lat != null && it.lng != null) {
+         const { setLatLng } = await import("./map.js");
+         setLatLng(it.lat, it.lng, { pan: true, setPin: false });
+      }
+
+      openDetailModal(it);
+    });
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") row.click(); });
     
     // Botón Favorito Rápido
     row.querySelector(".btn-fav-quick").addEventListener("click", (e) => {

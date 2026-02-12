@@ -101,11 +101,41 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 ### Fase 12: Refinamiento de Accesibilidad y UX ✅
 
+
+
 *   **Formularios:** Añadidos atributos `autocomplete` (`username`, `current-password`, `new-password`) para compatibilidad con gestores de contraseñas.
+
+
 
 *   **Accesibilidad ARIA:** Corregido conflicto de `aria-hidden` en modales para mejorar la navegación con lectores de pantalla.
 
+
+
 *   **Estabilidad:** Migración de base de datos convertida a asíncrona para garantizar la integridad de las claves foráneas en el arranque y tests.
+
+
+
+
+
+
+
+### Fase 13: Inversión de Control Lista-Mapa ✅
+
+
+
+*   **Lista Global:** La lista de tareas ahora carga todas las incidencias del usuario (independientemente del plano activo).
+
+
+
+*   **Cambio Automático de Plano:** Al seleccionar una tarea de la lista, la aplicación cambia automáticamente al plano (`map_id`) correspondiente y centra la vista en la tarea.
+
+
+
+*   **Filtrado Visual del Mapa:** El mapa sigue filtrando visualmente los marcadores para mostrar solo los que pertenecen al plano que se está visualizando en ese momento.
+
+
+
+
 
 
 
@@ -113,32 +143,16 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 
 
+
+
+
+
 ## 5. Próximos Pasos
 
-
-
-### Refinamiento de UX (Prioridad)
-
-*   **Inversión de Control Lista-Mapa:**
-
-    *   Actualmente, el mapa filtra la lista de tareas.
-
-    *   **Cambio solicitado:** La lista debe mostrar *todas* las tareas del usuario (independientemente del mapa activo).
-
-    *   Al seleccionar una tarea de la lista, si esta pertenece a un plano distinto al activo, la aplicación debe cambiar automáticamente al plano correspondiente (`map_id`) y centrar la vista en la tarea.
-
-
-
 ### Estabilidad y Despliegue
-
 *   Revisar logs de producción para detectar posibles cuellos de botella en el polling de 30s.
-
 *   Considerar el uso de WebSockets (Socket.io) en lugar de Polling si el número de usuarios crece.
 
-
-
 ### Funcionalidades Pendientes
-
 *   **Búsqueda avanzada** por nombre de usuario en la lista de incidencias (solo para admins).
-
 *   **Dashboard de estadísticas gráficas** (usando Chart.js o similar) en el panel de administración.

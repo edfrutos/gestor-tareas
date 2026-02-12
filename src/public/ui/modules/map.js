@@ -8,6 +8,13 @@ export function initMapModule() {
     const mapData = e.detail;
     if (mapData && state.map) {
       updateMapImage(mapData.file_url);
+      
+      // Al cambiar de plano, refrescar marcadores visibles usando la caché
+      const allIssues = Array.from(state.allItemsById.values());
+      clearMarkers();
+      addMarkers(allIssues, (it) => {
+         import("./details.v2.js").then(m => m.openDetailModal(it));
+      });
     }
   });
 }
@@ -70,6 +77,10 @@ export function addMarkers(items, onClickMarker) {
 
   items.forEach((it) => {
     if (!it || it.lat == null || it.lng == null) return;
+    
+    // FILTRO VISUAL: Solo mostrar marcadores del plano actual
+    if (state.currentMap && it.map_id !== state.currentMap.id) return;
+
     const lat = Number(it.lat);
     const lng = Number(it.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
