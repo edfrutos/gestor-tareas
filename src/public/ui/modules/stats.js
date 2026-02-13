@@ -3,6 +3,9 @@ import { fetchJson } from "./api.js";
 import { $, toast } from "./utils.js";
 import { getUser } from "./auth.js";
 
+// Register the datalabels plugin globally
+Chart.register(ChartDataLabels);
+
 let charts = {};
 
 export function initStatsModule() {
@@ -15,6 +18,12 @@ export function initStatsModule() {
         close.onclick = () => modal.style.display = "none";
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = "none"; };
     }
+
+    // New: Export buttons
+    const btnExportPng = $("#btnExportPng");
+    if (btnExportPng) btnExportPng.onclick = exportToPng;
+    const btnExportPdf = $("#btnExportPdf");
+    if (btnExportPdf) btnExportPdf.onclick = exportToPdf;
 }
 
 async function openStatsModal() {
@@ -51,7 +60,21 @@ function renderCharts(data) {
                     legend: { 
                         position: 'bottom', 
                         labels: { color: '#fff', font: { size: 11 } } 
-                    } 
+                    },
+                    datalabels: {
+                        color: '#fff',
+                        formatter: (value, ctx) => {
+                            let sum = 0;
+                            let dataArr = ctx.chart.data.datasets[0].data;
+                            dataArr.map(data => { sum += data; });
+                            let percentage = (value * 100 / sum).toFixed(0) + '%';
+                            return percentage;
+                        },
+                        font: {
+                            weight: 'bold',
+                            size: 10,
+                        }
+                    }
                 } 
             }
         });
@@ -79,7 +102,19 @@ function renderCharts(data) {
                     x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, 
                     y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } } 
                 },
-                plugins: { legend: { display: false } }
+                plugins: { 
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        anchor: 'end',
+                        align: 'end',
+                        formatter: (value) => value > 0 ? value : '',
+                        font: { 
+                            weight: 'bold',
+                            size: 10,
+                        }
+                    }
+                }
             }
         });
     }
@@ -107,7 +142,19 @@ function renderCharts(data) {
                         x: { ticks: { color: '#fff' } }, 
                         y: { ticks: { color: '#fff' } } 
                     },
-                    plugins: { legend: { labels: { color: '#fff' } } }
+                    plugins: { 
+                        legend: { labels: { color: '#fff' } },
+                        datalabels: {
+                            color: '#fff',
+                            anchor: 'end',
+                            align: 'end',
+                            formatter: (value) => value > 0 ? value : '',
+                            font: {
+                                weight: 'bold',
+                                size: 10,
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -120,6 +167,115 @@ function destroyChart(id) {
     if (charts[id]) {
         charts[id].destroy();
         delete charts[id];
+    }
+}
+
+
+async function exportToPng() {
+    if (Object.keys(charts).length === 0) {
+        toast("No hay gráficos para exportar", "info");
+        return;
+    }
+
+    const overlay = $(".busy-overlay");
+    if (overlay) overlay.classList.add("is-on");
+
+    try {
+        for (const chartId in charts) {
+            const chart = charts[chartId];
+            if (chart) {
+                const image = chart.toBase64Image('image/png', 1.0);
+                const a = document.createElement('a');
+                a.href = image;
+                a.download = `estadisticas-${chartId}-${new Date().toISOString().slice(0, 10)}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+        toast("Gráficos exportados como PNG", "success");
+    } catch (e) {
+        toast("Error al exportar PNG: " + e.message, "error");
+    } finally {
+        if (overlay) overlay.classList.remove("is-on");
+    }
+}
+
+/**
+ * Exporta todos los gráficos a un único documento PDF.
+ */
+async function exportToPdf() {
+    if (Object.keys(charts).length === 0) {
+        toast("No hay gráficos para exportar", "info");
+        return;
+    }
+
+    const overlay = $(".busy-overlay");
+    if (overlay) overlay.classList.add("is-on");
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4'); // Portrait, milimeters, A4 size
+
+        let yOffset = 10;
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const margin = 10;
+        const chartWidth = pageWidth - 2 * margin;
+
+        // Título del documento
+        doc.setFontSize(18);
+        doc.text("Informe de Estadísticas de Tareas", margin, yOffset);
+        yOffset += 15;
+
+        // Fecha de generación
+        doc.setFontSize(10);
+        doc.text(`Fecha de generación: ${new Date().toLocaleDateString()}`, margin, yOffset);
+        yOffset += 10;
+
+        for (const chartId in charts) {
+            const chart = charts[chartId];
+            if (chart) {
+                // Asegurarse de que el elemento canvas sea visible para html2canvas
+                const canvasElement = $(`#chart${chartId.charAt(0).toUpperCase() + chartId.slice(1)}`);
+                if (!canvasElement) continue;
+
+                // NEW: Get chart title from HTML and add to PDF
+                const chartContainer = canvasElement.parentElement;
+                const chartTitleElement = chartContainer ? chartContainer.querySelector('h4') : null;
+                const chartTitle = chartTitleElement ? chartTitleElement.textContent : `Gráfico de ${chartId}`; // Fallback title
+
+                if (yOffset + 20 > pageHeight) { // Check if new title + image will fit
+                    doc.addPage();
+                    yOffset = 10;
+                }
+
+                doc.setFontSize(14);
+                doc.text(chartTitle, margin, yOffset);
+                yOffset += 10; // Space for title
+
+                const canvas = await html2canvas(canvasElement, { backgroundColor: '#ffffff' });
+                const imgData = canvas.toDataURL('image/png');
+
+                const imgProps = doc.getImageProperties(imgData);
+                const imgHeight = (imgProps.height * chartWidth) / imgProps.width;
+
+                if (yOffset + imgHeight + 10 > pageHeight) {
+                    doc.addPage();
+                    yOffset = 10;
+                }
+                doc.addImage(imgData, 'PNG', margin, yOffset, chartWidth, imgHeight);
+                yOffset += imgHeight + 15; // Add more padding below the image
+            }
+        }
+
+        doc.save(`informe-estadisticas-${new Date().toISOString().slice(0, 10)}.pdf`);
+        toast("Informe PDF generado", "success");
+    } catch (e) {
+        console.error("Error al exportar PDF:", e);
+        toast("Error al exportar PDF: " + e.message, "error");
+    } finally {
+        if (overlay) overlay.classList.remove("is-on");
     }
 }
 

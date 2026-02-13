@@ -1140,6 +1140,10 @@
     <div class="modalCard" style="width:min(800px, 95vw); max-height:90vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
       <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
         <h3 style="margin:0; font-size:16px;">📊 Estadísticas Generales</h3>
+        <div id="exportButtons" style="display:flex; gap:10px;">
+          <button class="btn small" id="btnExportPng" title="Descargar gráficos como PNG">🖼️ PNG</button>
+          <button class="btn small" id="btnExportPdf" title="Descargar informe como PDF">📄 PDF</button>
+        </div>
         <button class="btn small" id="statsClose">✕</button>
       </div>
       <div style="padding:20px; overflow-y:auto; flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
@@ -1160,6 +1164,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <!-- New: jsPDF and html2canvas for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="https://unpkg.com/marked@12.0.0/marked.min.js" defer></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>
