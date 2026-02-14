@@ -169,6 +169,12 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 *   **Informe PDF Completo:** Integración de `jsPDF` y `html2canvas` para generar informes PDF que incluyen títulos, fechas y todos los gráficos en un formato profesional.
 *   **Sincronización de Entorno:** Resolución de inconsistencias entre el código local y el contenedor Docker, garantizando un despliegue limpio y funcional.
 
+### Fase 16: Optimización Real y Arquitectura ARM64 (14 Feb 2026) ✅
+
+*   **Compatibilidad Nativa ARM64:** Configuración explícita de `platform: linux/arm64` en `docker-compose.yml` para optimizar el rendimiento en sistemas Apple Silicon y similares.
+*   **Robustez en Construcción:** Actualización del `Dockerfile` con herramientas de compilación (`python3`, `make`, `g++`) para asegurar que dependencias nativas como `sqlite3` y `sharp` se construyan correctamente bajo cualquier arquitectura.
+*   **Flujo de Trabajo Flexible:** Ajuste de los hooks de Git (Husky) para permitir el desarrollo fluido en entornos con discrepancias de arquitectura entre el host y el contenedor, priorizando siempre la estabilidad del entorno de ejecución real (Docker).
+
 ---
 
 ## 5. Próximos Pasos y Sugerencias de Funcionalidades

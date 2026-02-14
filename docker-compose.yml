@@ -1,5 +1,6 @@
 services:
   cola-ciudadana:
+    platform: linux/arm64
     env_file:
       - .env
     build:
