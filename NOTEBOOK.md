@@ -230,3 +230,16 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   **Flexibilidad en Actualización:** Ahora es posible cambiar el email sin necesidad de introducir la contraseña actual, solicitándola únicamente cuando se desea establecer una nueva clave.
     *   **Refinamiento de UI:** Actualización del modal de perfil con textos más claros ("Actualizar Perfil") y campos opcionales en el frontend para evitar confusiones.
 *   **Corrección de Integración:** Resolución de errores de importación en `app.js` (`fetchJson`, `API_BASE`) que impedían el refresco dinámico de los datos del usuario tras cambios en el perfil.
+
+### Fase 20: Sistema de Comunicación (Comentarios) ✅
+
+*   **Infraestructura de Datos:**
+    *   Creación de la tabla `issue_comments` en SQLite.
+    *   Implementación de integridad referencial (FK) con borrado en cascada para mantener la base de datos limpia al eliminar tareas o usuarios.
+*   **API de Comentarios:**
+    *   Nuevo módulo de rutas `src/routes/comments.routes.js`.
+    *   Endpoints para listar y crear comentarios protegidos por autenticación JWT.
+*   **Interfaz de Usuario:**
+    *   Inyección dinámica de la sección de comentarios en el modal de detalles.
+    *   Sistema de scroll automático al recibir nuevos mensajes.
+    *   Feedback visual de carga y errores mediante `toast` y estados de botón.

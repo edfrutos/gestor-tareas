@@ -84,6 +84,7 @@ describe("File Cleanup Logic", () => {
     const res = await request(app)
       .patch(`/v1/issues/${issueId}`)
       .set("x-api-key", process.env.API_KEY)
+      .field("description", "Updated description for file test")
       .attach("photo", newPhoto);
 
     expect(res.statusCode).toBe(200);

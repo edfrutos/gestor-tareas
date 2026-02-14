@@ -1,11 +1,14 @@
 const { z } = require("zod");
 
-// Helper para convertir coordenadas con coma (regional español) a punto
-const coordinatePreprocessor = (val) => {
+// Helper para convertir coordenadas regional español (coma) a punto
+const parseCoordinate = (val) => {
   if (typeof val === "string") {
-    return parseFloat(val.replace(",", "."));
+    const normalized = val.replace(",", ".");
+    const n = parseFloat(normalized);
+    return isNaN(n) ? undefined : n;
   }
-  return Number(val);
+  if (typeof val === "number") return val;
+  return undefined;
 };
 
 // Esquema para la consulta (GET /v1/issues)
@@ -27,13 +30,11 @@ const createIssueSchema = z.object({
   title: z.string().trim().min(1, "Title is required"),
   category: z.string().trim().min(1, "Category is required"),
   description: z.string().trim().min(1, "Description is required"),
-  lat: z.preprocess(
-    coordinatePreprocessor,
-    z.number({ invalid_type_error: "Lat must be a number" })
+  lat: z.any().transform(parseCoordinate).pipe(
+    z.number({ invalid_type_error: "Lat must be a number" }).min(-90).max(90)
   ),
-  lng: z.preprocess(
-    coordinatePreprocessor,
-    z.number({ invalid_type_error: "Lng must be a number" })
+  lng: z.any().transform(parseCoordinate).pipe(
+    z.number({ invalid_type_error: "Lng must be a number" }).min(-180).max(180)
   ),
   map_id: z.coerce.number().optional()
 });
@@ -44,7 +45,6 @@ const updateIssueSchema = z.object({
   description: z.string().trim().optional(),
   category: z.string().trim().optional(),
   map_id: z.coerce.number().optional(),
-  // Nota: Multer maneja los archivos por separado, no los validamos aquí en el body
 });
 
 module.exports = {

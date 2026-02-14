@@ -338,6 +338,7 @@ const issuesRoutes = require("./routes/issues.routes");
 const photosRoutes = require("./routes/photos.routes");
 const usersRoutes = require("./routes/users.routes");
 const mapsRoutes = require("./routes/maps.routes");
+const commentsRoutes = require("./routes/comments.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
 
 // -------------------- rate limit (API) --------------------
@@ -362,6 +363,8 @@ if (RATE_LIMIT_ENABLED) {
 // La UI suele usar API_BASE="/v1". Mantenemos /api por compatibilidad.
 app.use("/v1/auth", authRoutes);
 app.use("/v1/issues", issuesRoutes);
+// Montar comentarios como sub-ruta de issues
+app.use("/v1/issues/:id/comments", commentsRoutes);
 app.use("/v1/photos", photosRoutes);
 app.use("/v1/users", usersRoutes);
 app.use("/v1/maps", mapsRoutes);

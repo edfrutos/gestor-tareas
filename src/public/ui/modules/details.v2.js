@@ -76,6 +76,72 @@ function renderHistory(logs) {
   });
 }
 
+async function loadComments(issueId) {
+  const container = $("#dmCommentsList");
+  if (!container) return;
+  
+  try {
+    container.innerHTML = "<div style='text-align:center; padding:10px; opacity:0.6;'>Cargando comentarios...</div>";
+    const comments = await fetchJson(`${API_BASE}/issues/${issueId}/comments`);
+    renderComments(comments);
+  } catch (e) {
+    container.innerHTML = "<div style='color:var(--bad); padding:10px;'>Error al cargar comentarios.</div>";
+  }
+}
+
+function renderComments(comments) {
+  const container = $("#dmCommentsList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  if (!comments || comments.length === 0) {
+    container.innerHTML = "<div style='text-align:center; padding:20px; opacity:0.5; font-size:13px;'>No hay comentarios todavía. ¡Sé el primero!</div>";
+    return;
+  }
+
+  comments.forEach(c => {
+    const date = new Date(c.created_at).toLocaleString();
+    const div = document.createElement("div");
+    div.style.padding = "10px";
+    div.style.borderBottom = "1px solid var(--border2)";
+    div.style.fontSize = "13px";
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <strong style="color:var(--accent);">${safeText(c.username)}</strong>
+        <span style="font-size:10px; color:var(--muted);">${date}</span>
+      </div>
+      <div style="white-space:pre-wrap; line-height:1.4;">${safeText(c.text)}</div>
+    `;
+    container.appendChild(div);
+  });
+  
+  // Scroll al final
+  container.scrollTop = container.scrollHeight;
+}
+
+async function addComment() {
+  const input = $("#dmNewCommentInput");
+  const text = input?.value.trim();
+  if (!text || !currentDetailId) return;
+
+  const btn = $("#dmBtnAddComment");
+  setButtonBusy(btn, true, "...");
+
+  try {
+    await fetchJson(`${API_BASE}/issues/${currentDetailId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    input.value = "";
+    await loadComments(currentDetailId);
+  } catch (e) {
+    toast(e.message, "error");
+  } finally {
+    setButtonBusy(btn, false);
+  }
+}
+
 function translateStatus(s) {
   if (s === "open") return "Abierta";
   if (s === "in_progress") return "En curso";
@@ -97,6 +163,9 @@ function toggleEditMode(enable) {
 
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;
+  
+  const commentsWrap = $("#dmCommentsWrapper");
+  if(commentsWrap) commentsWrap.style.display = displayView;
 
   $("#dmStatusBadge").style.display = displayView;
   $("#dmEditStatus").style.display = displayEdit;
@@ -224,6 +293,31 @@ export async function openDetailModal(it) {
   $("#dmEditDesc").value = it.description || "";
   $("#dmEditCategory").value = it.category || "";
   $("#dmEditStatus").value = it.status;
+
+  // Inyectar sección de comentarios si no existe
+  let commentsWrap = $("#dmCommentsWrapper");
+  if (!commentsWrap) {
+    commentsWrap = document.createElement("div");
+    commentsWrap.id = "dmCommentsWrapper";
+    commentsWrap.style.marginTop = "20px";
+    commentsWrap.style.borderTop = "1px solid var(--border2)";
+    commentsWrap.style.paddingTop = "16px";
+    commentsWrap.innerHTML = `
+      <h4 style="margin:0 0 12px 0; font-size:14px; display:flex; align-items:center; gap:8px;">💬 Comentarios</h4>
+      <div id="dmCommentsList" style="max-height:250px; overflow-y:auto; background:rgba(0,0,0,0.1); border-radius:12px; margin-bottom:12px; border:1px solid var(--border2);"></div>
+      <div style="display:flex; gap:8px;">
+        <input id="dmNewCommentInput" placeholder="Escribe un comentario..." style="flex:1; padding:8px 12px; border-radius:10px; font-size:13px;" />
+        <button id="dmBtnAddComment" class="btn small primary">Enviar</button>
+      </div>
+    `;
+    $("#dmDesc").after(commentsWrap);
+    
+    $("#dmBtnAddComment").onclick = addComment;
+    $("#dmNewCommentInput").onkeydown = (e) => { if(e.key === 'Enter') addComment(); };
+  }
+  
+  // Cargar comentarios
+  loadComments(it.id);
 
   ["dmResPhotoInput", "dmResDocInput", "dmEditPhotoInput", "dmEditDocInput"].forEach(id => {
     const el = document.getElementById(id);

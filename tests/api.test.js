@@ -168,6 +168,7 @@ describe("API Functional Tests", () => {
         .send({
           title: "Error de coordenadas",
           category: "test",
+          description: "Testing invalid coordinates",
           lat: 100, // Inválido (>90)
           lng: -3.7,
         });
