@@ -1,11 +1,11 @@
 import { wireForms, loadCategories } from "./modules/forms.js";
 import { loadIssues } from "./modules/list.v2.js";
-import { getConfig } from "./modules/api.js";
+import { getConfig, fetchJson } from "./modules/api.js";
 import { ensureMap, initMapModule } from "./modules/map.js";
 import { setStatus, $ } from "./modules/utils.js";
-import { LS_THEME } from "./modules/config.js";
+import { LS_THEME, API_BASE } from "./modules/config.js";
 import { startStatsPolling, initStatsModule } from "./modules/stats.js";
-import { isAuthenticated, getUser, login, logout, register, changePassword } from "./modules/auth.js";
+import { isAuthenticated, getUser, login, logout, register, updateProfile } from "./modules/auth.js";
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
 
@@ -73,8 +73,10 @@ async function initAuth() {
     userInfo.onclick = () => {
       if(profileModal) {
         profileModal.style.display = "flex";
+        const user = getUser();
         const cp = $("#currentPass"); if(cp) cp.value = "";
         const np = $("#newPass"); if(np) np.value = "";
+        const pe = $("#profileEmail"); if(pe) pe.value = user?.email || "";
         const st = $("#profileStatus"); if(st) st.textContent = "";
       }
     };
@@ -85,20 +87,43 @@ async function initAuth() {
   if(changePassForm) {
     changePassForm.onsubmit = async (e) => {
       e.preventDefault();
-      const curr = $("#currentPass").value;
-      const newP = $("#newPass").value;
+      const curr = $("#currentPass")?.value;
+      const newP = $("#newPass")?.value;
+      const email = $("#profileEmail")?.value;
       const st = $("#profileStatus");
       
       try {
         st.textContent = "Guardando...";
         st.style.color = "var(--text)";
-        await changePassword(curr, newP);
-        st.textContent = "Contraseña cambiada ✅";
+        
+        const payload = { email };
+        // Solo enviamos contraseñas si el usuario ha escrito algo en "nueva contraseña"
+        if (newP && newP.trim().length > 0) {
+          payload.currentPassword = curr;
+          payload.newPassword = newP;
+        }
+
+        await updateProfile(payload);
+        
+        // Refrescar datos del usuario localmente
+        const { user } = await fetchJson(`${API_BASE}/auth/me`);
+        localStorage.setItem("cc_user", JSON.stringify(user));
+        if(userName) userName.textContent = user.username;
+
+        st.textContent = "Perfil actualizado ✅";
         st.style.color = "var(--ok)";
+        
+        // Limpiar campos de password
+        const cp = $("#currentPass"); if(cp) cp.value = "";
+        const np = $("#newPass"); if(np) np.value = "";
+
         setTimeout(() => profileModal.style.display = "none", 1500);
       } catch(err) {
         let msg = err.message;
-        if(err.data && Array.isArray(err.data.error)) msg = err.data.error.map(x => x.message).join(", ");
+        if(err.data && err.data.error) {
+           if (Array.isArray(err.data.error)) msg = err.data.error.map(x => x.message).join(", ");
+           else msg = err.data.error;
+        }
         st.textContent = msg || "Error";
         st.style.color = "var(--bad)";
       }
@@ -131,18 +156,21 @@ async function initAuth() {
     lnkRegister.onclick = (e) => {
       e.preventDefault();
       isRegisterMode = !isRegisterMode;
+      const emailGroup = $("#registerEmailGroup");
       if(isRegisterMode) {
         title.textContent = "Crear Cuenta";
         subtitle.textContent = "Elige usuario y contraseña";
         btnSubmit.textContent = "Registrarme";
         lnkRegister.textContent = "Ya tengo cuenta (Entrar)";
         lnkRecovery.style.display = "none";
+        if(emailGroup) emailGroup.style.display = "block";
       } else {
         title.textContent = "Gestor de Tareas";
         subtitle.textContent = "Identifícate para continuar";
         btnSubmit.textContent = "Entrar";
         lnkRegister.textContent = "Crear cuenta";
         lnkRecovery.style.display = "inline";
+        if(emailGroup) emailGroup.style.display = "none";
       }
       errEl.textContent = "";
     };
@@ -180,12 +208,13 @@ async function initAuth() {
       e.preventDefault();
       const userInp = $("#loginUser");
       const passInp = $("#loginPass");
+      const emailInp = $("#registerEmail");
       
       try {
         errEl.textContent = "Procesando...";
         
         if (isRegisterMode) {
-           await register(userInp.value, passInp.value);
+           await register(userInp.value, passInp.value, emailInp?.value);
            await login(userInp.value, passInp.value);
            location.reload();
         } else {

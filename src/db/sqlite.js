@@ -7,37 +7,50 @@ const bcrypt = require("bcryptjs");
 const { getDbFile } = require("../config/paths");
 
 let db = null;
+let dbPromise = null;
 
 function ensureDirForFile(filePath) {
   const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 }
 
-function openDb() {
-  if (db) return db;
+async function openDb() {
+  if (dbPromise) return dbPromise;
 
-  const file = getDbFile();
-  ensureDirForFile(file);
+  dbPromise = new Promise((resolve, reject) => {
+    const file = getDbFile();
+    ensureDirForFile(file);
 
-  db = new sqlite3.Database(file, (err) => {
-    if (err) {
-      console.error(`[sqlite] FATAL: Could not open database at ${file}`, err);
-    }
+    const newDb = new sqlite3.Database(file, (err) => {
+      if (err) {
+        console.error(`[sqlite] FATAL: Could not open database at ${file}`, err);
+        dbPromise = null; // permitir reintento
+        return reject(err);
+      }
+
+      // Configuración inicial robusta
+      newDb.serialize(() => {
+        newDb.run("PRAGMA journal_mode=WAL;");
+        newDb.run("PRAGMA foreign_keys=ON;");
+        newDb.run("PRAGMA busy_timeout=5000;"); // Esperar hasta 5s si está bloqueada
+        
+        db = newDb;
+        resolve(db);
+      });
+    });
+
+    newDb.on("error", (err) => {
+      console.error("[sqlite] Unhandled error:", err);
+    });
   });
-  
-  db.on("error", (err) => {
-    console.error("[sqlite] Unhandled error:", err);
-  });
 
-  // Pragmas razonables
-  db.exec("PRAGMA journal_mode=WAL;");
-  db.exec("PRAGMA foreign_keys=ON;");
-
-  return db;
+  return dbPromise;
 }
 
 async function migrate() {
-  const d = openDb();
+  const d = await openDb();
 
   // Helper local para evitar callbacks anidados
   const exec = (sql, params = []) => new Promise((resolve, reject) => {
@@ -50,6 +63,7 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
+        email TEXT UNIQUE,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'user',
         created_at TEXT NOT NULL
@@ -147,6 +161,9 @@ async function migrate() {
     const logCols = await checkColumns("issue_logs");
     if (!logCols.has("user_id")) await exec(`ALTER TABLE issue_logs ADD COLUMN user_id INTEGER;`);
 
+    const userCols = await checkColumns("users");
+    if (!userCols.has("email")) await exec(`ALTER TABLE users ADD COLUMN email TEXT;`);
+
     const issueCols = await checkColumns("issues");
     if (!issueCols.has("thumb_url")) await exec(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);
     if (!issueCols.has("photo_url")) await exec(`ALTER TABLE issues ADD COLUMN photo_url TEXT;`);
@@ -186,37 +203,40 @@ function closeDb() {
 }
 
 function run(sql, params = []) {
-  const d = openDb();
-  const safeParams = params.map(p => p === undefined ? null : p);
-  return new Promise((resolve, reject) => {
-    d.run(sql, safeParams, function (err) {
-      if (err) {
-        console.error("[sqlite] run error:", err, "SQL:", sql, "Params:", safeParams);
-        return reject(err);
-      }
-      resolve({ changes: this.changes, lastID: this.lastID });
+  return openDb().then(d => {
+    const safeParams = params.map(p => p === undefined ? null : p);
+    return new Promise((resolve, reject) => {
+      d.run(sql, safeParams, function (err) {
+        if (err) {
+          console.error("[sqlite] run error:", err, "SQL:", sql, "Params:", safeParams);
+          return reject(err);
+        }
+        resolve({ changes: this.changes, lastID: this.lastID });
+      });
     });
   });
 }
 
 function get(sql, params = []) {
-  const d = openDb();
-  const safeParams = params.map(p => p === undefined ? null : p);
-  return new Promise((resolve, reject) => {
-    d.get(sql, safeParams, (err, row) => {
-      if (err) return reject(err);
-      resolve(row || null);
+  return openDb().then(d => {
+    const safeParams = params.map(p => p === undefined ? null : p);
+    return new Promise((resolve, reject) => {
+      d.get(sql, safeParams, (err, row) => {
+        if (err) return reject(err);
+        resolve(row || null);
+      });
     });
   });
 }
 
 function all(sql, params = []) {
-  const d = openDb();
-  const safeParams = params.map(p => p === undefined ? null : p);
-  return new Promise((resolve, reject) => {
-    d.all(sql, safeParams, (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows || []);
+  return openDb().then(d => {
+    const safeParams = params.map(p => p === undefined ? null : p);
+    return new Promise((resolve, reject) => {
+      d.all(sql, safeParams, (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      });
     });
   });
 }

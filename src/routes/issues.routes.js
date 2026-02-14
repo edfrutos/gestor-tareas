@@ -10,6 +10,7 @@ const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
+const { notifyStatusChange, notifyNewIssue } = require("../services/mail.service");
 
 const router = express.Router();
 
@@ -523,6 +524,11 @@ router.post("/", requireAuth(), (req, res, next) => {
       [result.lastID]
     );
 
+    // Notificación por correo (opcional, no bloqueante)
+    if (process.env.ADMIN_EMAIL) {
+      notifyNewIssue(process.env.ADMIN_EMAIL, req.user, created).catch(e => console.error("Error notifying admin:", e));
+    }
+
     res.setHeader("Cache-Control", "no-store");
     res.status(201).json(created);
   } catch (e) {
@@ -688,6 +694,20 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
       `SELECT * FROM issues WHERE id = ?`,
       [id]
     );
+
+    // Notificación por correo al autor si cambia el estado
+    if (status && status !== currentIssue.status) {
+      (async () => {
+        try {
+          const author = await get("SELECT username, email FROM users WHERE id = ?", [currentIssue.created_by]);
+          if (author && author.email) {
+            await notifyStatusChange(author, updated, currentIssue.status, status);
+          }
+        } catch (err) {
+          console.error("Error sending status change notification:", err);
+        }
+      })();
+    }
 
     res.setHeader("Cache-Control", "no-store");
     res.json({

@@ -67,13 +67,14 @@ export function initUsersModule() {
       e.preventDefault();
       const id = $("#editUserId").value;
       const role = $("#editUserRole").value;
+      const email = $("#editUserEmail").value;
       const pass = $("#editUserPass").value;
 
       const btn = editForm.querySelector("button[type=submit]");
       setButtonBusy(btn, true, "Guardando...");
 
       try {
-        const payload = { role };
+        const payload = { role, email };
         if (pass && pass.trim()) payload.password = pass;
 
         await fetchJson(`${API_BASE}/users/${id}`, {
@@ -136,7 +137,7 @@ function renderUsersTable(users) {
   const currentUser = getUser();
 
   if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">No hay usuarios.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">No hay usuarios.</td></tr>`;
     return;
   }
 
@@ -151,6 +152,9 @@ function renderUsersTable(users) {
       <td style="padding:10px 14px;">
         <div style="font-weight:600;">${safeText(u.username)}</div>
         ${isMe ? '<span style="font-size:10px; color:var(--ok);"> (Tú)</span>' : ''}
+      </td>
+      <td style="padding:10px 14px; font-size:12px; color:var(--muted); max-width:150px; overflow:hidden; text-overflow:ellipsis;">
+        ${u.email ? safeText(u.email) : '-'}
       </td>
       <td style="padding:10px 14px;">
         <span class="badge" style="font-size:11px; ${u.role === 'admin' ? 'background:rgba(124,92,255,.2); color:var(--accent);' : 'background:var(--chip);'}">
@@ -182,6 +186,7 @@ function openEditUser(u) {
   
   $("#editUserId").value = u.id;
   $("#editUserName").value = u.username;
+  $("#editUserEmail").value = u.email || "";
   $("#editUserRole").value = u.role;
   $("#editUserPass").value = ""; // Limpiar
   

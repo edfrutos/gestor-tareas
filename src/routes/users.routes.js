@@ -22,7 +22,7 @@ router.get("/", requireAuth(), requireAdmin, async (req, res, next) => {
     const offset = (page - 1) * pageSize;
 
     const users = await all(
-      "SELECT id, username, role, created_at FROM users ORDER BY username ASC LIMIT ? OFFSET ?",
+      "SELECT id, username, email, role, created_at FROM users ORDER BY username ASC LIMIT ? OFFSET ?",
       [pageSize, offset]
     );
     const countRow = await get("SELECT COUNT(*) as total FROM users");
@@ -38,22 +38,20 @@ router.get("/", requireAuth(), requireAdmin, async (req, res, next) => {
   }
 });
 
-// PATCH /v1/users/:id - Actualizar rol o password (admin)
+// PATCH /v1/users/:id - Actualizar rol, email o password (admin)
 router.patch("/:id", requireAuth(), requireAdmin, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const schema = z.object({
       role: z.enum(["admin", "user"]).optional(),
+      email: z.string().email().optional().nullable().or(z.literal("")),
       password: z.string().min(6).optional()
     });
     
     const body = schema.parse(req.body);
-    const { role, password } = body;
+    const { role, password, email } = body;
 
     if (!id) return res.status(400).json({ error: "ID inválido" });
-    
-    // Evitar que el admin se quite permisos a sí mismo si es el único, o editarse a sí mismo de forma destructiva
-    // Pero permitimos editarse a sí mismo en general.
     
     const updates = [];
     const params = [];
@@ -61,6 +59,11 @@ router.patch("/:id", requireAuth(), requireAdmin, async (req, res, next) => {
     if (role) {
       updates.push("role = ?");
       params.push(role);
+    }
+
+    if (email !== undefined) {
+      updates.push("email = ?");
+      params.push(email || null);
     }
 
     if (password) {

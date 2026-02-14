@@ -237,5 +237,14 @@ describe("API Functional Tests", () => {
       // Cabeceras reales en español: ID,Fecha,Creado Por,Estado,Categoría,Título...
       expect(res.text).toContain("ID,Fecha,Creado Por,Estado,Categoría,Título");
     });
+
+    test("GET /v1/issues/categories returns a list of categories with API Key", async () => {
+      const res = await request(app)
+        .get("/v1/issues/categories")
+        .set("x-api-key", process.env.API_KEY);
+      expect(res.statusCode).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toContain("alumbrado");
+    });
   });
 });

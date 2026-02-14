@@ -267,8 +267,8 @@ const { doubleCsrf } = require("csrf-csrf");
 // cookies
 app.use(cookieParser());
 
-// CSRF (solo si lo activas por env)
-const CSRF_ENABLED = process.env.CSRF_ENABLED === "1";
+// CSRF (Desactivado para estabilidad)
+const CSRF_ENABLED = false;
 
 let csrf;
 if (CSRF_ENABLED) {
@@ -315,7 +315,7 @@ if (CSRF_ENABLED) {
   // Protege SOLO los métodos que mutan
   // (montado tanto en /v1 como en /api para evitar bypass por compatibilidad de rutas)
   const protectMutatingRequestsWithCsrf = (req, res, next) => {
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+    if (CSRF_ENABLED && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       return csrf.doubleCsrfProtection(req, res, next);
     }
     return next();

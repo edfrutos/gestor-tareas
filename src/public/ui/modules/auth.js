@@ -28,11 +28,19 @@ export async function login(username, password) {
   throw new Error("Error en la respuesta de autenticación");
 }
 
-export async function register(username, password) {
+export async function register(username, password, email) {
   return await fetchJson(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, email })
+  });
+}
+
+export async function updateProfile({ currentPassword, newPassword, email }) {
+  return await fetchJson(`${API_BASE}/auth/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword, email })
   });
 }
 

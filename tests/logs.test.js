@@ -41,7 +41,9 @@ describe("Audit Logs (History)", () => {
     expect(res.statusCode).toBe(201);
     issueId = res.body.id;
 
-    const logsRes = await request(app).get(`/v1/issues/${issueId}/logs`);
+    const logsRes = await request(app)
+      .get(`/v1/issues/${issueId}/logs`)
+      .set("x-api-key", process.env.API_KEY);
     expect(logsRes.statusCode).toBe(200);
     expect(logsRes.body.length).toBeGreaterThan(0);
     const log = logsRes.body.find(l => l.action === "create");
@@ -57,7 +59,9 @@ describe("Audit Logs (History)", () => {
 
     expect(res.statusCode).toBe(200);
 
-    const logsRes = await request(app).get(`/v1/issues/${issueId}/logs`);
+    const logsRes = await request(app)
+      .get(`/v1/issues/${issueId}/logs`)
+      .set("x-api-key", process.env.API_KEY);
     const log = logsRes.body.find(l => l.action === "update_status");
     expect(log).toBeDefined();
     expect(log.old_value).toBe("open");
@@ -72,7 +76,9 @@ describe("Audit Logs (History)", () => {
 
     expect(res.statusCode).toBe(200);
 
-    const logsRes = await request(app).get(`/v1/issues/${issueId}/logs`);
+    const logsRes = await request(app)
+      .get(`/v1/issues/${issueId}/logs`)
+      .set("x-api-key", process.env.API_KEY);
     const log = logsRes.body.find(l => l.action === "update_description");
     expect(log).toBeDefined();
     expect(log.old_value).toBe("Checking audit logs");

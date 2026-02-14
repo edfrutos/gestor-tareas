@@ -183,6 +183,16 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 *   **Seguridad de Administrador:** Implementado soporte para la variable de entorno `ADMIN_PASSWORD`. Ahora, el sistema puede inicializar o actualizar la contraseña del administrador por defecto (`admin`) de forma segura mediante un hash de `bcrypt`, eliminando el uso de credenciales bloqueadas o hardcodeadas.
 *   **Limpieza de Código:** Eliminación de importaciones duplicadas, código muerto y mejora de la legibilidad general en los archivos críticos del núcleo (`sqlite.js`, `auth.routes.js`, `issues.routes.js`).
 
+### Fase 18: Gestión de Comunicaciones y Notificaciones (14 Feb 2026) ✅
+
+*   **Base de Datos Extendida:** Incorporación de la columna `email` (única y opcional) en la tabla `users` mediante una migración suave y segura.
+*   **Flujo de Usuario Mejorado:** Actualización de los esquemas de registro y login para capturar y devolver el correo electrónico del usuario, integrándolo también en el payload del token JWT.
+*   **Servicio de Notificaciones por Email:** Implementación de `src/services/mail.service.js` utilizando `nodemailer`. El servicio soporta configuración vía variables de entorno (`SMTP_HOST`, `SMTP_PORT`, etc.) y cuenta con un modo de depuración para desarrollo.
+*   **Automatización de Avisos:**
+    *   **Notificación al Administrador:** Envío automático de un correo al `ADMIN_EMAIL` cada vez que se registra una nueva incidencia en el sistema.
+    *   **Aviso de Cambio de Estado:** Notificación inmediata al autor de una tarea cuando su estado cambia (ej. de "Abierta" a "En Proceso"), siempre que el usuario tenga un correo configurado.
+*   **Resiliencia en Tests:** Corrección de la suite de pruebas automatizadas para reflejar el blindaje de rutas y asegurar que todos los flujos de comunicación funcionan bajo condiciones de carga real.
+
 ---
 
 ## 5. Próximos Pasos y Sugerencias de Funcionalidades
@@ -205,3 +215,18 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   Mejorar la respuesta táctil del mapa y la legibilidad de las gráficas en pantallas muy pequeñas.
 *   **🔄 Actualización en Tiempo Real:**
     *   Migrar el polling actual a **WebSockets** (Socket.io) para recibir actualizaciones instantáneas de nuevas tareas o cambios de estado.
+
+### Fase 19: Estabilidad Nuclear y Refinamiento de Perfil (14 Feb 2026) ✅
+
+*   **Robustez Extrema en DB:**
+    *   Refactorización de `src/db/sqlite.js` con apertura asíncrona real y configuración de `PRAGMA busy_timeout=5000`. Esto elimina los errores de "base de datos bloqueada" en entornos concurrentes.
+    *   Activación forzada de modo `WAL` y `Foreign Keys` en cada apertura de conexión.
+*   **Resolución de Rutas Inteligente:**
+    *   Mejora en `src/config/paths.js` para detectar el entorno de ejecución. El sistema ahora ignora automáticamente rutas absolutas de Docker (`/app/...`) cuando detecta que se ejecuta en el host local, evitando fallos de arranque catastróficos.
+*   **Sincronización de Entorno:**
+    *   Unificación del archivo `.env` utilizando rutas relativas, garantizando compatibilidad total entre desarrollo local y despliegue en contenedores.
+    *   Inclusión de `JWT_SECRET` persistente para evitar la invalidación de sesiones en reinicios.
+*   **Experiencia de Usuario (Perfil):**
+    *   **Flexibilidad en Actualización:** Ahora es posible cambiar el email sin necesidad de introducir la contraseña actual, solicitándola únicamente cuando se desea establecer una nueva clave.
+    *   **Refinamiento de UI:** Actualización del modal de perfil con textos más claros ("Actualizar Perfil") y campos opcionales en el frontend para evitar confusiones.
+*   **Corrección de Integración:** Resolución de errores de importación en `app.js` (`fetchJson`, `API_BASE`) que impedían el refresco dinámico de los datos del usuario tras cambios en el perfil.

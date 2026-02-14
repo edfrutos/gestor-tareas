@@ -10,61 +10,6 @@ export function getApiKey() {
   return (localStorage.getItem(LS_API_KEY) || "").trim();
 }
 
-// CSRF cache
-let csrfToken = null;
-let csrfUnavailable = false;
-let csrfInFlight = null;
-let csrfRetryAfterAt = 0;
-let csrfFailureCount = 0;
-
-async function getCsrfToken() {
-  if (csrfToken) return csrfToken;
-  if (csrfUnavailable) return null;
-  const csrfEnabled = localStorage.getItem("csrfEnabled");
-  if (csrfEnabled === "0") return null;
-
-  const now = Date.now();
-  if (csrfRetryAfterAt && now < csrfRetryAfterAt) return null;
-  if (csrfInFlight) return csrfInFlight;
-
-  const attemptFetch = async () => {
-    const res = await fetch(`${API_BASE}/csrf`, {
-      method: "GET",
-      credentials: "include",
-      headers: { accept: "application/json" },
-    });
-    if ([204, 404, 501].includes(res.status)) {
-      csrfUnavailable = true;
-      return null;
-    }
-    if (!res.ok) throw new Error(`CSRF HTTP ${res.status}`);
-    const data = await res.json().catch(() => null);
-    if (!data?.token) throw new Error("CSRF token missing");
-    csrfToken = data.token;
-    csrfFailureCount = 0;
-    csrfRetryAfterAt = 0;
-    return csrfToken;
-  };
-
-  csrfInFlight = (async () => {
-    for (let i = 1; i <= 3; i++) {
-      try { return await attemptFetch(); }
-      catch {
-        if (csrfUnavailable) return null;
-        csrfFailureCount = Math.min(csrfFailureCount + 1, 20);
-        if (i === 3) {
-          csrfRetryAfterAt = Date.now() + Math.min(30000, 250 * Math.pow(2, Math.max(0, csrfFailureCount - 1)));
-          return null;
-        }
-        await new Promise(r => setTimeout(r, 250 * Math.pow(2, i - 1) + Math.random() * 125));
-      }
-    }
-    return null;
-  })().finally(() => { csrfInFlight = null; });
-  
-  return csrfInFlight;
-}
-
 export async function getIssueLogs(id) {
   return await fetchJson(`${API_BASE}/issues/${id}/logs`);
 }
@@ -74,7 +19,7 @@ export async function getConfig() {
     const res = await fetch(`${API_BASE}/config`, { credentials: "include" });
     if (!res.ok) return;
     const cfg = await res.json().catch(() => ({}));
-    localStorage.setItem("csrfEnabled", cfg.csrfEnabled === true ? "1" : (cfg.csrfEnabled === false ? "0" : ""));
+    localStorage.setItem("csrfEnabled", cfg.csrfEnabled === true ? "1" : "0");
   } catch (e) {
     console.warn("getConfig error:", e);
   }
@@ -89,12 +34,6 @@ export async function fetchJson(url, opts = {}) {
 
   const key = getApiKey();
   if (key && !token) headers.set("x-api-key", key);
-
-  const method = String(opts.method || "GET").toUpperCase();
-  if (isMutating(method)) {
-    const token = await getCsrfToken();
-    if (token) headers.set("x-csrf-token", token);
-  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -134,7 +73,6 @@ export async function fetchJson(url, opts = {}) {
 
 export async function fetchUpload(url, opts = {}) {
   const headers = new Headers(opts.headers || {});
-  // NO establecer Content-Type para que el navegador ponga el boundary multipart
   headers.set("accept", "application/json");
 
   const token = getToken();
@@ -142,12 +80,6 @@ export async function fetchUpload(url, opts = {}) {
 
   const key = getApiKey();
   if (key && !token) headers.set("x-api-key", key);
-
-  const method = String(opts.method || "POST").toUpperCase();
-  if (isMutating(method)) {
-    const csrf = await getCsrfToken();
-    if (csrf) headers.set("x-csrf-token", csrf);
-  }
 
   try {
     const res = await fetch(url, {

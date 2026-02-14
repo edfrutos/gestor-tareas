@@ -999,6 +999,11 @@
         <label>Usuario</label>
         <input id="loginUser" type="text" required autocomplete="username" placeholder="Tu usuario" style="margin-bottom:10px;" />
         
+        <div id="registerEmailGroup" style="display:none;">
+          <label>Email (para notificaciones)</label>
+          <input id="registerEmail" type="email" autocomplete="email" placeholder="tu@email.com" style="margin-bottom:10px;" />
+        </div>
+
         <label>Contraseña</label>
         <div style="position:relative;">
           <input id="loginPass" type="password" required autocomplete="current-password" placeholder="Tu contraseña" style="width:100%; padding-right:40px;" />
@@ -1030,12 +1035,15 @@
         <!-- Campo oculto para que el gestor de contraseñas sepa a qué usuario pertenece -->
         <input type="text" name="username" id="profileStaticUser" style="display:none;" autocomplete="username" />
         
-        <label>Contraseña actual</label>
-        <input id="currentPass" type="password" required autocomplete="current-password" style="margin-bottom:10px;" />
+        <label>Email</label>
+        <input id="profileEmail" type="email" autocomplete="email" style="margin-bottom:10px;" placeholder="No configurado" />
+
+        <label>Contraseña actual (solo para cambiar clave)</label>
+        <input id="currentPass" type="password" autocomplete="current-password" style="margin-bottom:10px;" />
         <label>Nueva contraseña (min 6)</label>
-        <input id="newPass" type="password" required minlength="6" autocomplete="new-password" />
+        <input id="newPass" type="password" minlength="6" autocomplete="new-password" />
         <div style="margin-top:20px;">
-          <button class="btn primary" type="submit" style="width:100%;">Cambiar contraseña</button>
+          <button class="btn primary" type="submit" style="width:100%;">Actualizar Perfil</button>
         </div>
         <div id="profileStatus" style="margin-top:10px; font-size:13px; min-height:16px; text-align:center;"></div>
       </form>
@@ -1087,6 +1095,9 @@
         <label>Usuario</label>
         <input id="editUserName" disabled autocomplete="username" style="opacity:0.7; margin-bottom:10px;" />
         
+        <label>Email</label>
+        <input id="editUserEmail" type="email" autocomplete="email" style="margin-bottom:10px;" />
+
         <label>Rol</label>
         <select id="editUserRole" style="width:100%; margin-bottom:10px; padding:10px; border-radius:12px; background:var(--chip); border:1px solid var(--border2);">
            <option value="user">Usuario</option>
