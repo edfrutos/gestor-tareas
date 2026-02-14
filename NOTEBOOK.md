@@ -163,14 +163,31 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   Gráfica de productividad por usuario (Top 5) exclusiva para administradores.
     *   Restauración de la funcionalidad de badges en tiempo real (Polling 30s) integrada en el nuevo módulo de estadísticas.
 
+### Fase 15: Exportación Profesional de Estadísticas (14 Feb 2026) ✅
+
+*   **Exportación a PNG con Fondo Sólido:** Implementado un plugin nativo de Chart.js para garantizar que los gráficos exportados tengan un fondo opaco (oscuro o claro según el tema), evitando que el texto blanco sea invisible.
+*   **Informe PDF Completo:** Integración de `jsPDF` y `html2canvas` para generar informes PDF que incluyen títulos, fechas y todos los gráficos en un formato profesional.
+*   **Sincronización de Entorno:** Resolución de inconsistencias entre el código local y el contenedor Docker, garantizando un despliegue limpio y funcional.
+
 ---
 
-## 5. Próximos Pasos
+## 5. Próximos Pasos y Sugerencias de Funcionalidades
 
-### Estabilidad y Despliegue
-*   Revisar logs de producción para detectar posibles cuellos de botella en el polling de 30s.
-*   Considerar el uso de WebSockets (Socket.io) en lugar de Polling si el número de usuarios crece.
+### Funcionalidades Pendientes de Desarrollar
 
-### Funcionalidades Pendientes
-*   **Dashboard de estadísticas gráficas:** ✅ Implementado (12 Feb 2026).
-*   **Exportación avanzada:** Permitir exportar las estadísticas directamente a PDF o imagen.
+*   **✉️ Gestión de Comunicaciones:**
+    *   Incorporar el **email** en el registro de usuarios.
+    *   Sistema de **notificaciones por correo** cuando una tarea cambia de estado o se asigna a un usuario.
+*   **🔐 Seguridad y Recuperación:**
+    *   Flujo de **recuperación de contraseña** mediante enlace enviado al email (Password Reset Tokens).
+    *   Verificación de cuenta por correo electrónico tras el registro.
+*   **💬 Interacción y Soporte:**
+    *   Sistema de **comentarios** en cada tarea para permitir la comunicación entre técnicos y administradores.
+    *   Botón de **contacto directo con el administrador** desde la interfaz de usuario.
+*   **⚙️ Administración Avanzada:**
+    *   Panel de configuración global para cambiar parámetros del sistema (ej. intervalos de polling, límites de subida) sin reiniciar el servidor.
+    *   Posibilidad de **archivar planos** antiguos en lugar de eliminarlos para conservar el histórico.
+*   **📱 Optimización Móvil:**
+    *   Mejorar la respuesta táctil del mapa y la legibilidad de las gráficas en pantallas muy pequeñas.
+*   **🔄 Actualización en Tiempo Real:**
+    *   Migrar el polling actual a **WebSockets** (Socket.io) para recibir actualizaciones instantáneas de nuevas tareas o cambios de estado.

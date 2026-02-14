@@ -6,6 +6,19 @@ import { getUser } from "./auth.js";
 // Register the datalabels plugin globally
 Chart.register(ChartDataLabels);
 
+// NEW: Plugin to handle canvas background color correctly in exports
+const pluginBackgroundColor = {
+    id: 'customCanvasBackgroundColor',
+    beforeDraw: (chart, args, options) => {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = options.color || '#ffffff';
+        ctx.fillRect(0, 0, chart.width, chart.height);
+        ctx.restore();
+    }
+};
+
 let charts = {};
 
 export function initStatsModule() {
@@ -36,9 +49,15 @@ async function openStatsModal() {
     }
 }
 
+function getChartBgColor() {
+    const isDark = document.documentElement.getAttribute("data-theme") !== "light";
+    return isDark ? "#0b1116" : "#ffffff";
+}
+
 function renderCharts(data) {
     const user = getUser();
     const isAdmin = user?.role === 'admin';
+    const bgColor = getChartBgColor();
 
     // 1. Gráfico de Estados (Doughnut)
     destroyChart('status');
@@ -54,9 +73,11 @@ function renderCharts(data) {
                     borderWidth: 0
                 }]
             },
+            plugins: [pluginBackgroundColor],
             options: { 
                 responsive: true,
                 plugins: { 
+                    customCanvasBackgroundColor: { color: bgColor },
                     legend: { 
                         position: 'bottom', 
                         labels: { color: '#fff', font: { size: 11 } } 
@@ -95,6 +116,7 @@ function renderCharts(data) {
                     backgroundColor: '#7c5cff'
                 }]
             },
+            plugins: [pluginBackgroundColor],
             options: { 
                 indexAxis: 'y',
                 responsive: true,
@@ -103,6 +125,7 @@ function renderCharts(data) {
                     y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } } 
                 },
                 plugins: { 
+                    customCanvasBackgroundColor: { color: bgColor },
                     legend: { display: false },
                     datalabels: {
                         color: '#fff',
@@ -136,6 +159,7 @@ function renderCharts(data) {
                         backgroundColor: '#00c7ff'
                     }]
                 },
+                plugins: [pluginBackgroundColor],
                 options: { 
                     responsive: true,
                     scales: { 
@@ -143,6 +167,7 @@ function renderCharts(data) {
                         y: { ticks: { color: '#fff' } } 
                     },
                     plugins: { 
+                        customCanvasBackgroundColor: { color: bgColor },
                         legend: { labels: { color: '#fff' } },
                         datalabels: {
                             color: '#fff',
@@ -184,6 +209,7 @@ async function exportToPng() {
         for (const chartId in charts) {
             const chart = charts[chartId];
             if (chart) {
+                // toBase64Image() ya incluye el fondo gracias al plugin customCanvasBackgroundColor
                 const image = chart.toBase64Image('image/png', 1.0);
                 const a = document.createElement('a');
                 a.href = image;
