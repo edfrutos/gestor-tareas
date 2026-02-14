@@ -633,6 +633,83 @@
     }
   
     button.busy { opacity: .75; cursor: wait; }
+
+    /* --- OPTIMIZACIÓN MÓVIL Y TÁCTIL --- */
+    @media (max-width: 600px) {
+      :root {
+        --pad: 10px;
+        --gap: 10px;
+      }
+      
+      body { font-size: 15px; }
+
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 10px;
+      }
+      
+      .brand { min-width: auto; margin-bottom: 8px; }
+      .logo { width: 36px; height: 36px; }
+      .brand h1 { font-size: 16px; }
+
+      .controls {
+        justify-content: center;
+        gap: 6px;
+      }
+      
+      .chip { padding: 6px 10px; }
+      .chip input { width: 100%; max-width: none; }
+
+      /* Área táctil mínima recomendada por Apple/Google (44px) */
+      .btn, input, select, textarea {
+        min-height: 44px;
+        font-size: 16px !important; /* Evita zoom automático en iOS */
+      }
+
+      .btn.small { min-height: 34px; padding: 6px 10px; }
+
+      .filters {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .filters-dates {
+        grid-template-columns: 1fr;
+      }
+
+      .filters2 {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      /* Modal de Detalle Móvil: Pantalla completa */
+      .detailCard {
+        width: 100vw;
+        height: 100vh;
+        max-height: none;
+        border-radius: 0;
+      }
+
+      .detailBody {
+        padding: 15px;
+        gap: 15px;
+        grid-template-columns: 1fr; /* Una sola columna siempre */
+      }
+
+      .detailImg { height: 220px; }
+      
+      .detailSidebar {
+        order: -1; /* Poner el estado y acciones arriba para acceso rápido */
+        background: var(--panel);
+      }
+
+      .issueRow {
+        grid-template-columns: 50px 1fr;
+        gap: 10px;
+      }
+    }
   </style>
 </head>
 
