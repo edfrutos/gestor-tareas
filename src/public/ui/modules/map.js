@@ -33,7 +33,9 @@ export function ensureMap() {
     crs: L.CRS.Simple,
     minZoom: -1,
     maxZoom: 4,
-    zoomControl: true
+    zoomControl: true,
+    tap: true, // Mejora clics en algunos navegadores móviles
+    bounceAtZoomLimits: true // Feedback visual al llegar al límite de zoom
   });
 
   const bounds = [[0, 0], [1000, 1000]];

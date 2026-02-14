@@ -58,6 +58,9 @@ function renderCharts(data) {
     const user = getUser();
     const isAdmin = user?.role === 'admin';
     const bgColor = getChartBgColor();
+    const isMobile = window.innerWidth < 600;
+    const labelFontSize = isMobile ? 9 : 11;
+    const titleFontSize = isMobile ? 10 : 12;
 
     // 1. Gráfico de Estados (Doughnut)
     destroyChart('status');
@@ -76,11 +79,12 @@ function renderCharts(data) {
             plugins: [pluginBackgroundColor],
             options: { 
                 responsive: true,
+                maintainAspectRatio: true,
                 plugins: { 
                     customCanvasBackgroundColor: { color: bgColor },
                     legend: { 
                         position: 'bottom', 
-                        labels: { color: '#fff', font: { size: 11 } } 
+                        labels: { color: '#fff', font: { size: labelFontSize } } 
                     },
                     datalabels: {
                         color: '#fff',
@@ -93,7 +97,7 @@ function renderCharts(data) {
                         },
                         font: {
                             weight: 'bold',
-                            size: 10,
+                            size: labelFontSize - 1,
                         }
                     }
                 } 
@@ -120,9 +124,10 @@ function renderCharts(data) {
             options: { 
                 indexAxis: 'y',
                 responsive: true,
+                maintainAspectRatio: true,
                 scales: { 
-                    x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }, 
-                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } } 
+                    x: { ticks: { color: '#fff', font: { size: labelFontSize } }, grid: { color: 'rgba(255,255,255,0.1)' } }, 
+                    y: { ticks: { color: '#fff', font: { size: labelFontSize } }, grid: { color: 'rgba(255,255,255,0.1)' } } 
                 },
                 plugins: { 
                     customCanvasBackgroundColor: { color: bgColor },
@@ -134,7 +139,7 @@ function renderCharts(data) {
                         formatter: (value) => value > 0 ? value : '',
                         font: { 
                             weight: 'bold',
-                            size: 10,
+                            size: labelFontSize - 1,
                         }
                     }
                 }
@@ -162,13 +167,14 @@ function renderCharts(data) {
                 plugins: [pluginBackgroundColor],
                 options: { 
                     responsive: true,
+                    maintainAspectRatio: true,
                     scales: { 
-                        x: { ticks: { color: '#fff' } }, 
-                        y: { ticks: { color: '#fff' } } 
+                        x: { ticks: { color: '#fff', font: { size: labelFontSize } } }, 
+                        y: { ticks: { color: '#fff', font: { size: labelFontSize } } } 
                     },
                     plugins: { 
                         customCanvasBackgroundColor: { color: bgColor },
-                        legend: { labels: { color: '#fff' } },
+                        legend: { labels: { color: '#fff', font: { size: labelFontSize } } },
                         datalabels: {
                             color: '#fff',
                             anchor: 'end',
@@ -176,7 +182,7 @@ function renderCharts(data) {
                             formatter: (value) => value > 0 ? value : '',
                             font: {
                                 weight: 'bold',
-                                size: 10,
+                                size: labelFontSize - 1,
                             }
                         }
                     }
