@@ -269,7 +269,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
 });
 
 // GET /v1/issues/:id/logs
-router.get("/:id/logs", async (req, res, next) => {
+router.get("/:id/logs", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!id || !Number.isInteger(id)) {
@@ -355,7 +355,7 @@ router.get("/stats/details", requireAuth(), async (req, res, next) => {
 });
 
 // GET /v1/issues/categories
-router.get("/categories", async (req, res, next) => {
+router.get("/categories", requireAuth(), async (req, res, next) => {
   try {
     const rows = await all(`SELECT DISTINCT category FROM issues WHERE category IS NOT NULL AND category != '' ORDER BY category ASC`);
     const dbCats = rows.map(r => r.category);

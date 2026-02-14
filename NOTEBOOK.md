@@ -175,6 +175,14 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 *   **Robustez en Construcción:** Actualización del `Dockerfile` con herramientas de compilación (`python3`, `make`, `g++`) para asegurar que dependencias nativas como `sqlite3` y `sharp` se construyan correctamente bajo cualquier arquitectura.
 *   **Flujo de Trabajo Flexible:** Ajuste de los hooks de Git (Husky) para permitir el desarrollo fluido en entornos con discrepancias de arquitectura entre el host y el contenedor, priorizando siempre la estabilidad del entorno de ejecución real (Docker).
 
+### Fase 17: Revisión de Código, Seguridad y Refactorización (14 Feb 2026) ✅
+
+*   **Unificación de Autenticación:** Se ha eliminado la función redundante `authenticateToken` en las rutas de autenticación, integrando el middleware centralizado `requireAuth()` en todo el backend para una mayor consistencia y facilidad de mantenimiento.
+*   **Blindaje de Rutas:** Identificadas y corregidas vulnerabilidades de acceso en los endpoints de logs (`/v1/issues/:id/logs`) y categorías (`/v1/issues/categories`), que ahora requieren autenticación obligatoria.
+*   **Robustez en Migraciones:** Refactorización de `src/db/sqlite.js` utilizando patrones `async/await`. Esto garantiza que la base de datos esté lista y sea coherente antes de que el servidor acepte conexiones, evitando fallos de integridad en el arranque.
+*   **Seguridad de Administrador:** Implementado soporte para la variable de entorno `ADMIN_PASSWORD`. Ahora, el sistema puede inicializar o actualizar la contraseña del administrador por defecto (`admin`) de forma segura mediante un hash de `bcrypt`, eliminando el uso de credenciales bloqueadas o hardcodeadas.
+*   **Limpieza de Código:** Eliminación de importaciones duplicadas, código muerto y mejora de la legibilidad general en los archivos críticos del núcleo (`sqlite.js`, `auth.routes.js`, `issues.routes.js`).
+
 ---
 
 ## 5. Próximos Pasos y Sugerencias de Funcionalidades

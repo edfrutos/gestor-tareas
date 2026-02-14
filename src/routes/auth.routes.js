@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { run, get } = require("../db/sqlite");
 const { z } = require("zod");
+const requireAuth = require("../middleware/auth.middleware");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
@@ -22,20 +23,6 @@ const changePasswordSchema = z.object({
   currentPassword: z.string(),
   newPassword: z.string().min(6),
 });
-
-// Middleware para validar token (se usará en otros sitios también)
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) return res.status(401).json({ error: "Token requerido" });
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: "Token inválido o expirado" });
-    req.user = user;
-    next();
-  });
-}
 
 // POST /v1/auth/login
 router.post("/login", async (req, res, next) => {
@@ -93,12 +80,12 @@ router.post("/register", async (req, res, next) => {
 });
 
 // GET /v1/auth/me
-router.get("/me", authenticateToken, async (req, res) => {
+router.get("/me", requireAuth(), async (req, res) => {
   res.json({ user: req.user });
 });
 
 // PATCH /v1/auth/me/password
-router.patch("/me/password", authenticateToken, async (req, res, next) => {
+router.patch("/me/password", requireAuth(), async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
     const userId = req.user.id;
@@ -119,4 +106,4 @@ router.patch("/me/password", authenticateToken, async (req, res, next) => {
   }
 });
 
-module.exports = { router, authenticateToken };
+module.exports = { router };
