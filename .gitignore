@@ -9,6 +9,7 @@ yarn-error.log*
 .env.*
 
 # --- SQLite ---
+*.db
 *.sqlite
 *.sqlite3
 data/
@@ -47,8 +48,8 @@ notas/
 
 # --- Local TLS / Certs (NO versionar) ---
 .certs/
-caddy-local-root.crt
-caddy-local-root.key
+*.crt
+*.der
 localhost+*.pem
 *.pem
 *.key
