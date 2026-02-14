@@ -233,13 +233,48 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 ### Fase 20: Sistema de Comunicación (Comentarios) ✅
 
+
+
 *   **Infraestructura de Datos:**
+
     *   Creación de la tabla `issue_comments` en SQLite.
+
     *   Implementación de integridad referencial (FK) con borrado en cascada para mantener la base de datos limpia al eliminar tareas o usuarios.
+
 *   **API de Comentarios:**
+
     *   Nuevo módulo de rutas `src/routes/comments.routes.js`.
+
     *   Endpoints para listar y crear comentarios protegidos por autenticación JWT.
+
 *   **Interfaz de Usuario:**
+
     *   Inyección dinámica de la sección de comentarios en el modal de detalles.
+
     *   Sistema de scroll automático al recibir nuevos mensajes.
+
     *   Feedback visual de carga y errores mediante `toast` y estados de botón.
+
+
+
+### Fase 21: Saneamiento del Repositorio ✅
+
+
+
+*   **Eliminación de Redundancias:**
+
+    *   Borrado de bases de datos antiguas y duplicadas (`data.db`, `data.sqlite`).
+
+    *   Eliminación de duplicados de imágenes en el frontend (`plano.jpeg`).
+
+*   **Seguridad y Limpieza:**
+
+    *   Borrado de certificados locales de Caddy (`*.crt`, `*.der`) para evitar su versionado accidental.
+
+    *   Limpieza de archivos de log temporales (`server.log`).
+
+*   **Mantenimiento Preventivo:**
+
+    *   Mejora de `.gitignore` para cubrir de forma más robusta archivos de base de datos, logs y certificados locales.
+
+
