@@ -29,11 +29,11 @@ const createIssueSchema = z.object({
   description: z.string().trim().min(1, "Description is required"),
   lat: z.preprocess(
     coordinatePreprocessor,
-    z.number({ invalid_type_error: "Lat must be a number" })
+    z.number({ invalid_type_error: "Lat must be a number" }).min(-90).max(90)
   ),
   lng: z.preprocess(
     coordinatePreprocessor,
-    z.number({ invalid_type_error: "Lng must be a number" })
+    z.number({ invalid_type_error: "Lng must be a number" }).min(-180).max(180)
   ),
   map_id: z.coerce.number().optional()
 });
