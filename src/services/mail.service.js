@@ -138,9 +138,36 @@ Si no has solicitado este cambio, puedes ignorar este correo. Este enlace expira
   return sendMail({ to: user.email, subject, text, html });
 }
 
+/**
+ * Notifica al usuario cuando se le asigna una tarea.
+ */
+async function notifyTaskAssignment(user, issue, assigner) {
+  if (!user.email) return;
+
+  const subject = `Tarea asignada: ${issue.title}`;
+  const text = `Hola ${user.username},
+${assigner.username} te ha asignado la tarea "${issue.title}".
+
+Puedes ver los detalles y empezar a trabajar en ella desde la aplicación.`;
+
+  const html = `
+    <h2>Nueva tarea asignada</h2>
+    <p>Hola <strong>${user.username}</strong>,</p>
+    <p><strong>${assigner.username}</strong> te ha asignado la siguiente tarea:</p>
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border-left: 4px solid #7c5cff; margin: 20px 0;">
+      <h3 style="margin-top: 0;">${issue.title}</h3>
+      <p>${issue.description}</p>
+    </div>
+    <p>Puedes ver los detalles completos en la aplicación.</p>
+  `;
+
+  return sendMail({ to: user.email, subject, text, html });
+}
+
 module.exports = {
   sendMail,
   notifyStatusChange,
   notifyNewIssue,
   notifyPasswordReset,
+  notifyTaskAssignment,
 };

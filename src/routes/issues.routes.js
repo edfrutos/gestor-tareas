@@ -10,7 +10,7 @@ const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
-const { notifyStatusChange, notifyNewIssue } = require("../services/mail.service");
+const { notifyStatusChange, notifyNewIssue, notifyTaskAssignment } = require("../services/mail.service");
 
 const router = express.Router();
 
@@ -113,26 +113,27 @@ async function makeThumbIfNeeded(photoFilename) {
 }
 
 function deleteFileByUrl(url) {
-  if (!url || !url.startsWith("/uploads/")) return;
-  const filename = url.replace("/uploads/", "");
-  const filepath = path.join(uploadDir, filename);
-  
-  fs.unlink(filepath, (err) => {
-    if (err && err.code !== "ENOENT") console.error(`Error deleting file ${filepath}:`, err);
-  });
-
-  // Intentar borrar thumb si es imagen (por si acaso)
-  const thumbPath = path.join(thumbsDir, `${filename}.webp`);
-  fs.unlink(thumbPath, (err) => {
-    if (err && err.code !== "ENOENT") {
-      // Ignoramos error en thumb porque no todos los archivos tienen thumb
-    }
+  return new Promise((resolve) => {
+    if (!url || !url.startsWith("/uploads/")) return resolve();
+    const filename = url.replace("/uploads/", "");
+    const filepath = path.join(uploadDir, filename);
+    
+    fs.unlink(filepath, (err) => {
+      if (err && err.code !== "ENOENT") console.error(`Error deleting file ${filepath}:`, err);
+      
+      // Intentar borrar thumb si es imagen (por si acaso)
+      const thumbPath = path.join(thumbsDir, `${filename}.webp`);
+      fs.unlink(thumbPath, () => {
+        // Ignoramos error en thumb
+        resolve();
+      });
+    });
   });
 }
 
 // Helper para construir cláusula WHERE
-function buildWhereClause(query) {
-  const { status, category, q, from, to, mapId } = query;
+function buildWhereClause(query, currentUser) {
+  const { status, category, q, from, to, mapId, assigned_to, only_assigned_to_me } = query;
   const where = [];
   const params = [];
 
@@ -159,6 +160,14 @@ function buildWhereClause(query) {
   if (to) {
     where.push("i.created_at <= ?");
     params.push(`${to}T23:59:59`);
+  }
+  if (assigned_to) {
+    where.push("i.assigned_to = ?");
+    params.push(assigned_to);
+  }
+  if (only_assigned_to_me === 'true' && currentUser) {
+    where.push("i.assigned_to = ?");
+    params.push(currentUser.id);
   }
 
   return {
@@ -200,17 +209,17 @@ router.get("/", requireAuth(), async (req, res, next) => {
     const offset = (page - 1) * pageSize;
     
     // Construir WHERE
-    const { sql: whereBase, params } = buildWhereClause(query);
+    const { sql: whereBase, params } = buildWhereClause(query, req.user);
     let whereSql = whereBase;
 
-    // RBAC: Si no es admin, solo ver sus tareas
-    if (req.user.role !== 'admin') {
+    // RBAC: Si no es admin y no está filtrando por "asignadas a mí", solo ver sus creadas
+    if (req.user.role !== 'admin' && query.only_assigned_to_me !== 'true') {
       if (whereSql) {
-        whereSql += " AND i.created_by = ?";
+        whereSql += " AND (i.created_by = ? OR i.assigned_to = ?)";
       } else {
-        whereSql = "WHERE i.created_by = ?";
+        whereSql = "WHERE (i.created_by = ? OR i.assigned_to = ?)";
       }
-      params.push(req.user.id);
+      params.push(req.user.id, req.user.id);
     }
 
     let orderSql = "ORDER BY datetime(i.created_at) DESC"; // default: new
@@ -234,9 +243,12 @@ router.get("/", requireAuth(), async (req, res, next) => {
       `
       SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.photo_url, i.thumb_url, i.text_url, 
              i.resolution_photo_url, i.resolution_thumb_url, i.resolution_text_url, i.status, i.created_at,
-             i.created_by, i.map_id, u.username as created_by_username
+             i.created_by, i.map_id, i.assigned_to, 
+             u.username as created_by_username,
+             ua.username as assigned_to_username
       FROM issues i
       LEFT JOIN users u ON i.created_by = u.id
+      LEFT JOIN users ua ON i.assigned_to = ua.id
       ${whereSql}
       ${orderSql}
       LIMIT ? OFFSET ?
@@ -293,8 +305,8 @@ router.get("/stats", requireAuth(), async (req, res, next) => {
     const params = [];
     
     if (req.user.role !== 'admin') {
-      sql += ` WHERE created_by = ?`;
-      params.push(req.user.id);
+      sql += ` WHERE created_by = ? OR assigned_to = ?`;
+      params.push(req.user.id, req.user.id);
     }
     
     sql += ` GROUP BY status`;
@@ -323,8 +335,8 @@ router.get("/stats/details", requireAuth(), async (req, res, next) => {
   try {
     const isAdmin = req.user.role === 'admin';
     const userId = req.user.id;
-    const where = isAdmin ? "" : "WHERE i.created_by = ?";
-    const params = isAdmin ? [] : [userId];
+    const where = isAdmin ? "" : "WHERE i.created_by = ? OR i.assigned_to = ?";
+    const params = isAdmin ? [] : [userId, userId];
 
     // Por Estado
     const byStatus = await all(`SELECT status, COUNT(*) as count FROM issues i ${where} GROUP BY status`, params);
@@ -387,17 +399,17 @@ router.get("/export", requireAuth(), async (req, res, next) => {
     if (!["new", "old", "cat", "status"].includes(order)) order = "new";
 
     // Construir WHERE base
-    const { sql: whereBase, params } = buildWhereClause(query);
+    const { sql: whereBase, params } = buildWhereClause(query, req.user);
     let whereSql = whereBase;
 
     // RBAC
     if (req.user.role !== 'admin') {
       if (whereSql) {
-        whereSql += " AND i.created_by = ?";
+        whereSql += " AND (i.created_by = ? OR i.assigned_to = ?)";
       } else {
-        whereSql = "WHERE i.created_by = ?";
+        whereSql = "WHERE (i.created_by = ? OR i.assigned_to = ?)";
       }
-      params.push(req.user.id);
+      params.push(req.user.id, req.user.id);
     }
     
     let orderSql = "ORDER BY datetime(i.created_at) DESC";
@@ -416,9 +428,11 @@ router.get("/export", requireAuth(), async (req, res, next) => {
     const items = await all(
       `
       SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.status, i.created_at, i.photo_url, i.text_url,
-             u.username as created_by_username
+             u.username as created_by_username,
+             ua.username as assigned_to_username
       FROM issues i
       LEFT JOIN users u ON i.created_by = u.id
+      LEFT JOIN users ua ON i.assigned_to = ua.id
       ${whereSql}
       ${orderSql}
       `,
@@ -426,7 +440,7 @@ router.get("/export", requireAuth(), async (req, res, next) => {
     );
 
     // Generar CSV
-    const headers = ["ID", "Fecha", "Creado Por", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
+    const headers = ["ID", "Fecha", "Creado Por", "Asignado A", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
     
     // Helper para escapar CSV (comillas dobles -> dobles comillas dobles, envolver en comillas si hay comas o saltos)
     const escapeCsv = (val) => {
@@ -443,6 +457,7 @@ router.get("/export", requireAuth(), async (req, res, next) => {
         it.id,
         it.created_at,
         it.created_by_username || "Desconocido",
+        it.assigned_to_username || "Sin asignar",
         it.status,
         it.category,
         it.title,
@@ -477,7 +492,7 @@ router.post("/", requireAuth(), (req, res, next) => {
   }, async (req, res, next) => {
   try {
     const body = validateSchema(createIssueSchema, req.body);
-    const { title, category, description, lat, lng } = body;
+    const { title, category, description, lat, lng, assigned_to } = body;
     // Si no se proporciona map_id, por defecto es 1 (Plano Principal)
     const mapId = body.map_id || 1;
 
@@ -510,14 +525,17 @@ router.post("/", requireAuth(), (req, res, next) => {
 
     const result = await run(
       `
-      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at, created_by, map_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at, created_by, map_id, assigned_to)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)
       `,
-      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt, userId, mapId]
+      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt, userId, mapId, assigned_to || null]
     );
 
     // Log creation with userId
     await logChange(result.lastID, userId, "create");
+    if (assigned_to) {
+      await logChange(result.lastID, userId, "assign", null, assigned_to);
+    }
 
     const created = await get(
       `SELECT * FROM issues WHERE id = ?`,
@@ -527,6 +545,20 @@ router.post("/", requireAuth(), (req, res, next) => {
     // Notificación por correo (opcional, no bloqueante)
     if (process.env.ADMIN_EMAIL) {
       notifyNewIssue(process.env.ADMIN_EMAIL, req.user, created).catch(e => console.error("Error notifying admin:", e));
+    }
+
+    // Notificación al asignado
+    if (assigned_to) {
+      (async () => {
+        try {
+          const assignee = await get("SELECT username, email FROM users WHERE id = ?", [assigned_to]);
+          if (assignee && assignee.email) {
+            await notifyTaskAssignment(assignee, created, req.user);
+          }
+        } catch (err) {
+          console.error("Error notifying assignee:", err);
+        }
+      })();
     }
 
     res.setHeader("Cache-Control", "no-store");
@@ -547,7 +579,7 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     const id = Number(req.params.id);
     // Validar cuerpo
     const body = validateSchema(updateIssueSchema, req.body || {});
-    const { status, description, category, map_id } = body;
+    const { status, description, category, map_id, assigned_to } = body;
 
     if (!id || !Number.isInteger(id)) {
       return res.status(400).json({
@@ -563,8 +595,12 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
       });
     }
 
-    // RBAC Check: Si no es admin y no es el dueño, rechazar
-    if (req.user.role !== 'admin' && currentIssue.created_by !== req.user.id) {
+    // RBAC Check: Si no es admin y no es el dueño ni el asignado, rechazar
+    const isAdmin = req.user.role === 'admin';
+    const isOwner = currentIssue.created_by === req.user.id;
+    const isAssignee = currentIssue.assigned_to === req.user.id;
+
+    if (!isAdmin && !isOwner && !isAssignee) {
        return res.status(403).json({
         error: { code: "forbidden", message: "No tienes permiso para editar esta tarea", requestId: req.id },
       });
@@ -596,6 +632,15 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (map_id !== undefined && map_id !== null) {
       updates.push("map_id = ?");
       params.push(map_id);
+    }
+
+    // Validar assigned_to si viene (Solo Admin o Dueño pueden reasignar)
+    if (assigned_to !== undefined) {
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: "Solo el administrador o el creador pueden reasignar la tarea" });
+      }
+      updates.push("assigned_to = ?");
+      params.push(assigned_to);
     }
 
     // Procesar foto original reemplazo
@@ -683,12 +728,13 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (map_id !== undefined && map_id !== currentIssue.map_id) {
       logPromises.push(logChange(id, userId, "update_map", currentIssue.map_id, map_id));
     }
+    if (assigned_to !== undefined && assigned_to !== currentIssue.assigned_to) {
+      logPromises.push(logChange(id, userId, "assign", currentIssue.assigned_to, assigned_to));
+    }
     await Promise.all(logPromises);
 
     // Si todo salió bien, borramos los archivos viejos
-    for (const url of filesToDelete) {
-      deleteFileByUrl(url);
-    }
+    await Promise.all(filesToDelete.map(url => deleteFileByUrl(url)));
 
     const updated = await get(
       `SELECT * FROM issues WHERE id = ?`,
@@ -705,6 +751,20 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
           }
         } catch (err) {
           console.error("Error sending status change notification:", err);
+        }
+      })();
+    }
+
+    // Notificación al nuevo asignado si cambia
+    if (assigned_to && assigned_to !== currentIssue.assigned_to) {
+      (async () => {
+        try {
+          const assignee = await get("SELECT username, email FROM users WHERE id = ?", [assigned_to]);
+          if (assignee && assignee.email) {
+            await notifyTaskAssignment(assignee, updated, req.user);
+          }
+        } catch (err) {
+          console.error("Error notifying new assignee:", err);
         }
       })();
     }
@@ -749,8 +809,9 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
     await run(`DELETE FROM issues WHERE id = ?`, [id]);
 
     if (row) {
-      // Borrar todos los archivos asociados
-      [row.photo_url, row.resolution_photo_url, row.text_url, row.resolution_text_url].forEach(u => deleteFileByUrl(u));
+      // Borrar todos los archivos asociados y esperar a que terminen
+      const fileUrls = [row.photo_url, row.resolution_photo_url, row.text_url, row.resolution_text_url];
+      await Promise.all(fileUrls.map(u => deleteFileByUrl(u)));
     }
 
     res.setHeader("Cache-Control", "no-store");

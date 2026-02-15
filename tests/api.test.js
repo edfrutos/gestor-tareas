@@ -235,8 +235,8 @@ describe("API Functional Tests", () => {
         .set("x-api-key", process.env.API_KEY);
       expect(res.statusCode).toBe(200);
       expect(res.headers["content-type"]).toContain("text/csv");
-      // Cabeceras reales en español: ID,Fecha,Creado Por,Estado,Categoría,Título...
-      expect(res.text).toContain("ID,Fecha,Creado Por,Estado,Categoría,Título");
+      // Cabeceras reales en español incluyendo la nueva columna de asignación
+      expect(res.text).toContain("ID,Fecha,Creado Por,Asignado A,Estado,Categoría,Título");
     });
 
     test("GET /v1/issues/categories returns a list of categories with API Key", async () => {

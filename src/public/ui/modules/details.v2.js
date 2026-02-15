@@ -46,6 +46,10 @@ function renderHistory(logs) {
         text = `Plano cambiado`;
         icon = "🗺️";
         break;
+      case "assign":
+        text = log.new_value ? `Asignada a responsable` : "Asignación quitada";
+        icon = "👤";
+        break;
       case "update_photo":
         text = "Foto actualizada";
         icon = "📷";
@@ -190,6 +194,9 @@ function toggleEditMode(enable) {
   const mapContainer = $("#dmEditMapContainer");
   if(mapContainer) mapContainer.style.display = displayEdit;
 
+  const assignContainer = $("#dmEditAssignContainer");
+  if(assignContainer) assignContainer.style.display = displayEdit;
+
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;
   
@@ -217,6 +224,7 @@ async function saveDetailChanges() {
     const cat = $("#dmEditCategory").value.trim();
     const status = $("#dmEditStatus").value;
     const mapId = $("#dmEditMap")?.value;
+    const assignedTo = $("#dmEditAssign")?.value;
     
     const photoInput = $("#dmResPhotoInput");
     const docInput = $("#dmResDocInput");
@@ -228,6 +236,7 @@ async function saveDetailChanges() {
     fd.set("category", cat);
     fd.set("status", status);
     if(mapId) fd.set("map_id", mapId);
+    if(assignedTo !== undefined) fd.set("assigned_to", assignedTo || "");
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
     if (docInput?.files[0]) fd.set("resolution_doc", docInput.files[0]);
@@ -256,7 +265,8 @@ export async function openDetailModal(it) {
   const currentUser = getUser();
   const isAdmin = currentUser?.role === 'admin';
   const isOwner = currentUser?.id === it.created_by;
-  const canEdit = isAdmin || isOwner;
+  const canEdit = isAdmin || isOwner || currentUser?.id === it.assigned_to;
+  const canAssign = isAdmin || isOwner;
   
   toggleEditMode(false);
 
@@ -286,12 +296,44 @@ export async function openDetailModal(it) {
       }
   }
 
+  // Asignación (Solo para autorizados)
+  let assignContainer = $("#dmEditAssignContainer");
+  if (!assignContainer && canAssign) {
+    assignContainer = document.createElement("div");
+    assignContainer.id = "dmEditAssignContainer";
+    assignContainer.style.marginBottom = "12px";
+    assignContainer.innerHTML = `
+      <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Responsable asignado</label>
+      <select id="dmEditAssign" class="small-input" style="width:100%; padding:10px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px;">
+      </select>
+    `;
+    $("#dmEditCatContainer").after(assignContainer);
+  }
+  
+  if (assignContainer) assignContainer.style.display = "none"; // Hide by default
+
+  const assignSelect = $("#dmEditAssign");
+  if (assignSelect && canAssign) {
+    try {
+      assignSelect.innerHTML = '<option value="">Sin asignar</option>';
+      const data = await fetchJson(`${API_BASE}/users`);
+      const users = data.items || [];
+      users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u.id;
+        opt.textContent = u.username;
+        if (it.assigned_to === u.id) opt.selected = true;
+        assignSelect.appendChild(opt);
+      });
+    } catch (e) { console.error("Error loading users for assignment", e); }
+  }
+
   // Control de permisos para botones
   const btnEdit = $("#dmBtnEdit");
   const btnDel = $("#dmBtnDelete");
   
   if (btnEdit) btnEdit.style.display = canEdit ? "inline-block" : "none";
-  if (btnDel) btnDel.style.display = canEdit ? "inline-block" : "none";
+  if (btnDel) btnDel.style.display = (isAdmin || isOwner) ? "inline-block" : "none";
 
   if (canEdit) {
     $("#dmBtnEdit").onclick = () => toggleEditMode(true);
@@ -313,10 +355,11 @@ export async function openDetailModal(it) {
 
   $("#dmTitle").textContent = safeText(it.title);
   
-  // Mostrar Fecha y Autor
+  // Mostrar Fecha, Autor y Responsable
   const dateStr = it.created_at ? new Date(it.created_at).toLocaleString() : "";
   const authorStr = it.created_by_username ? ` • Por: ${safeText(it.created_by_username)}` : "";
-  $("#dmDate").textContent = dateStr + authorStr;
+  const assignStr = it.assigned_to_username ? ` • Responsable: <strong>@${safeText(it.assigned_to_username)}</strong>` : "";
+  $("#dmDate").innerHTML = dateStr + authorStr + assignStr;
 
   $("#dmDesc").textContent = it.description || "";
   $("#dmEditDesc").value = it.description || "";
@@ -334,6 +377,7 @@ export async function openDetailModal(it) {
     commentsWrap.innerHTML = `
       <h4 style="margin:0 0 12px 0; font-size:14px; display:flex; align-items:center; gap:8px;">💬 Comentarios</h4>
       <div id="dmCommentsList" style="max-height:250px; overflow-y:auto; background:rgba(0,0,0,0.1); border-radius:12px; margin-bottom:12px; border:1px solid var(--border2);"></div>
+      <div id="dmReplyIndicator" style="display:none; font-size:11px; margin-bottom:8px; color:var(--accent); background:rgba(124,92,255,0.1); padding:4px 8px; border-radius:6px;"></div>
       <div style="display:flex; gap:8px;">
         <input id="dmNewCommentInput" placeholder="Escribe un comentario..." style="flex:1; padding:8px 12px; border-radius:10px; font-size:13px;" />
         <button id="dmBtnAddComment" class="btn small primary">Enviar</button>

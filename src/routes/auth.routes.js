@@ -47,7 +47,12 @@ router.post("/login", async (req, res, next) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
 
-    const user = await get("SELECT * FROM users WHERE username = ?", [username]);
+    // Buscamos por username O por email (insensible a mayúsculas)
+    const user = await get(
+      "SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)", 
+      [username, username]
+    );
+    
     if (!user) {
       return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
     }
