@@ -1,18 +1,6 @@
 edfmultisite.digital {
   encode gzip
 
-  # Asegura barra final
-  handle /cola-ciudadana {
-    redir /cola-ciudadana/ 308
-  }
-
-  # La app detrás del subpath (esto "quita" /cola-ciudadana del request antes de enviarlo a Node)
-  handle_path /cola-ciudadana/* {
-    reverse_proxy cola-ciudadana:3000
-  }
-
-  # Opcional: redirigir la raíz del dominio a /cola-ciudadana/
-  handle {
-    redir /cola-ciudadana/ 308
-  }
+  # Proxy directo al nuevo nombre del servicio
+  reverse_proxy gestor-tareas:3000
 }

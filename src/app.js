@@ -55,15 +55,6 @@ const allowHttpImages =
 
 const app = express();
 
-// -------------------- reverse proxy prefix handling --------------------
-// Si Caddy/Nginx no quitan el prefijo, lo hacemos nosotros para evitar 404s
-app.use((req, res, next) => {
-  if (req.url.startsWith("/cola-ciudadana")) {
-    req.url = req.url.replace("/cola-ciudadana", "") || "/";
-  }
-  next();
-});
-
 // -------------------- static: uploads (MUST be first) --------------------
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, "..", "uploads");
 

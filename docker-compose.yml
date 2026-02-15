@@ -1,5 +1,5 @@
 services:
-  cola-ciudadana:
+  gestor-tareas:
     platform: linux/arm64
     env_file:
       - .env
@@ -18,14 +18,14 @@ services:
       UPLOAD_DIR: /app/uploads
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-      PUBLIC_URL: https://localhost:8443/cola-ciudadana/
+      PUBLIC_URL: https://localhost:8443
     ports:
       - "3000:3000"
     command: node --watch src/server.js
     volumes:
       - ./src:/app/src
-      - cola_data:/app/data
-      - cola_uploads:/app/uploads
+      - gt_data:/app/data
+      - gt_uploads:/app/uploads
     depends_on:
       - mailpit
 
@@ -41,6 +41,6 @@ services:
       - mailpit_data:/data
 
 volumes:
-  cola_data:
-  cola_uploads:
+  gt_data:
+  gt_uploads:
   mailpit_data:
