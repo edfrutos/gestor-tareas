@@ -277,4 +277,17 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
     *   Mejora de `.gitignore` para cubrir de forma más robusta archivos de base de datos, logs y certificados locales.
 
+### Resumen de Metodología (14 Feb 2026) 🚀
+
+*   **Flujo Profesional consolidado**: El proyecto ha pasado oficialmente a un flujo de trabajo basado en **Pull Requests (PR)**. A partir de ahora, todo cambio se desarrolla en ramas aisladas, se valida mediante CI en GitHub y se integra tras la aprobación de los tests.
+*   **Higiene del Repositorio**: El repositorio se encuentra limpio de archivos temporales y redundantes, optimizado para el desarrollo colaborativo y la mantenibilidad a largo plazo.
+
+---
+
+## 6. Próximos Pasos (Hoja de Ruta)
+
+1.  **💬 Comunicación Avanzada**: Implementación de hilos de comentarios y menciones.
+2.  **🔐 Recuperación de Cuentas**: Flujo de Password Reset mediante email.
+3.  **🗺️ Gestión de Archivo**: Capacidad para archivar planos antiguos sin perder las tareas asociadas.
+
 
