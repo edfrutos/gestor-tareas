@@ -133,10 +133,22 @@ async function migrate() {
       )
     `);
 
+    await exec(`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        used INTEGER DEFAULT 0,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     // 2. Índices
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_issue_id ON issue_comments(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_parent_id ON issue_comments(parent_id)`);
+    await exec(`CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
 
