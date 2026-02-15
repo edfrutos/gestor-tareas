@@ -106,8 +106,41 @@ Descripción: ${issue.description}`;
   return sendMail({ to: adminEmail, subject, text, html });
 }
 
+/**
+ * Notifica al usuario con un enlace para resetear su contraseña.
+ */
+async function notifyPasswordReset(user, token) {
+  if (!user.email) return;
+
+  // Limpiamos cualquier barra final de la URL base para evitar dobles barras
+  const baseUrl = (process.env.PUBLIC_URL || 'https://cola-ciudadana.local').replace(/\/+$/, "");
+  const resetUrl = `${baseUrl}/#reset-password?token=${token}`;
+  const subject = `Recuperación de contraseña`;
+
+  const text = `Hola ${user.username},
+Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para elegir una nueva:
+
+${resetUrl}
+
+Si no has solicitado este cambio, puedes ignorar este correo. Este enlace expirará en 1 hora.`;
+
+  const html = `
+    <h2>Recuperación de contraseña</h2>
+    <p>Hola <strong>${user.username}</strong>,</p>
+    <p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo para elegir una nueva:</p>
+    <div style="margin: 30px 0;">
+      <a href="${resetUrl}" style="background-color: #7c5cff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 10px; font-weight: bold;">Restablecer Contraseña</a>
+    </div>
+    <p>Si no has solicitado este cambio, puedes ignorar este correo de forma segura.</p>
+    <p style="font-size: 0.8em; color: gray;">Este enlace expirará en 1 hora.</p>
+  `;
+
+  return sendMail({ to: user.email, subject, text, html });
+}
+
 module.exports = {
   sendMail,
   notifyStatusChange,
   notifyNewIssue,
+  notifyPasswordReset,
 };

@@ -179,7 +179,8 @@ async function initAuth() {
   if(lnkRecovery) {
     lnkRecovery.onclick = (e) => {
       e.preventDefault();
-      alert("Contacta con el administrador para resetear tu clave.");
+      modal.style.display = "none";
+      $("#forgotModal").style.display = "flex";
     };
   }
 
@@ -234,6 +235,92 @@ async function initAuth() {
   return check();
 }
 
+function initRecovery() {
+  const forgotModal = $("#forgotModal");
+  const forgotForm = $("#forgotForm");
+  const forgotCancel = $("#forgotCancel");
+  const forgotStatus = $("#forgotStatus");
+
+  if (forgotCancel) {
+    forgotCancel.onclick = () => {
+      forgotModal.style.display = "none";
+      $("#loginModal").style.display = "flex";
+    };
+  }
+
+  if (forgotForm) {
+    forgotForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const email = $("#forgotEmail").value;
+      try {
+        forgotStatus.textContent = "Enviando...";
+        forgotStatus.style.color = "var(--text)";
+        await fetchJson(`${API_BASE}/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        forgotStatus.textContent = "Instrucciones enviadas. Revisa tu email.";
+        forgotStatus.style.color = "var(--ok)";
+        setTimeout(() => {
+          forgotModal.style.display = "none";
+          $("#loginModal").style.display = "flex";
+        }, 3000);
+      } catch (err) {
+        forgotStatus.textContent = err.message;
+        forgotStatus.style.color = "var(--bad)";
+      }
+    };
+  }
+
+  // Lógica de Reseteo (cuando viene del email)
+  const resetForm = $("#resetForm");
+  const resetModal = $("#resetModal");
+  const resetStatus = $("#resetStatus");
+
+  if (resetForm) {
+    resetForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const token = $("#resetToken").value;
+      const password = $("#resetPass").value;
+      try {
+        resetStatus.textContent = "Actualizando...";
+        await fetchJson(`${API_BASE}/auth/reset-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password })
+        });
+        resetStatus.textContent = "Contraseña actualizada. Ya puedes entrar.";
+        resetStatus.style.color = "var(--ok)";
+        setTimeout(() => {
+          resetModal.style.display = "none";
+          window.location.hash = ""; // Limpiar URL
+          $("#loginModal").style.display = "flex";
+        }, 2500);
+      } catch (err) {
+        resetStatus.textContent = err.message;
+        resetStatus.style.color = "var(--bad)";
+      }
+    };
+  }
+
+  // Detectar token en URL
+  const checkToken = () => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#reset-password")) {
+      const urlParams = new URLSearchParams(hash.split("?")[1]);
+      const token = urlParams.get("token");
+      if (token) {
+        $("#resetToken").value = token;
+        $("#loginModal").style.display = "none";
+        resetModal.style.display = "flex";
+      }
+    }
+  };
+
+  checkToken();
+}
+
 // Boot
 (async () => {
   try {
@@ -243,6 +330,8 @@ async function initAuth() {
     }
 
     const isAuth = await initAuth();
+    initRecovery(); // Siempre inicializar para detectar tokens en URL
+
     if (!isAuth) return; // Detener carga si no está autenticado
 
     // Inicializar módulos

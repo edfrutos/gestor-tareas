@@ -1,9 +1,11 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { run, get } = require("../db/sqlite");
 const { z } = require("zod");
 const requireAuth = require("../middleware/auth.middleware");
+const { notifyPasswordReset } = require("../services/mail.service");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
@@ -18,6 +20,15 @@ const registerSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   password: z.string().min(6),
   role: z.enum(["admin", "user"]).optional().default("user"),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(6),
 });
 
 const changePasswordSchema = z.object({
@@ -85,6 +96,61 @@ router.post("/register", async (req, res, next) => {
     );
 
     res.status(201).json({ id: result.lastID, username, email, role });
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    next(e);
+  }
+});
+
+// POST /v1/auth/forgot-password
+router.post("/forgot-password", async (req, res, next) => {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body);
+    const user = await get("SELECT id, username, email FROM users WHERE email = ?", [email]);
+
+    // Por seguridad, no decimos si el email existe o no
+    if (!user) {
+      return res.json({ ok: true, message: "Si el email existe, recibirás instrucciones pronto." });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hora
+
+    // Limpiar tokens anteriores y guardar el nuevo
+    await run("DELETE FROM password_resets WHERE user_id = ?", [user.id]);
+    await run(
+      "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
+      [user.id, token, expiresAt]
+    );
+
+    await notifyPasswordReset(user, token);
+
+    res.json({ ok: true, message: "Si el email existe, recibirás instrucciones pronto." });
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    next(e);
+  }
+});
+
+// POST /v1/auth/reset-password
+router.post("/reset-password", async (req, res, next) => {
+  try {
+    const { token, password } = resetPasswordSchema.parse(req.body);
+    
+    const resetReq = await get(
+      "SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > ?",
+      [token, new Date().toISOString()]
+    );
+
+    if (!resetReq) {
+      return res.status(400).json({ error: "Token inválido o expirado" });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, resetReq.user_id]);
+    await run("UPDATE password_resets SET used = 1 WHERE id = ?", [resetReq.id]);
+
+    res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
     next(e);

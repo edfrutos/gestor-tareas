@@ -277,7 +277,55 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
     *   Mejora de `.gitignore` para cubrir de forma más robusta archivos de base de datos, logs y certificados locales.
 
+
+
+### 2026-02-15 | Fase 22: Sistema de Comentarios Avanzado ✅
+
+*   **Hilos de Respuestas:** Implementación de la columna `parent_id` en la tabla `issue_comments` para soportar anidamiento.
+
+*   **API Recursiva:** Refactorización del endpoint de comentarios para devolver una estructura de árbol, permitiendo conversaciones jerárquicas.
+
+*   **UI Dinámica:**
+
+    *   Visualización de respuestas con sangría y borde distintivo.
+
+    *   Botón "Responder" que precarga el contexto del comentario padre.
+
+    *   Indicador visual de "Respondiendo a @usuario" con opción de cancelación.
+
+
+
+### 2026-02-15 | Fase 23: Recuperación de Cuentas (Password Reset) ✅
+
+*   **Infraestructura de Email:**
+
+    *   Integración de **Mailpit** en el entorno local (Puerto 8825) para captura y previsualización segura de correos.
+
+    *   Configuración de `PUBLIC_URL` para la generación dinámica de enlaces de recuperación.
+
+*   **Seguridad:**
+
+    *   Nueva tabla `password_resets` para gestionar tokens de un solo uso con expiración (1 hora).
+
+    *   Uso de `crypto` nativo de Node.js para la generación de tokens de alta entropía.
+
+*   **Flujo de Usuario:**
+
+    *   Modales de "Olvido de contraseña" y "Restablecer clave" integrados en el login.
+
+    *   Detección automática de tokens mediante URL fragments (`#reset-password?token=...`).
+
+*   **Resiliencia y Compatibilidad:**
+
+    *   **Limpieza de Rutas:** Middleware en Express para interceptar y limpiar el prefijo `/cola-ciudadana`, garantizando que la app funcione tras cualquier proxy inverso.
+
+    *   **Migraciones Robustas:** Mejora en el sistema de migración de DB para añadir columnas faltantes en caliente sin interrumpir el arranque del servidor (evita errores 502).
+
+
+
 ### Resumen de Metodología (14 Feb 2026) 🚀
+
+
 
 *   **Flujo Profesional consolidado**: El proyecto ha pasado oficialmente a un flujo de trabajo basado en **Pull Requests (PR)**. A partir de ahora, todo cambio se desarrolla en ramas aisladas, se valida mediante CI en GitHub y se integra tras la aprobación de los tests.
 *   **Higiene del Repositorio**: El repositorio se encuentra limpio de archivos temporales y redundantes, optimizado para el desarrollo colaborativo y la mantenibilidad a largo plazo.
