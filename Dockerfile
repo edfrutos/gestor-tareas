@@ -1,6 +1,7 @@
 FROM node:22-bookworm-slim
 
-ENV NODE_ENV=production
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
 WORKDIR /app
 
 # Instalar dependencias para compilar módulos nativos (sqlite3, sharp, etc.)
@@ -12,12 +13,13 @@ RUN apt-get update && apt-get install -y \
 
 # deps
 COPY package*.json ./
-RUN npm ci --omit=dev
+# Instalamos deps según el entorno (en dev necesitamos las devDependencies para tests)
+RUN if [ "$NODE_ENV" = "production" ]; then npm ci --omit=dev; else npm ci; fi
 
 # app
 COPY src ./src
 
-# sanity checks
+# sanity checks (solo en build time para asegurar que binarios nativos funcionan)
 RUN node -e "require('./src/middleware/logger'); console.log('logger OK')"
 RUN node -e "require('./src/db/sqlite'); console.log('sqlite OK')"
 RUN node -e "require('sharp'); console.log('sharp OK')"
