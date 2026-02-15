@@ -10,7 +10,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "3000"
-      NODE_ENV: production
+      NODE_ENV: development
       # TRUST_PROXY: "1"
       # FORCE_HTTPS: "0"
       # HSTS_ENABLED: "0"
@@ -24,6 +24,7 @@ services:
     command: node --watch src/server.js
     volumes:
       - ./src:/app/src
+      - ./tests:/app/tests
       - gt_data:/app/data
       - gt_uploads:/app/uploads
     depends_on:
