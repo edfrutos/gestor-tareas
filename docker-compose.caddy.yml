@@ -9,7 +9,7 @@ services:
       - "8080:80"
       - "8443:443"
     depends_on:
-      - cola-ciudadana
+      - gestor-tareas
     environment:
       SITE_HOST: localhost
     volumes:

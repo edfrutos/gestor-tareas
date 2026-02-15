@@ -316,7 +316,8 @@ export async function openDetailModal(it) {
   if (assignSelect && canAssign) {
     try {
       assignSelect.innerHTML = '<option value="">Sin asignar</option>';
-      const users = await fetchJson(`${API_BASE}/users`);
+      const data = await fetchJson(`${API_BASE}/users`);
+      const users = data.items || [];
       users.forEach(u => {
         const opt = document.createElement("option");
         opt.value = u.id;

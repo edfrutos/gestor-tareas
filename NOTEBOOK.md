@@ -336,19 +336,36 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   **Entorno de Desarrollo Dinámico:** Modificación del `Dockerfile` y `docker-compose.yml` para soportar `NODE_ENV=development` localmente, permitiendo la instalación de herramientas de test (`jest`, `supertest`) solo cuando son necesarias.
     *   **Eliminación de Falsos Positivos:** El flujo de commit es ahora limpio, sin avisos de arquitectura o fallos por dependencias locales faltantes.
 
-### Resumen de Metodología (15 Feb 2026) 🚀
+### 2026-02-15 | Fase 25: Asignación de Tareas y Rescate de Datos ✅
 
-
-
-*   **Flujo Profesional consolidado**: El proyecto ha pasado oficialmente a un flujo de trabajo basado en **Pull Requests (PR)**. A partir de ahora, todo cambio se desarrolla en ramas aisladas, se valida mediante CI en GitHub y se integra tras la aprobación de los tests.
-*   **Higiene del Repositorio**: El repositorio se encuentra limpio de archivos temporales y redundantes, optimizado para el desarrollo colaborativo y la mantenibilidad a largo plazo.
+*   **Sistema de Asignación Profesional:**
+    *   **Base de Datos:** Incorporación de la columna `assigned_to` en la tabla `issues` con integridad referencial.
+    *   **Notificaciones Automáticas:** Envío de correos electrónicos al responsable cuando se le asigna una nueva tarea (integrado con Mailpit).
+    *   **Auditoría Detallada:** El historial de cambios ahora registra automáticamente cada reasignación de responsable.
+*   **Acceso Universal (Login Dual):**
+    *   Implementación de inicio de sesión tanto por **Nombre de Usuario** como por **Email**.
+    *   **Case-Insensitivity:** La búsqueda de usuario/email ahora ignora mayúsculas/minúsculas para evitar errores comunes de entrada.
+*   **Recuperación Crítica de Datos:**
+    *   **Rescate de Volúmenes:** Localización y extracción exitosa de la base de datos y archivos multimedia de volúmenes antiguos de Docker (`cola-ciudadana_cola_data` y `gestor-tareas_cola_uploads`).
+    *   **Migración a Bind Mounts:** Cambio de volúmenes nombrados a mapeos de carpetas locales (`./data` y `./uploads`), garantizando que los datos sean visibles, persistentes y fáciles de respaldar desde el host.
+    *   **Corrección de Infraestructura:** Actualización de `docker-compose.caddy.yml` y el `Caddyfile` interno para resolver errores 502 causados por el cambio de identidad del servicio.
+*   **Robustez y Estabilidad:**
+    *   **Borrado Determinista:** Refactorización de la lógica de eliminación de archivos para que sea asíncrona y esperada (`await`). Esto elimina las condiciones de carrera que hacían fallar los tests automatizados.
+    *   **Depuración de UI:** Corrección de errores en la carga de usuarios paginados que causaban fallos en la consola al abrir detalles de tareas o formularios de creación.
 
 ---
 
 ## 6. Próximos Pasos (Hoja de Ruta)
 
-1.  **💬 Comunicación Avanzada**: Implementación de hilos de comentarios y menciones.
-2.  **🔐 Recuperación de Cuentas**: Flujo de Password Reset mediante email.
-3.  **🗺️ Gestión de Archivo**: Capacidad para archivar planos antiguos sin perder las tareas asociadas.
+1.  **📱 Optimización Móvil Avanzada**: Revisar el comportamiento táctil del mapa y la legibilidad de las gráficas en dispositivos pequeños.
+2.  **🔄 Actualización en Tiempo Real**: Evaluar la migración del polling actual a **WebSockets** (Socket.io) para recibir notificaciones instantáneas sin recargar.
+3.  **⚙️ Configuración en Caliente**: Panel de administración para cambiar parámetros globales (límites de subida, colores de categoría) sin reiniciar el servidor.
+
+---
+
+## 7. Resumen de Metodología (15 Feb 2026) 🚀
+
+*   **Flujo Profesional consolidado**: El proyecto opera bajo un flujo de trabajo basado en **ramas de funcionalidad** (`feat/`) y validación mediante tests integrados en el pre-commit de Husky.
+*   **Soberanía de Datos**: El control de la persistencia ha pasado de Docker interno al sistema de archivos del usuario, facilitando el mantenimiento y la seguridad.
 
 

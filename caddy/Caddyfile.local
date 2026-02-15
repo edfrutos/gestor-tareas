@@ -5,5 +5,5 @@
 
 {$SITE_HOST:localhost} {
   encode gzip
-  reverse_proxy cola-ciudadana:3000
+  reverse_proxy gestor-tareas:3000
 }

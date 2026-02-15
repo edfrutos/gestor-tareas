@@ -64,7 +64,10 @@ export async function loadUsersForForm() {
   const assignSelect = $("#assigned_to");
   if (!assignSelect) return;
   try {
-    const users = await fetchJson(`${API_BASE}/users`);
+    const data = await fetchJson(`${API_BASE}/users`);
+    // El backend devuelve { items: [], total: ... }
+    const users = data.items || [];
+    
     assignSelect.innerHTML = '<option value="">Sin asignar</option>';
     users.forEach(u => {
       const opt = document.createElement("option");
@@ -72,7 +75,12 @@ export async function loadUsersForForm() {
       opt.textContent = u.username;
       assignSelect.appendChild(opt);
     });
-  } catch (e) { console.error("Error loading users for creation form", e); }
+  } catch (e) {
+    // Si falla (ej. por ser usuario normal), ocultamos el campo de asignación
+    console.log("No se pudieron cargar usuarios para asignación (posible falta de permisos).");
+    const assignGroup = $("#assignGroup");
+    if (assignGroup) assignGroup.style.display = "none";
+  }
 }
 
 const createIssueMultipart = withBusy(async () => {

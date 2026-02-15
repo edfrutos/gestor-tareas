@@ -123,6 +123,8 @@ async function initAuth() {
         if(err.data && err.data.error) {
            if (Array.isArray(err.data.error)) msg = err.data.error.map(x => x.message).join(", ");
            else msg = err.data.error;
+        } else if (err.data && err.data.message) {
+           msg = err.data.message;
         }
         st.textContent = msg || "Error";
         st.style.color = "var(--bad)";
@@ -223,11 +225,14 @@ async function initAuth() {
            location.reload();
         }
       } catch (err) {
-        if(err.data && Array.isArray(err.data.error)) {
-           errEl.textContent = err.data.error.map(e => e.message).join(", ");
-        } else {
-           errEl.textContent = err.message || "Error al procesar";
+        let msg = err.message;
+        if(err.data && err.data.error) {
+           if (Array.isArray(err.data.error)) msg = err.data.error.map(x => x.message).join(", ");
+           else msg = err.data.error;
+        } else if (err.data && err.data.message) {
+           msg = err.data.message;
         }
+        errEl.textContent = msg || "Error al procesar";
       }
     };
   }
