@@ -124,12 +124,10 @@ async function migrate() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         issue_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
-        parent_id INTEGER DEFAULT NULL,
         text TEXT NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY(issue_id) REFERENCES issues(id) ON DELETE CASCADE,
-        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY(parent_id) REFERENCES issue_comments(id) ON DELETE CASCADE
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
 
@@ -144,10 +142,9 @@ async function migrate() {
       )
     `);
 
-    // 2. Índices
+    // 2. Índices (Solo si la columna existe o se crea abajo)
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_issue_id ON issue_comments(issue_id)`);
-    await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_parent_id ON issue_comments(parent_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
@@ -193,7 +190,12 @@ async function migrate() {
     if (!userCols.has("email")) await exec(`ALTER TABLE users ADD COLUMN email TEXT;`);
 
     const commentCols = await checkColumns("issue_comments");
-    if (!commentCols.has("parent_id")) await exec(`ALTER TABLE issue_comments ADD COLUMN parent_id INTEGER REFERENCES issue_comments(id) ON DELETE CASCADE;`);
+    if (!commentCols.has("parent_id")) {
+      await exec(`ALTER TABLE issue_comments ADD COLUMN parent_id INTEGER;`);
+      // No podemos añadir FK directamente en ALTER TABLE en algunas versiones de SQLite de forma simple, 
+      // pero el parent_id funcionará igual.
+    }
+    await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_parent_id ON issue_comments(parent_id)`);
 
     const issueCols = await checkColumns("issues");
     if (!issueCols.has("thumb_url")) await exec(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);
