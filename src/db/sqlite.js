@@ -100,8 +100,10 @@ async function migrate() {
         created_at TEXT NOT NULL,
         created_by INTEGER,
         map_id INTEGER,
+        assigned_to INTEGER,
         FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
-        FOREIGN KEY(map_id) REFERENCES maps(id) ON DELETE SET NULL
+        FOREIGN KEY(map_id) REFERENCES maps(id) ON DELETE SET NULL,
+        FOREIGN KEY(assigned_to) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 
@@ -192,8 +194,6 @@ async function migrate() {
     const commentCols = await checkColumns("issue_comments");
     if (!commentCols.has("parent_id")) {
       await exec(`ALTER TABLE issue_comments ADD COLUMN parent_id INTEGER;`);
-      // No podemos añadir FK directamente en ALTER TABLE en algunas versiones de SQLite de forma simple, 
-      // pero el parent_id funcionará igual.
     }
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_parent_id ON issue_comments(parent_id)`);
 
@@ -217,6 +217,9 @@ async function migrate() {
     if (!issueCols.has("map_id")) {
       await exec(`ALTER TABLE issues ADD COLUMN map_id INTEGER REFERENCES maps(id) ON DELETE SET NULL;`);
       await exec("UPDATE issues SET map_id = 1 WHERE map_id IS NULL");
+    }
+    if (!issueCols.has("assigned_to")) {
+      await exec(`ALTER TABLE issues ADD COLUMN assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
     }
 
     return Promise.resolve();

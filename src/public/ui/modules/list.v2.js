@@ -8,7 +8,7 @@ import { openDetailModal } from "./details.v2.js";
 import { showPhotoModal, showDocModal } from "./modals.js";
 
 // Filtros
-let qEl, fStatusEl, fCategoryEl, sortEl, onlyMineEl, onlyFavsEl, btnMoreEl, btnExportEl, startDateEl, endDateEl;
+let qEl, fStatusEl, fCategoryEl, sortEl, onlyMineEl, onlyAssignedEl, onlyFavsEl, btnMoreEl, btnExportEl, startDateEl, endDateEl;
 
 export function ensureFiltersBar() {
   qEl = $("#q");
@@ -16,23 +16,17 @@ export function ensureFiltersBar() {
   fCategoryEl = $("#fCategory");
   sortEl = $("#order") || $("#sort");
   onlyMineEl = $("#onlyMine");
+  onlyAssignedEl = $("#onlyAssigned");
   onlyFavsEl = $("#onlyFavs");
   btnMoreEl = $("#btnMore");
   btnExportEl = $("#btnExport");
   startDateEl = $("#startDate");
   endDateEl = $("#endDate");
 
-  console.log("[DEBUG] StartDate element found:", !!startDateEl);
-  console.log("[DEBUG] EndDate element found:", !!endDateEl);
-
-  // Inyectar si no existen (lógica simplificada, asumo que existen en index.html o se inyectan igual que antes)
-  // ... (omito la inyección HTML larga para brevedad, asumo index.html completo)
-  
   if (ensureFiltersBar._bound) return;
   ensureFiltersBar._bound = true;
 
   const reload = () => {
-      console.log("[DEBUG] Reload triggered. StartDate value:", startDateEl?.value);
       loadIssues({ reset: true });
   };
 
@@ -45,6 +39,7 @@ export function ensureFiltersBar() {
   if (fStatusEl) fStatusEl.addEventListener("change", reload);
   if (sortEl) sortEl.addEventListener("change", reload);
   if (onlyMineEl) onlyMineEl.addEventListener("change", reload);
+  if (onlyAssignedEl) onlyAssignedEl.addEventListener("change", reload);
   if (onlyFavsEl) onlyFavsEl.addEventListener("change", reload);
   if (startDateEl) startDateEl.addEventListener("change", reload);
   if (endDateEl) endDateEl.addEventListener("change", reload);
@@ -54,7 +49,7 @@ export function ensureFiltersBar() {
 }
 
 function downloadExport() {
-  const qs = buildQuery(1); // Page doesn't matter for export, but filters do
+  const qs = buildQuery(1); 
   const url = `${API_BASE}/issues/export?${qs}`;
   window.open(url, "_blank");
 }
@@ -69,19 +64,12 @@ function buildQuery(page) {
   if (fStatusEl?.value) params.set("status", fStatusEl.value);
   if (fCategoryEl?.value) params.set("category", fCategoryEl.value.trim());
   if (sortEl?.value) params.set("order", sortEl.value);
+  if (onlyAssignedEl?.checked) params.set("only_assigned_to_me", "true");
   
-  if (startDateEl?.value) {
-    console.log("Fecha Inicio seleccionada:", startDateEl.value);
-    params.set("startDate", startDateEl.value);
-  }
-  if (endDateEl?.value) {
-    console.log("Fecha Fin seleccionada:", endDateEl.value);
-    params.set("endDate", endDateEl.value);
-  }
+  if (startDateEl?.value) params.set("from", startDateEl.value);
+  if (endDateEl?.value) params.set("to", endDateEl.value);
 
-  const qs = params.toString();
-  console.log("Enviando consulta al servidor:", qs);
-  return qs;
+  return params.toString();
 }
 
 function renderEmptyState() {
@@ -100,7 +88,6 @@ function renderList(items, mode) {
   if (!listEl) return;
   
   if (mode === "replace") {
-    // Limpiar lista anterior
     listEl.innerHTML = "";
     if (!items || items.length === 0) {
        renderEmptyState();
@@ -112,21 +99,20 @@ function renderList(items, mode) {
   const isAdmin = currentUser?.role === 'admin';
 
   items.forEach(it => {
-    state.allItemsById.set(it.id, it); // Cache para detalle
+    state.allItemsById.set(it.id, it);
     
     const row = document.createElement("div");
     row.className = "issueRow";
-    // ...
     
-    // Preparar datos visuales
     const title = safeText(it.title);
     const desc = safeText(it.description);
     const dateStr = it.created_at ? new Date(it.created_at).toLocaleDateString() : "";
     
-    // Admin ve el autor
-    let authorHtml = "";
-    if (isAdmin && it.created_by_username) {
-       authorHtml = `<span style="color:var(--accent); margin-left:6px; font-size:11px;">👤 ${safeText(it.created_by_username)}</span>`;
+    // Autor y Responsable
+    let metaHtml = "";
+    if (isAdmin || currentUser?.id === it.created_by || currentUser?.id === it.assigned_to) {
+       if (it.created_by_username) metaHtml += `<span style="color:var(--muted);">De: @${safeText(it.created_by_username)}</span>`;
+       if (it.assigned_to_username) metaHtml += ` <span style="color:var(--accent); font-weight:600;">→ @${safeText(it.assigned_to_username)}</span>`;
     }
 
     const thumbUrl = resolveSameOriginUrl(it.thumb_url);
@@ -142,14 +128,13 @@ function renderList(items, mode) {
        thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(255,255,255,.2);">📷</div>`;
     }
 
-    // HTML de la fila
     row.innerHTML = `
       ${thumbHtml}
       <div class="info">
          <div class="title">${title}</div>
          <div class="desc">${desc}</div>
-         <div class="meta-mobile">
-            ${statusLabel(it.status)} · ${dateStr} ${authorHtml}
+         <div class="meta-mobile" style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${statusLabel(it.status)} · ${dateStr} ${metaHtml}
          </div>
       </div>
       <div class="col-cat"><span class="badge" style="background:var(--chip2);border:1px solid rgba(255,255,255,.1);">${safeText(it.category)}</span></div>
@@ -162,33 +147,24 @@ function renderList(items, mode) {
       </div>
     `;
     
-    // Imagen fallback
     const imgEl = row.querySelector("img");
     if (imgEl) setImgFallback(imgEl, { fallbackSrc: resolveSameOriginUrl(it.photo_url), onFailReplace: false });
 
-    // Click en fila -> detalle
     row.addEventListener("click", async () => {
-      // Inversión de Control: Cambiar de plano si es necesario
       if (it.map_id && state.currentMap?.id !== it.map_id) {
          const targetMap = state.mapsList.find(m => m.id === it.map_id);
          if (targetMap) {
-            // Importación dinámica para evitar ciclos
             const { selectMap } = await import("./maps.js");
-            selectMap(targetMap, false); // false = no recargar issues (ya las tenemos)
+            selectMap(targetMap, false);
          }
       }
-      
-      // Centrar en el mapa
       if (it.lat != null && it.lng != null) {
          const { setLatLng } = await import("./map.js");
          setLatLng(it.lat, it.lng, { pan: true, setPin: false });
       }
-
       openDetailModal(it);
     });
-    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") row.click(); });
     
-    // Botón Favorito Rápido
     row.querySelector(".btn-fav-quick").addEventListener("click", (e) => {
       e.stopPropagation();
       toggleFav(it.id);
@@ -206,7 +182,6 @@ function renderList(items, mode) {
   });
 }
 
-// Internal wrapped function
 const _loadIssues = withBusy(async ({ reset } = {}) => {
   ensureFiltersBar();
   if (reset) renderSkeletonList();
@@ -229,11 +204,6 @@ const _loadIssues = withBusy(async ({ reset } = {}) => {
     if (onlyMineEl?.checked) filtered = filtered.filter(it => isMine(it.id));
     if (onlyFavsEl?.checked) filtered = filtered.filter(it => isFav(it.id));
 
-    // Client sort fallback...
-    const order = sortEl?.value || "new";
-    if (order === "old") filtered.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-    // ... otros sorts ...
-
     if (reset && !filtered.length) {
       renderEmptyState();
       clearMarkers();
@@ -250,16 +220,10 @@ const _loadIssues = withBusy(async ({ reset } = {}) => {
     
     setStatus("", "info");
   } catch (e) {
-    const msg = e.message || "";
-    if ((e.status === 401 || e.status === 403) && !localStorage.getItem(LS_API_KEY)) {
-      setStatus("Falta API Key. Pégala arriba.", "error");
-    } else {
-      setStatus(`Error al cargar: ${msg}`, "error");
-    }
+    setStatus(`Error al cargar: ${e.message}`, "error");
   }
 }, { overlayText: "Cargando...", showOverlay: false });
 
-// Export as function to avoid circular dependency TDZ
 export function loadIssues(opts) {
   return _loadIssues(opts);
 }

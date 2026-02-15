@@ -801,6 +801,13 @@
             <label>Descripción</label>
             <textarea id="description" name="description" placeholder="Describe el problema…" required></textarea>
 
+            <div id="assignGroup" style="margin-top:10px;">
+              <label>Responsable asignado (Opcional)</label>
+              <select id="assigned_to" name="assigned_to" style="width:100%; padding:10px; border-radius:14px; background:rgba(0,0,0,0.18); border:1px solid var(--border2); color:var(--text);">
+                <option value="">Sin asignar</option>
+              </select>
+            </div>
+
             <label style="display:none;">Ubicación (Dirección o clic en mapa)</label>
             <div class="addrWrap" style="display:none;">
               <input id="addr" placeholder="Ej: Pasillo A, Planta 1" autocomplete="off" />
@@ -878,8 +885,9 @@
           </div>
 
           <div class="filters2" style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
-            <div class="checks" style="display:flex; gap:10px;">
-              <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis incidencias</label>
+            <div class="checks" style="display:flex; gap:10px; flex-wrap:wrap;">
+              <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis creadas</label>
+              <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyAssigned"> Asignadas a mí 👤</label>
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyFavs"> Favoritos ⭐</label>
             </div>
             

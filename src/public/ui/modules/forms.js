@@ -60,6 +60,21 @@ export async function loadCategories() {
   } catch (e) { console.warn(e); }
 }
 
+export async function loadUsersForForm() {
+  const assignSelect = $("#assigned_to");
+  if (!assignSelect) return;
+  try {
+    const users = await fetchJson(`${API_BASE}/users`);
+    assignSelect.innerHTML = '<option value="">Sin asignar</option>';
+    users.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.id;
+      opt.textContent = u.username;
+      assignSelect.appendChild(opt);
+    });
+  } catch (e) { console.error("Error loading users for creation form", e); }
+}
+
 const createIssueMultipart = withBusy(async () => {
   const btn = $('form button[type="submit"]');
   setButtonBusy(btn, true, "Creando...");
@@ -70,6 +85,7 @@ const createIssueMultipart = withBusy(async () => {
     const desc = $("#description")?.value.trim();
     const lat = $("#lat")?.value;
     const lng = $("#lng")?.value;
+    const assignedTo = $("#assigned_to")?.value;
 
     if (!lat || !lng) {
       $("#map")?.scrollIntoView({ behavior: "smooth" });
@@ -83,6 +99,7 @@ const createIssueMultipart = withBusy(async () => {
     fd.set("description", desc);
     fd.set("lat", lat);
     fd.set("lng", lng);
+    if (assignedTo) fd.set("assigned_to", assignedTo);
     
     if (state.currentMap) {
       fd.set("map_id", state.currentMap.id);
@@ -101,6 +118,7 @@ const createIssueMultipart = withBusy(async () => {
     $("#description").value = "";
     $("#photo").value = "";
     $("#file").value = "";
+    $("#assigned_to").value = "";
     updatePhotoPreview(null);
     updateDocPreview(null);
 
@@ -128,6 +146,9 @@ export function wireForms() {
   const elFile = $("#file");
   if(elFile) elFile.onchange = () => updateDocPreview(elFile.files[0]);
 
+  // Cargar usuarios
+  loadUsersForForm();
+
   // Submit
   const form = $("form");
   if (form) {
@@ -146,6 +167,7 @@ export function wireForms() {
     $("#lng").value = "";
     $("#photo").value = "";
     $("#file").value = "";
+    $("#assigned_to").value = "";
     updatePhotoPreview(null);
     updateDocPreview(null);
     if (state.markerPin && state.map) {
