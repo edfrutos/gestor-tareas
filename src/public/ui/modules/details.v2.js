@@ -8,6 +8,7 @@ import { showDocModal } from "./modals.js";
 import { loadIssues } from "./list.v2.js";
 
 let currentDetailId = null;
+let currentReplyToId = null; // ID del comentario al que estamos respondiendo
 
 function renderHistory(logs) {
   const container = $("#dmHistoryItems");
@@ -83,41 +84,64 @@ async function loadComments(issueId) {
   try {
     container.innerHTML = "<div style='text-align:center; padding:10px; opacity:0.6;'>Cargando comentarios...</div>";
     const comments = await fetchJson(`${API_BASE}/issues/${issueId}/comments`);
-    renderComments(comments);
+    container.innerHTML = ""; // Limpiar antes de renderizar árbol
+    if (!comments || comments.length === 0) {
+      container.innerHTML = "<div style='text-align:center; padding:20px; opacity:0.5; font-size:13px;'>No hay comentarios todavía. ¡Sé el primero!</div>";
+    } else {
+      renderCommentTree(comments, container);
+    }
   } catch (e) {
     container.innerHTML = "<div style='color:var(--bad); padding:10px;'>Error al cargar comentarios.</div>";
   }
 }
 
-function renderComments(comments) {
-  const container = $("#dmCommentsList");
-  if (!container) return;
-  container.innerHTML = "";
-
-  if (!comments || comments.length === 0) {
-    container.innerHTML = "<div style='text-align:center; padding:20px; opacity:0.5; font-size:13px;'>No hay comentarios todavía. ¡Sé el primero!</div>";
-    return;
-  }
-
+function renderCommentTree(comments, container, depth = 0) {
   comments.forEach(c => {
     const date = new Date(c.created_at).toLocaleString();
     const div = document.createElement("div");
     div.style.padding = "10px";
-    div.style.borderBottom = "1px solid var(--border2)";
+    div.style.borderLeft = depth > 0 ? "2px solid var(--border2)" : "none";
+    div.style.marginLeft = depth > 0 ? "15px" : "0";
+    div.style.background = depth % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
     div.style.fontSize = "13px";
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
         <strong style="color:var(--accent);">${safeText(c.username)}</strong>
         <span style="font-size:10px; color:var(--muted);">${date}</span>
       </div>
-      <div style="white-space:pre-wrap; line-height:1.4;">${safeText(c.text)}</div>
+      <div style="white-space:pre-wrap; line-height:1.4; margin-bottom:6px;">${safeText(c.text)}</div>
+      <div style="text-align:right;">
+        <button class="btn small" style="font-size:10px; padding:2px 8px; opacity:0.7;" onclick="window.setReplyTo(${c.id}, '${safeText(c.username)}')">Responder</button>
+      </div>
     `;
     container.appendChild(div);
+    
+    if (c.replies && c.replies.length > 0) {
+      renderCommentTree(c.replies, container, depth + 1);
+    }
   });
-  
-  // Scroll al final
-  container.scrollTop = container.scrollHeight;
 }
+
+// Global para que el onclick del HTML funcione
+window.setReplyTo = (id, username) => {
+  currentReplyToId = id;
+  const label = $("#dmReplyIndicator");
+  const input = $("#dmNewCommentInput");
+  if (label) {
+    label.innerHTML = `Respondiendo a <strong>@${username}</strong> <button class="btn small danger" style="padding:0 4px; font-size:10px;" onclick="window.clearReplyTo()">✕</button>`;
+    label.style.display = "block";
+  }
+  if (input) input.focus();
+};
+
+window.clearReplyTo = () => {
+  currentReplyToId = null;
+  const label = $("#dmReplyIndicator");
+  if (label) {
+    label.style.display = "none";
+    label.innerHTML = "";
+  }
+};
 
 async function addComment() {
   const input = $("#dmNewCommentInput");
@@ -128,12 +152,17 @@ async function addComment() {
   setButtonBusy(btn, true, "...");
 
   try {
+    const payload = { text };
+    if (currentReplyToId) payload.parent_id = currentReplyToId;
+
     await fetchJson(`${API_BASE}/issues/${currentDetailId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
+      body: JSON.stringify(payload)
     });
+    
     input.value = "";
+    window.clearReplyTo();
     await loadComments(currentDetailId);
   } catch (e) {
     toast(e.message, "error");
