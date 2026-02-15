@@ -323,7 +323,20 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 
 
-### Resumen de Metodología (14 Feb 2026) 🚀
+### 2026-02-15 | Fase 24: Identidad, Coherencia y Flujo de Desarrollo ✅
+
+*   **Unificación de Marca:**
+    *   Renombrado del servicio principal de `cola-ciudadana` a **`gestor-tareas`** en Docker Compose.
+    *   Actualización de volúmenes de persistencia a `gt_data` y `gt_uploads`.
+*   **Simplificación de Infraestructura:**
+    *   Eliminación del prefijo `/cola-ciudadana` en rutas y Caddy. La aplicación ahora responde en la raíz (`/`), facilitando el despliegue.
+    *   Limpieza de middlewares de parche en `src/app.js` y normalización de la generación de enlaces de email.
+*   **Optimización del Flujo de Trabajo (Husky + Docker):**
+    *   **Tests en Contenedor:** Refactorización del pre-commit hook para ejecutar la suite de pruebas automáticamente dentro del contenedor Docker. Esto garantiza la validez de los tests en el entorno de ejecución real, independientemente de la arquitectura del host (Mac/Windows/Linux).
+    *   **Entorno de Desarrollo Dinámico:** Modificación del `Dockerfile` y `docker-compose.yml` para soportar `NODE_ENV=development` localmente, permitiendo la instalación de herramientas de test (`jest`, `supertest`) solo cuando son necesarias.
+    *   **Eliminación de Falsos Positivos:** El flujo de commit es ahora limpio, sin avisos de arquitectura o fallos por dependencias locales faltantes.
+
+### Resumen de Metodología (15 Feb 2026) 🚀
 
 
 
