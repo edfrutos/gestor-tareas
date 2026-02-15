@@ -16,6 +16,9 @@ services:
       # HSTS_ENABLED: "0"
       DB_FILE: /app/data/data.db
       UPLOAD_DIR: /app/uploads
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      PUBLIC_URL: https://localhost:8443/cola-ciudadana/
     ports:
       - "3000:3000"
     command: node --watch src/server.js
@@ -23,7 +26,21 @@ services:
       - ./src:/app/src
       - cola_data:/app/data
       - cola_uploads:/app/uploads
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "8825:8025" # Interfaz Web (Cambiado a 8825 por conflicto)
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit_data:/data
 
 volumes:
   cola_data:
   cola_uploads:
+  mailpit_data:

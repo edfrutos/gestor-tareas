@@ -112,7 +112,9 @@ Descripción: ${issue.description}`;
 async function notifyPasswordReset(user, token) {
   if (!user.email) return;
 
-  const resetUrl = `${process.env.PUBLIC_URL || 'https://cola-ciudadana.local'}/#reset-password?token=${token}`;
+  // Limpiamos cualquier barra final de la URL base para evitar dobles barras
+  const baseUrl = (process.env.PUBLIC_URL || 'https://cola-ciudadana.local').replace(/\/+$/, "");
+  const resetUrl = `${baseUrl}/#reset-password?token=${token}`;
   const subject = `Recuperación de contraseña`;
 
   const text = `Hola ${user.username},
