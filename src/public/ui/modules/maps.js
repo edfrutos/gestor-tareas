@@ -5,6 +5,8 @@ import { $, toast, setButtonBusy, safeText } from "./utils.js";
 import { loadIssues } from "./list.v2.js";
 import { getUser } from "./auth.js";
 
+let showArchived = false;
+
 // Inicializar
 export function initMapsModule() {
   const btnMaps = $("#btnMaps");
@@ -21,6 +23,19 @@ export function initMapsModule() {
 
   const form = $("#uploadMapForm");
   if (form) {
+    // Inyectar checkbox de archivados si no existe
+    if (!$("#chkShowArchived")) {
+      const chkWrap = document.createElement("div");
+      chkWrap.style.cssText = "margin-top:10px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);";
+      chkWrap.innerHTML = `<label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="chkShowArchived"> Ver planos archivados</label>`;
+      form.after(chkWrap);
+      
+      $("#chkShowArchived").onchange = (e) => {
+        showArchived = e.target.checked;
+        loadAndRenderMaps();
+      };
+    }
+
     form.onsubmit = async (e) => {
       e.preventDefault();
       const fileInput = $("#mapFile");
@@ -53,9 +68,9 @@ export function initMapsModule() {
 }
 
 // Cargar lista de mapas
-export async function loadMaps() {
+export async function loadMaps(includeArchived = false) {
   try {
-    const list = await fetchJson(`${API_BASE}/maps`);
+    const list = await fetchJson(`${API_BASE}/maps?include_archived=${includeArchived}`);
     state.mapsList = list || [];
     
     // Si no hay mapa activo, seleccionar el primero (por defecto ID 1)
@@ -70,7 +85,7 @@ export async function loadMaps() {
 }
 
 async function loadAndRenderMaps() {
-  await loadMaps();
+  await loadMaps(showArchived);
   renderMapsList();
 }
 
@@ -101,17 +116,20 @@ function renderMapsList() {
       display: flex; align-items: center; gap: 10px; 
       padding: 10px; border-bottom: 1px solid var(--border2);
       background: ${state.currentMap?.id === m.id ? 'var(--chip2)' : 'transparent'};
+      opacity: ${m.archived ? '0.5' : '1'};
     `;
 
     const isMine = currentUser && m.created_by === currentUser.id;
-    const canDelete = isAdmin || isMine;
-    // No permitir borrar el ID 1 (sistema)
+    const canManage = isAdmin || isMine;
+    // No permitir borrar/archivar el ID 1 (sistema)
     const isSystem = m.id === 1;
 
     el.innerHTML = `
       <img src="${m.thumb_url || m.file_url}" style="width:60px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
       <div style="flex:1; min-width:0;">
-        <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${safeText(m.name)}</div>
+        <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          ${m.archived ? '📦 ' : ''}${safeText(m.name)}
+        </div>
         <div style="font-size:11px; color:var(--muted);">
            ${m.created_by_username ? `Por ${safeText(m.created_by_username)}` : 'Sistema'}
         </div>
@@ -120,7 +138,12 @@ function renderMapsList() {
         <button class="btn small btn-select-map" style="${state.currentMap?.id === m.id ? 'background:var(--ok); color:#fff; border:none;' : ''}">
           ${state.currentMap?.id === m.id ? 'Activo' : 'Usar'}
         </button>
-        ${canDelete && !isSystem ? `<button class="btn small danger btn-del-map">🗑️</button>` : ''}
+        ${canManage && !isSystem ? `
+          <button class="btn small btn-archive-map" title="${m.archived ? 'Desarchivar' : 'Archivar'}">
+            ${m.archived ? '📤' : '📦'}
+          </button>
+          <button class="btn small danger btn-del-map">🗑️</button>
+        ` : ''}
       </div>
     `;
 
@@ -129,8 +152,9 @@ function renderMapsList() {
       renderMapsList(); // Re-render para actualizar botones
     };
 
-    if (canDelete && !isSystem) {
+    if (canManage && !isSystem) {
       el.querySelector(".btn-del-map").onclick = () => deleteMap(m.id);
+      el.querySelector(".btn-archive-map").onclick = () => archiveMap(m.id, !m.archived);
     }
 
     container.appendChild(el);
@@ -145,15 +169,25 @@ export function selectMap(map, reloadIssuesFlag = true) {
   const mapTitle = $("#mapTitle");
   if (mapTitle) mapTitle.textContent = `🗺️ ${map.name}`;
 
-  // Emitir evento para recargar imagen del mapa
-  // Lo haremos invocando una función exportada de map.js, pero para evitar ciclos
-  // usaremos un evento custom o simplemente recargaremos la app si es necesario.
-  // Mejor: updateMapImage(map.file_url) expuesto en map.js (pero map.js no está importado aquí)
   // Despachamos evento al document
   document.dispatchEvent(new CustomEvent("mapChanged", { detail: map }));
 
   if (reloadIssuesFlag) {
     loadIssues({ reset: true });
+  }
+}
+
+async function archiveMap(id, archive) {
+  try {
+    await fetchJson(`${API_BASE}/maps/${id}/archive`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: archive })
+    });
+    toast(archive ? "Plano archivado" : "Plano restaurado", "ok");
+    await loadAndRenderMaps();
+  } catch (err) {
+    toast(err.message, "error");
   }
 }
 

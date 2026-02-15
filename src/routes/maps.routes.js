@@ -56,28 +56,55 @@ router.get("/", requireAuth(), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const isAdmin = req.user.role === 'admin';
+    const includeArchived = req.query.include_archived === 'true';
 
     let sql = `
       SELECT m.*, u.username as created_by_username 
       FROM maps m
       LEFT JOIN users u ON m.created_by = u.id
+      WHERE 1=1
     `;
     const params = [];
 
     if (!isAdmin) {
-      // Usuarios ven los suyos O los creados por admins (considerados públicos/sistema)
-      // Asumimos que los mapas creados por usuarios con rol 'admin' son globales.
-      // Ojo: Esto requiere hacer un JOIN con users para chequear el rol del creador, 
-      // o simplificamos: el Admin (ID 1) es el sistema.
-      // Vamos a permitir ver los propios Y los del ID 1 (default admin).
-      sql += ` WHERE m.created_by = ? OR m.created_by = 1`;
+      // Usuarios ven los suyos O los creados por el admin por defecto (ID 1)
+      sql += ` AND (m.created_by = ? OR m.created_by = 1)`;
       params.push(userId);
+    }
+
+    if (!includeArchived) {
+      sql += ` AND m.archived = 0`;
     }
 
     sql += ` ORDER BY m.created_at DESC`;
 
     const items = await all(sql, params);
     res.json(items);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// PATCH /v1/maps/:id/archive
+router.patch("/:id/archive", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { archived } = req.body;
+
+    if (id === 1 && archived) {
+      return res.status(400).json({ error: "No se puede archivar el mapa principal" });
+    }
+
+    const map = await get("SELECT * FROM maps WHERE id = ?", [id]);
+    if (!map) return res.status(404).json({ error: "Mapa no encontrado" });
+
+    // RBAC: Solo admin o dueño
+    if (req.user.role !== 'admin' && map.created_by !== req.user.id) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
+
+    await run("UPDATE maps SET archived = ? WHERE id = ?", [archived ? 1 : 0, id]);
+    res.json({ ok: true, archived: !!archived });
   } catch (e) {
     next(e);
   }

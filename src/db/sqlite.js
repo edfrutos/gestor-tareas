@@ -197,6 +197,9 @@ async function migrate() {
     }
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_parent_id ON issue_comments(parent_id)`);
 
+    const mapCols = await checkColumns("maps");
+    if (!mapCols.has("archived")) await exec(`ALTER TABLE maps ADD COLUMN archived INTEGER DEFAULT 0;`);
+
     const issueCols = await checkColumns("issues");
     if (!issueCols.has("thumb_url")) await exec(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);
     if (!issueCols.has("photo_url")) await exec(`ALTER TABLE issues ADD COLUMN photo_url TEXT;`);
