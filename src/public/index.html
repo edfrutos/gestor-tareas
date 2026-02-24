@@ -678,9 +678,14 @@
       
       /* Gráficos en modal estadísticas */
       #statsModal .modalCard { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }
-      #statsModal canvas { max-height: 300px; }
+      #statsModal canvas { max-height: 350px; min-height: 250px; }
       /* Contenedores con altura definida para Chart.js (maintainAspectRatio: false en móvil) */
-      #statsModal .modalCard > div:last-child > div { min-height: 220px; }
+      #statsModal .modalCard > div:last-child { 
+        display: flex; 
+        flex-direction: column; 
+        gap: 30px; 
+        padding-bottom: 40px; 
+      }
 
       /* Modal de Detalle Móvil: Pantalla completa */
       .detailCard {
@@ -695,6 +700,7 @@
         padding: 12px;
         gap: 15px;
         grid-template-columns: 1fr; /* Una sola columna siempre */
+        -webkit-overflow-scrolling: touch;
       }
 
       .detailImg { height: 220px; }
@@ -718,6 +724,25 @@
       .filters-dates { grid-template-columns: 1fr; }
       .filters2 { flex-direction: column; align-items: stretch; gap: 12px; }
       .checks { justify-content: space-around; }
+
+      /* Header más compacto en móvil */
+      .controls { 
+        width: 100%; 
+        justify-content: flex-start; 
+        overflow-x: auto; 
+        padding: 5px 2px 10px;
+        scrollbar-width: none; 
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x; /* Permitir scroll horizontal pero no bloquear taps */
+      }
+      .controls::-webkit-scrollbar { display: none; }
+      .controls .btn, .controls .chip { 
+        flex: 0 0 auto; 
+        pointer-events: auto;
+        position: relative;
+        z-index: 35;
+      }
+      .chip { width: auto; }
     }
   </style>
 </head>

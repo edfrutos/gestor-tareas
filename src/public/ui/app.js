@@ -191,7 +191,7 @@ async function initAuth() {
       const user = getUser();
       modal.style.display = "none";
       if(userInfo) userInfo.style.display = "inline";
-      if(btnLogout) btnLogout.style.display = "inline";
+      if(btnLogout) btnLogout.style.display = "inline-block";
       if(userName) userName.textContent = user?.username || "Usuario";
       return true;
     } else {
@@ -202,9 +202,12 @@ async function initAuth() {
     }
   };
 
-  if (btnLogout) btnLogout.onclick = () => {
-    if(confirm("¿Cerrar sesión?")) logout();
-  };
+  if (btnLogout) {
+    btnLogout.addEventListener("click", (e) => {
+      e.preventDefault();
+      logout(); // Ejecución directa para descartar fallos del confirm() en móvil
+    });
+  }
 
   if (form) {
     form.onsubmit = async (e) => {

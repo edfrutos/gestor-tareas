@@ -35,16 +35,18 @@ export function ensureMap() {
     crs: L.CRS.Simple,
     minZoom: -1,
     maxZoom: 4,
-    zoomControl: false, // Siempre desactivar el built-in; añadimos el nuestro con posición custom cuando !isMobile
+    zoomControl: false, 
     doubleClickZoom: false, // Desactivar para evitar zoom accidental al marcar
-    tap: true,
+    tap: !L.Browser.touch, // Usar tap nativo si no es táctil, para evitar conflictos
+    touchZoom: true,
+    dragging: true,
     bounceAtZoomLimits: true
   });
 
-  // Si es móvil, mover el control de zoom si se desea mantener, o dejarlo así
-  if (!isMobile) {
-    L.control.zoom({ position: 'topright' }).addTo(state.map);
-  }
+  // Controles de zoom: Arriba-Derecha en Desktop, Abajo-Derecha en Móvil para no estorbar
+  L.control.zoom({ 
+    position: isMobile ? 'bottomright' : 'topright' 
+  }).addTo(state.map);
 
   const bounds = [[0, 0], [1000, 1000]];
   
