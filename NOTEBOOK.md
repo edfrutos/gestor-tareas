@@ -353,6 +353,16 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
     *   **Borrado Determinista:** Refactorización de la lógica de eliminación de archivos para que sea asíncrona y esperada (`await`). Esto elimina las condiciones de carrera que hacían fallar los tests automatizados.
     *   **Depuración de UI:** Corrección de errores en la carga de usuarios paginados que causaban fallos en la consola al abrir detalles de tareas o formularios de creación.
 
+### 2026-02-24 | Fase 26: Recuperación de Infraestructura y Estabilidad de Montajes ✅
+
+*   **Resolución de Incidente Crítico (ENOTDIR/Bad File Descriptor):**
+    *   Detectado fallo masivo en el acceso al sistema de archivos dentro de los contenedores debido a una corrupción de los descriptores de archivos en el motor de Docker para Mac.
+    *   **Síntomas:** Error 404 al servir `index.html`, fallos en backups y bases de datos marcadas como inaccesibles.
+    *   **Solución:** Reinicio determinista de la infraestructura (`down` + `up --build`) para restaurar los enlaces entre el host (macOS) y el sistema de archivos de los contenedores.
+*   **Validación de Salud:**
+    *   Verificación de la integridad de los volúmenes `/app/src`, `/app/data` y `/app/uploads`.
+    *   Confirmación de respuesta exitosa (HTTP 200) sobre el proxy Caddy en `https://localhost:8443`.
+
 ---
 
 ## 6. Próximos Pasos (Hoja de Ruta)

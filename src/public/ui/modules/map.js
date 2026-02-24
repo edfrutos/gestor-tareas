@@ -29,14 +29,22 @@ export function ensureMap() {
   const mapEl = $("#map");
   if (!mapEl) return;
 
+  const isMobile = window.innerWidth < 600;
+
   state.map = L.map(mapEl, {
     crs: L.CRS.Simple,
     minZoom: -1,
     maxZoom: 4,
-    zoomControl: true,
-    tap: true, // Mejora clics en algunos navegadores móviles
-    bounceAtZoomLimits: true // Feedback visual al llegar al límite de zoom
+    zoomControl: false, // Siempre desactivar el built-in; añadimos el nuestro con posición custom cuando !isMobile
+    doubleClickZoom: false, // Desactivar para evitar zoom accidental al marcar
+    tap: true,
+    bounceAtZoomLimits: true
   });
+
+  // Si es móvil, mover el control de zoom si se desea mantener, o dejarlo así
+  if (!isMobile) {
+    L.control.zoom({ position: 'topright' }).addTo(state.map);
+  }
 
   const bounds = [[0, 0], [1000, 1000]];
   
@@ -76,6 +84,7 @@ export function addMarkers(items, onClickMarker) {
   if (!state.markersLayer || !Array.isArray(items)) return;
 
   const currentUser = getUser();
+  const isMobile = window.innerWidth < 600;
 
   items.forEach((it) => {
     if (!it || it.lat == null || it.lng == null) return;
@@ -87,16 +96,12 @@ export function addMarkers(items, onClickMarker) {
     const lng = Number(it.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    // Solo mostrar marcadores del mapa actual (si se desea filtrar visualmente)
-    // OJO: La API ya debería filtrar las issues por mapa, pero por seguridad visual:
-    // if (state.currentMap && it.map_id !== state.currentMap.id) return; 
-    // (Asumimos que loadIssues ya filtra por map_id si implementamos el filtro en backend)
-
     const isMine = currentUser && it.created_by === currentUser.id;
     const color = catColor(it.category);
     
+    // Marcadores más grandes en móvil para facilitar el toque
     const m = L.circleMarker([lat, lng], { 
-      radius: 7, 
+      radius: isMobile ? 10 : 7, 
       weight: isMine ? 2 : 4,
       opacity: 0.9, 
       fillOpacity: 0.6,
