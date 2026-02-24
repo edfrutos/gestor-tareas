@@ -679,6 +679,8 @@
       /* Gráficos en modal estadísticas */
       #statsModal .modalCard { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }
       #statsModal canvas { max-height: 300px; }
+      /* Contenedores con altura definida para Chart.js (maintainAspectRatio: false en móvil) */
+      #statsModal .modalCard > div:last-child > div { min-height: 220px; }
 
       /* Modal de Detalle Móvil: Pantalla completa */
       .detailCard {
