@@ -35,7 +35,7 @@ export function ensureMap() {
     crs: L.CRS.Simple,
     minZoom: -1,
     maxZoom: 4,
-    zoomControl: !isMobile, // Ocultar controles de zoom en móvil para ganar espacio
+    zoomControl: false, // Siempre desactivar el built-in; añadimos el nuestro con posición custom cuando !isMobile
     doubleClickZoom: false, // Desactivar para evitar zoom accidental al marcar
     tap: true,
     bounceAtZoomLimits: true
