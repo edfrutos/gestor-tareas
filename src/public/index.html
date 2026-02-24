@@ -637,8 +637,9 @@
     /* --- OPTIMIZACIÓN MÓVIL Y TÁCTIL --- */
     @media (max-width: 600px) {
       :root {
-        --pad: 10px;
+        --pad: 12px;
         --gap: 10px;
+        --radius: 14px;
       }
       
       body { font-size: 15px; }
@@ -658,31 +659,26 @@
         gap: 6px;
       }
       
-      .chip { padding: 6px 10px; }
-      .chip input { width: 100%; max-width: none; }
+      .chip { padding: 6px 10px; width: 100%; justify-content: space-between; }
+      .chip input { width: 100%; max-width: none; flex: 1; }
 
-      /* Área táctil mínima recomendada por Apple/Google (44px) */
+      /* Área táctil mínima recomendada (44px) */
       .btn, input, select, textarea {
         min-height: 44px;
         font-size: 16px !important; /* Evita zoom automático en iOS */
       }
 
-      .btn.small { min-height: 34px; padding: 6px 10px; }
+      .btn.small { min-height: 38px; padding: 6px 12px; }
 
-      .filters {
-        grid-template-columns: 1fr;
-        gap: 8px;
-      }
+      main { padding: 10px; gap: 15px; }
 
-      .filters-dates {
-        grid-template-columns: 1fr;
-      }
-
-      .filters2 {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-      }
+      .top-panel { gap: 15px; }
+      
+      .card h2 { padding: 12px; font-size: 13px; }
+      
+      /* Gráficos en modal estadísticas */
+      #statsModal .modalCard { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }
+      #statsModal canvas { max-height: 300px; }
 
       /* Modal de Detalle Móvil: Pantalla completa */
       .detailCard {
@@ -692,8 +688,9 @@
         border-radius: 0;
       }
 
+      .detailHeader { padding: 12px; }
       .detailBody {
-        padding: 15px;
+        padding: 12px;
         gap: 15px;
         grid-template-columns: 1fr; /* Una sola columna siempre */
       }
@@ -702,13 +699,23 @@
       
       .detailSidebar {
         order: -1; /* Poner el estado y acciones arriba para acceso rápido */
-        background: var(--panel);
+        background: var(--panel2);
+        padding: 12px;
       }
 
       .issueRow {
-        grid-template-columns: 50px 1fr;
+        grid-template-columns: 50px 1fr 40px;
         gap: 10px;
+        padding: 10px;
       }
+      .issueRow .thumb { width: 50px; height: 50px; }
+      .issueRow .col-action { flex-direction: row; }
+
+      /* Ajuste de filtros */
+      .filters { grid-template-columns: 1fr; gap: 8px; }
+      .filters-dates { grid-template-columns: 1fr; }
+      .filters2 { flex-direction: column; align-items: stretch; gap: 12px; }
+      .checks { justify-content: space-around; }
     }
   </style>
 </head>

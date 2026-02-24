@@ -59,8 +59,8 @@ function renderCharts(data) {
     const isAdmin = user?.role === 'admin';
     const bgColor = getChartBgColor();
     const isMobile = window.innerWidth < 600;
-    const labelFontSize = isMobile ? 9 : 11;
-    const titleFontSize = isMobile ? 10 : 12;
+    const labelFontSize = isMobile ? 10 : 11;
+    const titleFontSize = isMobile ? 12 : 14;
 
     // 1. Gráfico de Estados (Doughnut)
     destroyChart('status');
@@ -79,12 +79,17 @@ function renderCharts(data) {
             plugins: [pluginBackgroundColor],
             options: { 
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: !isMobile, // Permitir que crezca en móvil si es necesario
                 plugins: { 
                     customCanvasBackgroundColor: { color: bgColor },
                     legend: { 
-                        position: 'bottom', 
-                        labels: { color: '#fff', font: { size: labelFontSize } } 
+                        position: isMobile ? 'top' : 'bottom', 
+                        labels: { 
+                            color: '#fff', 
+                            font: { size: labelFontSize },
+                            boxWidth: isMobile ? 12 : 20,
+                            padding: isMobile ? 8 : 10
+                        } 
                     },
                     datalabels: {
                         color: '#fff',
@@ -97,7 +102,7 @@ function renderCharts(data) {
                         },
                         font: {
                             weight: 'bold',
-                            size: labelFontSize - 1,
+                            size: labelFontSize,
                         }
                     }
                 } 
@@ -124,7 +129,7 @@ function renderCharts(data) {
             options: { 
                 indexAxis: 'y',
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: !isMobile,
                 scales: { 
                     x: { ticks: { color: '#fff', font: { size: labelFontSize } }, grid: { color: 'rgba(255,255,255,0.1)' } }, 
                     y: { ticks: { color: '#fff', font: { size: labelFontSize } }, grid: { color: 'rgba(255,255,255,0.1)' } } 
@@ -139,7 +144,7 @@ function renderCharts(data) {
                         formatter: (value) => value > 0 ? value : '',
                         font: { 
                             weight: 'bold',
-                            size: labelFontSize - 1,
+                            size: labelFontSize,
                         }
                     }
                 }
@@ -167,7 +172,7 @@ function renderCharts(data) {
                 plugins: [pluginBackgroundColor],
                 options: { 
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: !isMobile,
                     scales: { 
                         x: { ticks: { color: '#fff', font: { size: labelFontSize } } }, 
                         y: { ticks: { color: '#fff', font: { size: labelFontSize } } } 
@@ -182,7 +187,7 @@ function renderCharts(data) {
                             formatter: (value) => value > 0 ? value : '',
                             font: {
                                 weight: 'bold',
-                                size: labelFontSize - 1,
+                                size: labelFontSize,
                             }
                         }
                     }
