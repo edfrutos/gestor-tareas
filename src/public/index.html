@@ -443,6 +443,18 @@
       gap: 10px;
       margin-bottom: 10px;
     }
+    .filters-dates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .filters2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
 
     /* lista */
     .list{ display:flex; flex-direction: column; gap: 12px; }
@@ -556,6 +568,11 @@
       box-shadow: var(--shadow);
     }
     [data-theme="light"] .modalCard{ background: rgba(255,255,255,.98); }
+    #statsModal .modalCard {
+      width: min(800px, 95vw);
+      max-height: 90vh;
+      border-radius: 16px;
+    }
     .modalTop{
       display:flex;
       align-items:center;
@@ -707,7 +724,6 @@
       
       .detailSidebar {
         order: -1; /* Poner el estado y acciones arriba para acceso rápido */
-        background: var(--panel2);
         padding: 12px;
       }
 
@@ -717,7 +733,6 @@
         padding: 10px;
       }
       .issueRow .thumb { width: 50px; height: 50px; }
-      .issueRow .col-action { flex-direction: row; }
 
       /* Ajuste de filtros */
       .filters { grid-template-columns: 1fr; gap: 8px; }
@@ -913,12 +928,12 @@
             </select>
           </div>
 
-          <div class="filters-dates" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div class="filters-dates">
             <input type="date" id="startDate" title="Desde fecha" style="color-scheme:dark;" />
             <input type="date" id="endDate" title="Hasta fecha" style="color-scheme:dark;" />
           </div>
 
-          <div class="filters2" style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+          <div class="filters2">
             <div class="checks" style="display:flex; gap:10px; flex-wrap:wrap;">
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis creadas</label>
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyAssigned"> Asignadas a mí 👤</label>
@@ -1297,7 +1312,7 @@
 
   <!-- Modal Estadísticas -->
   <div class="modal" id="statsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
-    <div class="modalCard" style="width:min(800px, 95vw); max-height:90vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+    <div class="modalCard" style="display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border);">
       <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
         <h3 style="margin:0; font-size:16px;">📊 Estadísticas Generales</h3>
         <div id="exportButtons" style="display:flex; gap:10px;">
