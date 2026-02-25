@@ -163,11 +163,15 @@ function renderUsersTable(users) {
       </td>
       <td style="padding:10px 14px; font-size:12px; color:var(--muted);">${dateStr}</td>
       <td style="padding:10px 14px; text-align:right;">
-        <button class="btn small btn-edit-user" data-id="${u.id}">✎</button>
-        ${!isMe ? `<button class="btn small danger btn-del-user" data-id="${u.id}">🗑️</button>` : ''}
+        <button class="btn small btn-pass-user" data-id="${u.id}" title="Cambiar contraseña">🔑</button>
+        <button class="btn small btn-edit-user" data-id="${u.id}" title="Editar usuario">✎</button>
+        ${!isMe ? `<button class="btn small danger btn-del-user" data-id="${u.id}" title="Eliminar usuario">🗑️</button>` : ''}
       </td>
     `;
     
+    const btnPass = tr.querySelector(".btn-pass-user");
+    btnPass.onclick = () => openEditUser(u, true);
+
     const btnEdit = tr.querySelector(".btn-edit-user");
     btnEdit.onclick = () => openEditUser(u);
 
@@ -180,7 +184,7 @@ function renderUsersTable(users) {
   });
 }
 
-function openEditUser(u) {
+function openEditUser(u, focusPassword = false) {
   const modal = $("#editUserModal");
   if (!modal) return;
   
@@ -188,9 +192,14 @@ function openEditUser(u) {
   $("#editUserName").value = u.username;
   $("#editUserEmail").value = u.email || "";
   $("#editUserRole").value = u.role;
-  $("#editUserPass").value = ""; // Limpiar
+  const passInput = $("#editUserPass");
+  passInput.value = ""; // Limpiar
   
   modal.style.display = "flex";
+
+  if (focusPassword) {
+    setTimeout(() => passInput.focus(), 100);
+  }
 }
 
 async function deleteUser(id, username) {

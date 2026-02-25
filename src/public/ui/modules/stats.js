@@ -20,6 +20,20 @@ const pluginBackgroundColor = {
 };
 
 let charts = {};
+let lastStatsData = null;
+
+function handleStatsResize() {
+    const modal = $("#statsModal");
+    if (lastStatsData && modal && modal.style.display === "flex") {
+        renderCharts(lastStatsData);
+    }
+}
+
+function closeStatsModal() {
+    const modal = $("#statsModal");
+    if (modal) modal.style.display = "none";
+    window.removeEventListener("resize", handleStatsResize);
+}
 
 export function initStatsModule() {
     const btn = $("#btnStats");
@@ -28,8 +42,8 @@ export function initStatsModule() {
     const modal = $("#statsModal");
     const close = $("#statsClose");
     if (close && modal) {
-        close.onclick = () => modal.style.display = "none";
-        modal.onclick = (e) => { if (e.target === modal) modal.style.display = "none"; };
+        close.onclick = closeStatsModal;
+        modal.onclick = (e) => { if (e.target === modal) closeStatsModal(); };
     }
 
     // New: Export buttons
@@ -41,11 +55,14 @@ export function initStatsModule() {
 
 async function openStatsModal() {
     $("#statsModal").style.display = "flex";
+    window.addEventListener("resize", handleStatsResize);
     try {
         const data = await fetchJson(`${API_BASE}/issues/stats/details`);
+        lastStatsData = data;
         renderCharts(data);
-    } catch (e) {
+    } catch (_e) {
         toast("Error al cargar estadísticas", "error");
+        window.removeEventListener("resize", handleStatsResize);
     }
 }
 
@@ -60,7 +77,6 @@ function renderCharts(data) {
     const bgColor = getChartBgColor();
     const isMobile = window.innerWidth < 600;
     const labelFontSize = isMobile ? 10 : 11;
-    const titleFontSize = isMobile ? 12 : 14;
 
     // 1. Gráfico de Estados (Doughnut)
     destroyChart('status');
@@ -97,8 +113,7 @@ function renderCharts(data) {
                             let sum = 0;
                             let dataArr = ctx.chart.data.datasets[0].data;
                             dataArr.map(data => { sum += data; });
-                            let percentage = (value * 100 / sum).toFixed(0) + '%';
-                            return percentage;
+                            return (value * 100 / sum).toFixed(0) + '%';
                         },
                         font: {
                             weight: 'bold',
@@ -348,7 +363,7 @@ async function updateStats() {
             bRes.textContent = stats.resolved || 0; 
             bRes.style.display = (stats.resolved > 0) ? "inline-flex" : "none"; 
         }
-    } catch (e) {
+    } catch (_e) {
         // Fallo silencioso del polling
     }
 }

@@ -12,7 +12,7 @@ import { initMapsModule, loadMaps } from "./modules/maps.js";
 console.log("[App] Módulos cargados correctamente.");
 
 // Global Error Handler
-window.onerror = function(msg, url, line) {
+window.onerror = function(msg, _url, _line) {
   if (msg === "ResizeObserver loop completed with undelivered notifications.") return;
   const err = `JS Error: ${msg}`;
   console.error(err);
@@ -191,7 +191,7 @@ async function initAuth() {
       const user = getUser();
       modal.style.display = "none";
       if(userInfo) userInfo.style.display = "inline";
-      if(btnLogout) btnLogout.style.display = "inline";
+      if(btnLogout) btnLogout.style.display = "inline-block";
       if(userName) userName.textContent = user?.username || "Usuario";
       return true;
     } else {
@@ -202,9 +202,17 @@ async function initAuth() {
     }
   };
 
-  if (btnLogout) btnLogout.onclick = () => {
-    if(confirm("¿Cerrar sesión?")) logout();
-  };
+  if (btnLogout) {
+    btnLogout.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        await logout();
+      } catch (err) {
+        console.error("[Auth] Error en logout:", err);
+        setStatus(err?.message || "Error al cerrar sesión", "error");
+      }
+    };
+  }
 
   if (form) {
     form.onsubmit = async (e) => {
@@ -311,7 +319,7 @@ function initRecovery() {
 
   // Detectar token en URL
   const checkToken = () => {
-    const hash = window.location.hash;
+    const { hash } = window.location;
     if (hash.startsWith("#reset-password")) {
       const urlParams = new URLSearchParams(hash.split("?")[1]);
       const token = urlParams.get("token");

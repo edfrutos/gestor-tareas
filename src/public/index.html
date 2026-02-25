@@ -443,6 +443,18 @@
       gap: 10px;
       margin-bottom: 10px;
     }
+    .filters-dates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .filters2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
 
     /* lista */
     .list{ display:flex; flex-direction: column; gap: 12px; }
@@ -556,6 +568,11 @@
       box-shadow: var(--shadow);
     }
     [data-theme="light"] .modalCard{ background: rgba(255,255,255,.98); }
+    #statsModal .modalCard {
+      width: min(800px, 95vw);
+      max-height: 90vh;
+      border-radius: 16px;
+    }
     .modalTop{
       display:flex;
       align-items:center;
@@ -678,9 +695,14 @@
       
       /* Gráficos en modal estadísticas */
       #statsModal .modalCard { width: 100vw; height: 100vh; max-height: none; border-radius: 0; }
-      #statsModal canvas { max-height: 300px; }
+      #statsModal canvas { max-height: 350px; min-height: 250px; }
       /* Contenedores con altura definida para Chart.js (maintainAspectRatio: false en móvil) */
-      #statsModal .modalCard > div:last-child > div { min-height: 220px; }
+      #statsModal .modalCard > div:last-child { 
+        display: flex; 
+        flex-direction: column; 
+        gap: 30px; 
+        padding-bottom: 40px; 
+      }
 
       /* Modal de Detalle Móvil: Pantalla completa */
       .detailCard {
@@ -695,13 +717,13 @@
         padding: 12px;
         gap: 15px;
         grid-template-columns: 1fr; /* Una sola columna siempre */
+        -webkit-overflow-scrolling: touch;
       }
 
       .detailImg { height: 220px; }
       
       .detailSidebar {
         order: -1; /* Poner el estado y acciones arriba para acceso rápido */
-        background: var(--panel2);
         padding: 12px;
       }
 
@@ -711,13 +733,31 @@
         padding: 10px;
       }
       .issueRow .thumb { width: 50px; height: 50px; }
-      .issueRow .col-action { flex-direction: row; }
 
       /* Ajuste de filtros */
       .filters { grid-template-columns: 1fr; gap: 8px; }
       .filters-dates { grid-template-columns: 1fr; }
       .filters2 { flex-direction: column; align-items: stretch; gap: 12px; }
       .checks { justify-content: space-around; }
+
+      /* Header más compacto en móvil */
+      .controls { 
+        width: 100%; 
+        justify-content: flex-start; 
+        overflow-x: auto; 
+        padding: 5px 2px 10px;
+        scrollbar-width: none; 
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x; /* Permitir scroll horizontal pero no bloquear taps */
+      }
+      .controls::-webkit-scrollbar { display: none; }
+      .controls .btn, .controls .chip { 
+        flex: 0 0 auto; 
+        pointer-events: auto;
+        position: relative;
+        z-index: 35;
+      }
+      .chip { width: auto; }
     }
   </style>
 </head>
@@ -888,12 +928,12 @@
             </select>
           </div>
 
-          <div class="filters-dates" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+          <div class="filters-dates">
             <input type="date" id="startDate" title="Desde fecha" style="color-scheme:dark;" />
             <input type="date" id="endDate" title="Hasta fecha" style="color-scheme:dark;" />
           </div>
 
-          <div class="filters2" style="display:flex; justify-content:space-between; margin-bottom:12px; align-items:center;">
+          <div class="filters2">
             <div class="checks" style="display:flex; gap:10px; flex-wrap:wrap;">
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyMine"> Mis creadas</label>
               <label style="margin:0; cursor:pointer;"><input type="checkbox" id="onlyAssigned"> Asignadas a mí 👤</label>
@@ -1272,7 +1312,7 @@
 
   <!-- Modal Estadísticas -->
   <div class="modal" id="statsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
-    <div class="modalCard" style="width:min(800px, 95vw); max-height:90vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+    <div class="modalCard" style="display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border);">
       <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
         <h3 style="margin:0; font-size:16px;">📊 Estadísticas Generales</h3>
         <div id="exportButtons" style="display:flex; gap:10px;">
