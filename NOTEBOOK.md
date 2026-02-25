@@ -314,6 +314,14 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * **Culpable:** El contenedor con `overflow-x: auto` capturaba los eventos táctiles antes que el botón, sumado al bloqueo de diálogos `confirm()` por parte de algunos navegadores móviles.
   * **Solución:** Eliminación del `confirm()` para un cierre de sesión instantáneo y optimización de capas (`z-index`) y eventos (`addEventListener` con `stopPropagation`) para garantizar la pulsación.
 
+### 2026-02-25 | Fase 28: Corrección de Identidad Visual (Favicon) ✅
+
+* **Soportes de Favicon:**
+  * Inserción de etiquetas `<link>` en `index.html` para soportar `apple-touch-icon`, favicons de 32x32 y 16x16, y el `shortcut icon` clásico.
+  * Vinculación del archivo `site.webmanifest` para soporte de PWA y Android.
+* **Corrección de Rutas:**
+  * Ajuste de las rutas internas en `src/public/icons/site.webmanifest` para que apunten correctamente a los archivos PNG desde su ubicación relativa.
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
