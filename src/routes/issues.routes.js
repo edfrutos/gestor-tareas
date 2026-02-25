@@ -133,7 +133,7 @@ function deleteFileByUrl(url) {
 
 // Helper para construir cláusula WHERE
 function buildWhereClause(query, currentUser) {
-  const { status, category, q, from, to, mapId, assigned_to, only_assigned_to_me } = query;
+  const { status, category, q, from, to, mapId, assigned_to, only_assigned_to_me, only_created_by_me } = query;
   const where = [];
   const params = [];
 
@@ -167,6 +167,10 @@ function buildWhereClause(query, currentUser) {
   }
   if (only_assigned_to_me === 'true' && currentUser) {
     where.push("i.assigned_to = ?");
+    params.push(currentUser.id);
+  }
+  if (only_created_by_me === 'true' && currentUser) {
+    where.push("i.created_by = ?");
     params.push(currentUser.id);
   }
 
