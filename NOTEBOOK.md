@@ -122,12 +122,9 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 ---
 
-## 5. Próximos Pasos
+## 6. Próximos Pasos y Sugerencias de Funcionalidades
 
-### Estabilidad y Despliegue
-
-* Revisar logs de producción para detectar posibles cuellos de botella en el polling de 30s.
-* Considerar el uso de WebSockets (Socket.io) en lugar de Polling si el número de usuarios crece.
+Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña, asignación de tareas y optimización móvil ya están implementadas. Véase: [Fase 18](#fase-18-gestión-de-comunicaciones-y-notificaciones-14-feb-2026-), [Fase 20](#fase-20-sistema-de-comunicación-comentarios-), [Fase 22](#2026-02-15--fase-22-sistema-de-comentarios-avanzado-), [Fase 23](#2026-02-15--fase-23-recuperación-de-cuentas-password-reset-), [Fase 25](#2026-02-15--fase-25-asignación-de-tareas-y-rescate-de-datos-) y [Fase 27](#2026-02-25--fase-27-optimización-móvil-avanzada-y-corrección-ui-). Para el estado actual de pendientes, véase la [sección 7. Próximos Pasos](#7-próximos-pasos-hoja-de-ruta).
 
 ### Fase 14: Gestión de Planos, Búsqueda Avanzada y Dashboard (12 Feb 2026) ✅
 
@@ -168,29 +165,6 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
   * **Notificación al Administrador:** Envío automático de un correo al `ADMIN_EMAIL` cada vez que se registra una nueva incidencia en el sistema.
   * **Aviso de Cambio de Estado:** Notificación inmediata al autor de una tarea cuando su estado cambia (ej. de "Abierta" a "En Proceso"), siempre que el usuario tenga un correo configurado.
 * **Resiliencia en Tests:** Corrección de la suite de pruebas automatizadas para reflejar el blindaje de rutas y asegurar que todos los flujos de comunicación funcionan bajo condiciones de carga real.
-
----
-
-## 5. Próximos Pasos y Sugerencias de Funcionalidades
-
-### Funcionalidades Pendientes de Desarrollar
-
-* **✉️ Gestión de Comunicaciones:**
-  * Incorporar el **email** en el registro de usuarios.
-  * Sistema de **notificaciones por correo** cuando una tarea cambia de estado o se asigna a un usuario.
-* **🔐 Seguridad y Recuperación:**
-  * Flujo de **recuperación de contraseña** mediante enlace enviado al email (Password Reset Tokens).
-  * Verificación de cuenta por correo electrónico tras el registro.
-* **💬 Interacción y Soporte:**
-  * Sistema de **comentarios** en cada tarea para permitir la comunicación entre técnicos y administradores.
-  * Botón de **contacto directo con el administrador** desde la interfaz de usuario.
-* **⚙️ Administración Avanzada:**
-  * Panel de configuración global para cambiar parámetros del sistema (ej. intervalos de polling, límites de subida) sin reiniciar el servidor.
-  * Posibilidad de **archivar planos** antiguos en lugar de eliminarlos para conservar el histórico.
-* **📱 Optimización Móvil:**
-  * Mejorar la respuesta táctil del mapa y la legibilidad de las gráficas en pantallas muy pequeñas.
-* **🔄 Actualización en Tiempo Real:**
-  * Migrar el polling actual a **WebSockets** (Socket.io) para recibir actualizaciones instantáneas de nuevas tareas o cambios de estado.
 
 ### Fase 19: Estabilidad Nuclear y Refinamiento de Perfil (14 Feb 2026) ✅
 
@@ -342,15 +316,15 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 ---
 
-## 6. Próximos Pasos (Hoja de Ruta)
+## 7. Próximos Pasos (Hoja de Ruta)
 
-1. **📱 Optimización Móvil Avanzada**: Revisar el comportamiento táctil del mapa y la legibilidad de las gráficas en dispositivos pequeños.
+1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
 2. **🔄 Actualización en Tiempo Real**: Evaluar la migración del polling actual a **WebSockets** (Socket.io) para recibir notificaciones instantáneas sin recargar.
 3. **⚙️ Configuración en Caliente**: Panel de administración para cambiar parámetros globales (límites de subida, colores de categoría) sin reiniciar el servidor.
 
 ---
 
-## 7. Resumen de Metodología (15 Feb 2026) 🚀
+## 8. Resumen de Metodología (15 Feb 2026) 🚀
 
 * **Flujo Profesional consolidado**: El proyecto opera bajo un flujo de trabajo basado en **ramas de funcionalidad** (`feat/`) y validación mediante tests integrados en el pre-commit de Husky.
 * **Soberanía de Datos**: El control de la persistencia ha pasado de Docker interno al sistema de archivos del usuario, facilitando el mantenimiento y la seguridad.
