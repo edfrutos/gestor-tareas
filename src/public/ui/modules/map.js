@@ -2,19 +2,55 @@ import { state } from "./store.js";
 import { getUser } from "./auth.js";
 import { $, catColor, statusLabel, safeText } from "./utils.js";
 
+// Fuente única de verdad para detección móvil (usado en ensureMap y addMarkers)
+function getIsMobile() {
+  return window.innerWidth < 600;
+}
+
+let lastIsMobile = null;
+
+function defaultOnClickMarker(it) {
+  import("./details.v2.js").then((m) => m.openDetailModal(it));
+}
+
+function handleResizeOrOrientation() {
+  const now = getIsMobile();
+  if (lastIsMobile === now) return;
+  lastIsMobile = now;
+
+  if (!state.map || !state.zoomControl) return;
+
+  state.map.removeControl(state.zoomControl);
+  state.zoomControl = L.control.zoom({
+    position: now ? "bottomright" : "topright"
+  }).addTo(state.map);
+
+  clearMarkers();
+  const allIssues = Array.from(state.allItemsById.values());
+  addMarkers(allIssues, defaultOnClickMarker);
+}
+
 // Inicializar módulo: listeners
 export function initMapModule() {
+  let resizeDebounce;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(handleResizeOrOrientation, 150);
+  });
+  window.addEventListener("orientationchange", () => {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(handleResizeOrOrientation, 300);
+  });
+
   document.addEventListener("mapChanged", (e) => {
     const mapData = e.detail;
     if (mapData && state.map) {
       updateMapImage(mapData.file_url);
-      
+
       // Al cambiar de plano, refrescar marcadores visibles usando la caché
       const allIssues = Array.from(state.allItemsById.values());
       clearMarkers();
-      addMarkers(allIssues, (it) => {
-         import("./details.v2.js").then(m => m.openDetailModal(it));
-      });
+      addMarkers(allIssues, defaultOnClickMarker);
     }
   });
 }
@@ -29,7 +65,8 @@ export function ensureMap() {
   const mapEl = $("#map");
   if (!mapEl) return;
 
-  const isMobile = window.innerWidth < 600;
+  const isMobile = getIsMobile();
+  lastIsMobile = isMobile;
 
   state.map = L.map(mapEl, {
     crs: L.CRS.Simple,
@@ -44,8 +81,8 @@ export function ensureMap() {
   });
 
   // Controles de zoom: Arriba-Derecha en Desktop, Abajo-Derecha en Móvil para no estorbar
-  L.control.zoom({ 
-    position: isMobile ? 'bottomright' : 'topright' 
+  state.zoomControl = L.control.zoom({
+    position: isMobile ? "bottomright" : "topright"
   }).addTo(state.map);
 
   const bounds = [[0, 0], [1000, 1000]];
@@ -86,7 +123,7 @@ export function addMarkers(items, onClickMarker) {
   if (!state.markersLayer || !Array.isArray(items)) return;
 
   const currentUser = getUser();
-  const isMobile = window.innerWidth < 600;
+  const isMobile = getIsMobile();
 
   items.forEach((it) => {
     if (!it || it.lat == null || it.lng == null) return;

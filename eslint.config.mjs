@@ -54,6 +54,9 @@ export default defineConfig([
       globals: {
         ...globals.browser,
         L: "readonly",
+        Chart: "readonly",
+        ChartDataLabels: "readonly",
+        html2canvas: "readonly",
       },
     },
     rules: {
