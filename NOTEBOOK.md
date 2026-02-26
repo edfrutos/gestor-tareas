@@ -365,6 +365,11 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
 3. ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
 4. **🧪 Refuerzo de Tests**: Actualizar la suite de pruebas para cubrir las nuevas funcionalidades de WebSockets y Settings, asegurando que el entorno de test en Docker sea consistente.
+5. **🚩 Sistema de Prioridades y Fechas Límite**: Implementar niveles de urgencia y fechas de vencimiento con recordatorios por email.
+6. **📱 Modo Offline y PWA**: Convertir la aplicación en una PWA para permitir el uso sin conexión y sincronización posterior.
+7. **🔳 Integración con Códigos QR**: Generación de códigos QR únicos por tarea o plano para acceso rápido desde el lugar físico.
+8. **📐 Herramientas de Dibujo (Zonas)**: Permitir dibujar áreas (polígonos) en el mapa para delimitar zonas afectadas.
+9. **📂 Capas de Planos**: Soporte para múltiples capas técnicas (electricidad, fontanería) sobre un mismo plano base.
 
 ---
 
