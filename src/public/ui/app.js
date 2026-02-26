@@ -9,6 +9,7 @@ import { isAuthenticated, getUser, login, logout, register, updateProfile } from
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
 import { initSocketModule } from "./modules/socket.js";
+import { initSettingsModule } from "./modules/settings.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
@@ -354,12 +355,15 @@ function initRecovery() {
     initMapModule();
     initStatsModule();
     initSocketModule();
+    initSettingsModule();
     
-    // Mostrar botón de usuarios si es admin
+    // Mostrar botones administrativos si es admin
     const currentUser = getUser();
     if (currentUser && currentUser.role === 'admin') {
        const btnUsers = $("#btnUsers");
        if (btnUsers) btnUsers.style.display = "inline-block";
+       const btnSettings = $("#btnSettings");
+       if (btnSettings) btnSettings.style.display = "inline-block";
     }
 
     wireForms();

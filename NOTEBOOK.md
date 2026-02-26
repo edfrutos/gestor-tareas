@@ -337,13 +337,34 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * Actualización automática de los badges de estadísticas en el header sin esperar al polling.
   * Implementación de notificaciones `toast` ligeras ante la creación de nuevas tareas por otros usuarios.
 
+### 2026-02-25 | Fase 30: Configuración en Caliente (Hot Config) ✅
+
+* **Infraestructura de Persistencia:**
+  * Creación de la tabla `settings` en SQLite para el almacenamiento de parámetros globales.
+  * Implementación de un sistema de migración automática que garantiza la existencia de la tabla al arrancar.
+* **Servicio de Configuración Avanzado:**
+  * Creación de `src/services/config.service.js` con soporte para caché en memoria.
+  * Lógica de fallback inteligente: busca primero en la base de datos y, si no existe, recurre a las variables de entorno (`process.env`).
+* **API de Administración:**
+  * Endpoint `GET /v1/settings` para recuperar la configuración actual (restringido a administradores).
+  * Endpoint `PATCH /v1/settings` para actualizar múltiples valores de forma atómica.
+  * Integración con WebSockets: se emite el evento `settings:updated` para notificar cambios en tiempo real a otros administradores conectados.
+* **Panel de Control UI:**
+  * Nuevo módulo `src/public/ui/modules/settings.js` para la gestión visual de parámetros.
+  * Modal de configuración integrado en el header (visible solo para admins) que permite ajustar:
+    * Límite de tamaño de subida de archivos.
+    * Email de administración para notificaciones.
+    * URL pública de la aplicación.
+    * Activación y parámetros del Rate Limit (seguridad).
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
 
 1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
 2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
-3. **⚙️ Configuración en Caliente**: Panel de administración para cambiar parámetros globales (límites de subida, colores de categoría) sin reiniciar el servidor.
+3. ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
+4. **🧪 Refuerzo de Tests**: Actualizar la suite de pruebas para cubrir las nuevas funcionalidades de WebSockets y Settings, asegurando que el entorno de test en Docker sea consistente.
 
 ---
 
