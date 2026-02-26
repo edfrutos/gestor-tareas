@@ -314,13 +314,62 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * **Culpable:** El contenedor con `overflow-x: auto` capturaba los eventos táctiles antes que el botón, sumado al bloqueo de diálogos `confirm()` por parte de algunos navegadores móviles.
   * **Solución:** Eliminación del `confirm()` para un cierre de sesión instantáneo y optimización de capas (`z-index`) y eventos (`addEventListener` con `stopPropagation`) para garantizar la pulsación.
 
+### 2026-02-25 | Fase 28: Corrección de Identidad Visual (Favicon) ✅
+
+* **Soportes de Favicon:**
+  * Inserción de etiquetas `<link>` en `index.html` para soportar `apple-touch-icon`, favicons de 32x32 y 16x16, y el `shortcut icon` clásico.
+  * Vinculación del archivo `site.webmanifest` para soporte de PWA y Android.
+* **Corrección de Rutas:**
+  * Ajuste de las rutas internas en `src/public/icons/site.webmanifest` para que apunten correctamente a los archivos PNG desde su ubicación relativa.
+
+### 2026-02-25 | Fase 29: Actualización en Tiempo Real (WebSockets) ✅
+
+* **Infraestructura de Tiempo Real:**
+  * Integración de **Socket.io** en el backend.
+  * Refactorización de `src/server.js` para envolver la aplicación Express en un servidor HTTP nativo compatible con WebSockets.
+  * Creación del servicio centralizado `src/services/socket.service.js` para gestionar la instancia global de `io`.
+* **Comunicación Bidireccional:**
+  * Emisión automática de eventos (`issue:created`, `issue:updated`, `issue:deleted`) desde las rutas de la API ante cualquier cambio en la base de datos.
+  * Integración de la librería cliente de Socket.io en el frontend.
+  * Creación del módulo `src/public/ui/modules/socket.js` para la escucha activa de eventos y ejecución de refrescos reactivos.
+* **UX Reactiva:**
+  * Refresco instantáneo de la lista de tareas y marcadores del mapa cuando un tercero realiza una acción.
+  * Actualización automática de los badges de estadísticas en el header sin esperar al polling.
+  * Implementación de notificaciones `toast` ligeras ante la creación de nuevas tareas por otros usuarios.
+
+### 2026-02-25 | Fase 30: Configuración en Caliente (Hot Config) ✅
+
+* **Infraestructura de Persistencia:**
+  * Creación de la tabla `settings` en SQLite para el almacenamiento de parámetros globales.
+  * Implementación de un sistema de migración automática que garantiza la existencia de la tabla al arrancar.
+* **Servicio de Configuración Avanzado:**
+  * Creación de `src/services/config.service.js` con soporte para caché en memoria.
+  * Lógica de fallback inteligente: busca primero en la base de datos y, si no existe, recurre a las variables de entorno (`process.env`).
+* **API de Administración:**
+  * Endpoint `GET /v1/settings` para recuperar la configuración actual (restringido a administradores).
+  * Endpoint `PATCH /v1/settings` para actualizar múltiples valores de forma atómica.
+  * Integración con WebSockets: se emite el evento `settings:updated` para notificar cambios en tiempo real a otros administradores conectados.
+* **Panel de Control UI:**
+  * Nuevo módulo `src/public/ui/modules/settings.js` para la gestión visual de parámetros.
+  * Modal de configuración integrado en el header (visible solo para admins) que permite ajustar:
+    * Límite de tamaño de subida de archivos.
+    * Email de administración para notificaciones.
+    * URL pública de la aplicación.
+    * Activación y parámetros del Rate Limit (seguridad).
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
 
 1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
-2. **🔄 Actualización en Tiempo Real**: Evaluar la migración del polling actual a **WebSockets** (Socket.io) para recibir notificaciones instantáneas sin recargar.
-3. **⚙️ Configuración en Caliente**: Panel de administración para cambiar parámetros globales (límites de subida, colores de categoría) sin reiniciar el servidor.
+2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
+3. ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
+4. **🧪 Refuerzo de Tests**: Actualizar la suite de pruebas para cubrir las nuevas funcionalidades de WebSockets y Settings, asegurando que el entorno de test en Docker sea consistente.
+5. **🚩 Sistema de Prioridades y Fechas Límite**: Implementar niveles de urgencia y fechas de vencimiento con recordatorios por email.
+6. **📱 Modo Offline y PWA**: Convertir la aplicación en una PWA para permitir el uso sin conexión y sincronización posterior.
+7. **🔳 Integración con Códigos QR**: Generación de códigos QR únicos por tarea o plano para acceso rápido desde el lugar físico.
+8. **📐 Herramientas de Dibujo (Zonas)**: Permitir dibujar áreas (polígonos) en el mapa para delimitar zonas afectadas.
+9. **📂 Capas de Planos**: Soporte para múltiples capas técnicas (electricidad, fontanería) sobre un mismo plano base.
 
 ---
 

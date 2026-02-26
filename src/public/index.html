@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Gestor de Tareas</title>
 
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="manifest" href="icons/site.webmanifest">
+  <link rel="shortcut icon" href="favicon.ico">
+
   <!-- Leaflet + MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
@@ -779,6 +786,7 @@
         </span>
         <button class="btn small" id="btnStats" title="Ver Estadísticas" style="margin-right:6px;">📊 Estadísticas</button>
         <button class="btn small" id="btnMaps" title="Gestionar Planos" style="margin-right:6px;">🗺️ Planos</button>
+        <button class="btn small" id="btnSettings" title="Configuración Global" style="display:none; margin-right:6px;">⚙️ Config</button>
         <button class="btn small" id="btnUsers" style="display:none; margin-right:6px;">👥 Usuarios</button>
         <button class="btn small" id="btnLogout" style="display:none; margin-right:10px;">Salir</button>
 
@@ -1310,6 +1318,62 @@
     </div>
   </div>
 
+  <!-- Modal Configuración Global -->
+  <div class="modal" id="settingsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="width:min(500px, 95vw); max-height:85vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
+        <h3 style="margin:0; font-size:16px;">⚙️ Configuración del Sistema</h3>
+        <button class="btn small" id="settingsClose">✕</button>
+      </div>
+      
+      <div style="padding:20px; overflow-y:auto; flex:1;">
+         <form id="settingsForm" style="display:flex; gap:15px; flex-direction:column;">
+            <div>
+               <label>Email del Administrador</label>
+               <input name="ADMIN_EMAIL" type="email" placeholder="admin@example.com" />
+               <small class="muted" style="font-size:11px; opacity:0.7;">Para notificaciones del sistema.</small>
+            </div>
+
+            <div>
+               <label>Límite de subida (Bytes)</label>
+               <input name="MAX_UPLOAD_BYTES" type="number" step="1024" />
+               <small class="muted" style="font-size:11px; opacity:0.7;">Ej: 8388608 para 8MB.</small>
+            </div>
+
+            <div>
+               <label>URL Pública</label>
+               <input name="PUBLIC_URL" type="url" placeholder="https://app.example.com" />
+               <small class="muted" style="font-size:11px; opacity:0.7;">Para enlaces en correos de recuperación.</small>
+            </div>
+
+            <div style="border-top:1px solid var(--border2); padding-top:10px; margin-top:5px;">
+               <h4 style="font-size:14px; margin-bottom:10px;">Seguridad (Rate Limit)</h4>
+               <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                  <input type="checkbox" name="RATE_LIMIT_ENABLED" id="setRateEnabled" style="width:auto;" />
+                  <label for="setRateEnabled" style="margin:0; cursor:pointer;">Activar limitación de peticiones</label>
+               </div>
+               
+               <div class="row">
+                  <div>
+                     <label>Ventana (ms)</label>
+                     <input name="RATE_LIMIT_WINDOW_MS" type="number" />
+                  </div>
+                  <div>
+                     <label>Máx peticiones</label>
+                     <input name="RATE_LIMIT_MAX" type="number" />
+                  </div>
+               </div>
+            </div>
+
+            <div style="margin-top:10px;">
+               <button class="btn primary" type="submit" style="width:100%;">Guardar Cambios</button>
+            </div>
+            <div id="settingsStatus" style="text-align:center; font-size:13px; min-height:16px; margin-top:10px;"></div>
+         </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Estadísticas -->
   <div class="modal" id="statsModal" style="display:none; z-index:16000; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; position:fixed; inset:0;">
     <div class="modalCard" style="display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border);">
@@ -1343,6 +1407,8 @@
   <!-- New: jsPDF and html2canvas for PDF export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Socket.io client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <script src="https://unpkg.com/marked@12.0.0/marked.min.js" defer></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer></script>

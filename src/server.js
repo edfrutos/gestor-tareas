@@ -1,7 +1,9 @@
 // src/server.js
+const http = require("http");
 const app = require("./app");
 const { migrate, openDb, closeDb } = require("./db/sqlite");
 const { logger } = require("./middleware/logger");
+const { initSocket } = require("./services/socket.service");
 
 // Backup system
 require("./cron/backup");
@@ -16,7 +18,12 @@ async function main() {
   openDb();
   await migrate();
 
-  const server = app.listen(PORT, HOST, () => {
+  const server = http.createServer(app);
+  
+  // Initialize Socket.io
+  initSocket(server);
+
+  server.listen(PORT, HOST, () => {
     logger.info({ HOST, PORT }, "[server] listening");
   });
 

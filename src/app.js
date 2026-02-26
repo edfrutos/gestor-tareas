@@ -339,7 +339,9 @@ const photosRoutes = require("./routes/photos.routes");
 const usersRoutes = require("./routes/users.routes");
 const mapsRoutes = require("./routes/maps.routes");
 const commentsRoutes = require("./routes/comments.routes");
+const settingsRoutes = require("./routes/settings.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
+const { initConfig } = require("./services/config.service");
 
 // -------------------- rate limit (API) --------------------
 const { makeRateLimiter } = require("./middleware/rateLimit");
@@ -368,6 +370,7 @@ app.use("/v1/issues/:id/comments", commentsRoutes);
 app.use("/v1/photos", photosRoutes);
 app.use("/v1/users", usersRoutes);
 app.use("/v1/maps", mapsRoutes);
+app.use("/v1/settings", settingsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issuesRoutes);
 app.use("/api/photos", photosRoutes);

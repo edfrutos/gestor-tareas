@@ -1,8 +1,8 @@
-import { state, isMine, isFav, toggleFav } from "./store.js";
+import { state, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
 import { fetchJson } from "./api.js";
 import { getUser } from "./auth.js";
-import { $, safeText, statusLabel, catColor, resolveSameOriginUrl, setImgFallback, withBusy, setStatus, toast } from "./utils.js";
+import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, withBusy, setStatus } from "./utils.js";
 import { addMarkers, clearMarkers } from "./map.js";
 import { openDetailModal } from "./details.v2.js";
 import { showPhotoModal, showDocModal } from "./modals.js";
@@ -65,7 +65,8 @@ function buildQuery(page) {
   if (fCategoryEl?.value) params.set("category", fCategoryEl.value.trim());
   if (sortEl?.value) params.set("order", sortEl.value);
   if (onlyAssignedEl?.checked) params.set("only_assigned_to_me", "true");
-  
+  if (onlyMineEl?.checked) params.set("only_created_by_me", "true");
+
   if (startDateEl?.value) params.set("from", startDateEl.value);
   if (endDateEl?.value) params.set("to", endDateEl.value);
 
@@ -201,7 +202,6 @@ const _loadIssues = withBusy(async ({ reset } = {}) => {
     const items = data.items || [];
 
     let filtered = items;
-    if (onlyMineEl?.checked) filtered = filtered.filter(it => isMine(it.id));
     if (onlyFavsEl?.checked) filtered = filtered.filter(it => isFav(it.id));
 
     if (reset && !filtered.length) {

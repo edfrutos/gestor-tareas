@@ -236,7 +236,7 @@ async function saveDetailChanges() {
     fd.set("category", cat);
     fd.set("status", status);
     if(mapId) fd.set("map_id", mapId);
-    if(assignedTo !== undefined) fd.set("assigned_to", assignedTo || "");
+    if (assignedTo) fd.set("assigned_to", assignedTo);
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
     if (docInput?.files[0]) fd.set("resolution_doc", docInput.files[0]);

@@ -342,7 +342,7 @@ export function startStatsPolling() {
 /**
  * Actualiza los badges de conteo rápido en el header
  */
-async function updateStats() {
+export async function updateStats() {
     try {
         const stats = await fetchJson(`${API_BASE}/issues/stats`);
         if (!stats) return;

@@ -1,5 +1,8 @@
 {
   "tools": {
     "approvalMode": "default"
+  },
+  "general": {
+    "defaultApprovalMode": "default"
   }
 }

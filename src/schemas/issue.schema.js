@@ -25,6 +25,7 @@ const getIssuesSchema = z.object({
   mapId: z.coerce.number().optional(),
   assigned_to: z.coerce.number().optional(),
   only_assigned_to_me: z.string().optional(), // boolean-like string
+  only_created_by_me: z.string().optional(), // boolean-like string
 });
 
 // Esquema para creación (POST /v1/issues)
