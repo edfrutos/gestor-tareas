@@ -11,6 +11,7 @@ const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 const { notifyStatusChange, notifyNewIssue, notifyTaskAssignment } = require("../services/mail.service");
+const { emitEvent } = require("../services/socket.service");
 
 const router = express.Router();
 
@@ -567,6 +568,9 @@ router.post("/", requireAuth(), (req, res, next) => {
 
     res.setHeader("Cache-Control", "no-store");
     res.status(201).json(created);
+
+    // Emitir evento en tiempo real
+    emitEvent("issue:created", created);
   } catch (e) {
     next(e);
   }
@@ -779,6 +783,9 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
       thumb_url: updated.photo_url ? photoToThumbUrl(updated.photo_url) : null,
       resolution_thumb_url: updated.resolution_photo_url ? photoToThumbUrl(updated.resolution_photo_url) : null,
     });
+
+    // Emitir evento en tiempo real
+    emitEvent("issue:updated", updated);
   } catch (e) {
     console.error("PATCH Error:", e);
     // Propagar el error con detalles para el cliente
@@ -820,6 +827,9 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
 
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true });
+
+    // Emitir evento en tiempo real
+    emitEvent("issue:deleted", { id });
   } catch (e) {
     next(e);
   }

@@ -8,6 +8,7 @@ import { startStatsPolling, initStatsModule } from "./modules/stats.js";
 import { isAuthenticated, getUser, login, logout, register, updateProfile } from "./modules/auth.js";
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
+import { initSocketModule } from "./modules/socket.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
@@ -352,6 +353,7 @@ function initRecovery() {
     initMapsModule();
     initMapModule();
     initStatsModule();
+    initSocketModule();
     
     // Mostrar botón de usuarios si es admin
     const currentUser = getUser();

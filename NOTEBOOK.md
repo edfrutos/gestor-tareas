@@ -322,12 +322,27 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 * **Corrección de Rutas:**
   * Ajuste de las rutas internas en `src/public/icons/site.webmanifest` para que apunten correctamente a los archivos PNG desde su ubicación relativa.
 
+### 2026-02-25 | Fase 29: Actualización en Tiempo Real (WebSockets) ✅
+
+* **Infraestructura de Tiempo Real:**
+  * Integración de **Socket.io** en el backend.
+  * Refactorización de `src/server.js` para envolver la aplicación Express en un servidor HTTP nativo compatible con WebSockets.
+  * Creación del servicio centralizado `src/services/socket.service.js` para gestionar la instancia global de `io`.
+* **Comunicación Bidireccional:**
+  * Emisión automática de eventos (`issue:created`, `issue:updated`, `issue:deleted`) desde las rutas de la API ante cualquier cambio en la base de datos.
+  * Integración de la librería cliente de Socket.io en el frontend.
+  * Creación del módulo `src/public/ui/modules/socket.js` para la escucha activa de eventos y ejecución de refrescos reactivos.
+* **UX Reactiva:**
+  * Refresco instantáneo de la lista de tareas y marcadores del mapa cuando un tercero realiza una acción.
+  * Actualización automática de los badges de estadísticas en el header sin esperar al polling.
+  * Implementación de notificaciones `toast` ligeras ante la creación de nuevas tareas por otros usuarios.
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
 
 1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
-2. **🔄 Actualización en Tiempo Real**: Evaluar la migración del polling actual a **WebSockets** (Socket.io) para recibir notificaciones instantáneas sin recargar.
+2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
 3. **⚙️ Configuración en Caliente**: Panel de administración para cambiar parámetros globales (límites de subida, colores de categoría) sin reiniciar el servidor.
 
 ---
