@@ -20,9 +20,8 @@ function pickNameFromUploadsUrl(u) {
   // /uploads/xxxx o /uploads/thumbs/xxxx
   const idx = u.indexOf("/uploads/");
   if (idx >= 0) {
-    const rel = u.slice(idx + "/uploads/".length);
     // rel puede ser: "file.jpg" o "thumbs/file.jpg.webp"
-    return rel;
+    return u.slice(idx + "/uploads/".length);
   }
 
   return null;

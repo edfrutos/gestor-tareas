@@ -2,8 +2,8 @@
 
 const path = require("path");
 const fs = require("fs/promises");
-const http = require("http");
-const https = require("https");
+
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -12,8 +12,8 @@ const morgan = require("morgan");
 const IS_PROD = process.env.NODE_ENV === "production";
 
 // Hardening toggles (NO activados por defecto)
-const TRUST_PROXY = process.env.TRUST_PROXY ?? "1";      // detrás de Caddy/NGINX (local OK)
-const FORCE_HTTPS = process.env.FORCE_HTTPS === "1";     // solo en prod cuando lo decidas
+const _TRUST_PROXY = process.env.TRUST_PROXY ?? "1";      // detrás de Caddy/NGINX (local OK)
+const _FORCE_HTTPS = process.env.FORCE_HTTPS === "1";     // solo en prod cuando lo decidas
 const HSTS_ENABLED = process.env.HSTS_ENABLED === "1";   // solo en prod cuando lo decidas
 
 // Host público confiable para redirects (evita Host header spoofing).
@@ -42,7 +42,7 @@ function isValidHostHeaderValue(value) {
   return true;
 }
 
-function getSafeRedirectHost(req) {
+function _getSafeRedirectHost(req) {
   const headerHost = req && req.headers ? req.headers.host : undefined;
   if (isValidHostHeaderValue(headerHost)) return String(headerHost).trim();
   if (isValidHostHeaderValue(CONFIGURED_PUBLIC_HOST)) return CONFIGURED_PUBLIC_HOST;
@@ -118,8 +118,7 @@ app.get("/.well-known/appspecific/com.chrome.devtools.json", (req, res) => {
 // -------------------- CORS (UI + API) --------------------
 function parseAllowedOrigins(value) {
   if (Array.isArray(value)) {
-    const cleaned = value.map((v) => String(v).trim()).filter(Boolean);
-    return cleaned;
+    return value.map((v) => String(v).trim()).filter(Boolean);
   }
   if (typeof value === "string") {
     return value.split(",").map((v) => v.trim()).filter(Boolean);
@@ -341,7 +340,6 @@ const mapsRoutes = require("./routes/maps.routes");
 const commentsRoutes = require("./routes/comments.routes");
 const settingsRoutes = require("./routes/settings.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
-const { initConfig } = require("./services/config.service");
 
 // -------------------- rate limit (API) --------------------
 const { makeRateLimiter } = require("./middleware/rateLimit");
@@ -381,7 +379,7 @@ app.use((req, res) => {
 });
 
 // Error handler global
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error("[Global Error]", err);
   const status = Number(err.status) || 500;
   res.status(status).json({

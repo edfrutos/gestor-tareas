@@ -2,7 +2,7 @@
 
 const express = require("express");
 const requireAuth = require("../middleware/auth.middleware");
-const { getAllSettings, setConfigValue } = require("../services/config.service");
+const { getAllSettings, setConfigValues } = require("../services/config.service");
 const { emitEvent } = require("../services/socket.service");
 
 const router = express.Router();
@@ -21,14 +21,11 @@ router.get("/", requireAuth("admin"), async (req, res, next) => {
 router.patch("/", requireAuth("admin"), async (req, res, next) => {
   try {
     const updates = req.body;
-    if (!updates || typeof updates !== "object") {
+    if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
       return res.status(400).json({ error: "Invalid payload" });
     }
 
-    const keys = Object.keys(updates);
-    for (const key of keys) {
-      await setConfigValue(key, updates[key]);
-    }
+    await setConfigValues(updates);
 
     const updatedSettings = await getAllSettings();
     

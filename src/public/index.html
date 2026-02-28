@@ -380,6 +380,8 @@
     [data-theme="light"] input, [data-theme="light"] textarea{
       background: rgba(255,255,255,.7);
     }
+    input[type="date"]{ color-scheme: dark; }
+    [data-theme="light"] input[type="date"]{ color-scheme: light; }
     textarea{ min-height: 90px; resize: vertical; }
     .row{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .fileRow{ display:flex; gap: 10px; align-items:center; }
@@ -937,8 +939,8 @@
           </div>
 
           <div class="filters-dates">
-            <input type="date" id="startDate" title="Desde fecha" style="color-scheme:dark;" />
-            <input type="date" id="endDate" title="Hasta fecha" style="color-scheme:dark;" />
+            <input type="date" id="startDate" title="Desde fecha" />
+            <input type="date" id="endDate" title="Hasta fecha" />
           </div>
 
           <div class="filters2">

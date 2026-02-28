@@ -91,7 +91,7 @@ async function getDirectoryListing(dirAbs, relDirPosix, options) {
 
   const entries = [];
   for (const d of dirents) {
-    const name = d.name;
+    const { name } = d;
     if (!includeHidden && name.startsWith(".")) continue;
 
     const relPathPosix = relDirPosix ? `${relDirPosix}/${name}` : name;
