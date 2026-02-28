@@ -860,6 +860,22 @@
             <label>Descripción</label>
             <textarea id="description" name="description" placeholder="Describe el problema…" required></textarea>
 
+            <div class="row">
+              <div>
+                <label>Prioridad</label>
+                <select id="priority" name="priority" style="width:100%; padding:10px; border-radius:14px; background:rgba(0,0,0,0.18); border:1px solid var(--border2); color:var(--text);">
+                  <option value="low">🟢 Baja</option>
+                  <option value="medium" selected>🟡 Media</option>
+                  <option value="high">🟠 Alta</option>
+                  <option value="critical">🔴 Crítica</option>
+                </select>
+              </div>
+              <div>
+                <label>Fecha Límite (Opcional)</label>
+                <input type="date" id="due_date" name="due_date" style="width:100%; padding:9px; border-radius:14px; background:rgba(0,0,0,0.18); border:1px solid var(--border2); color:var(--text);" />
+              </div>
+            </div>
+
             <div id="assignGroup" style="margin-top:10px;">
               <label>Responsable asignado (Opcional)</label>
               <select id="assigned_to" name="assigned_to" style="width:100%; padding:10px; border-radius:14px; background:rgba(0,0,0,0.18); border:1px solid var(--border2); color:var(--text);">
@@ -999,6 +1015,25 @@
              <input id="dmEditCategory" class="small-input" list="categoryOptions" placeholder="Selecciona categoría..." style="width:100%; padding:10px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px;" />
           </div>
 
+          <!-- Edit Mode: Priority & Due Date -->
+          <div id="dmEditPriorityContainer" style="display:none; margin-bottom:12px;">
+             <div class="row">
+                <div>
+                   <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Prioridad</label>
+                   <select id="dmEditPriority" style="width:100%; padding:10px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px; color:var(--text);">
+                      <option value="low">🟢 Baja</option>
+                      <option value="medium">🟡 Media</option>
+                      <option value="high">🟠 Alta</option>
+                      <option value="critical">🔴 Crítica</option>
+                   </select>
+                </div>
+                <div>
+                   <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Fecha Límite</label>
+                   <input type="date" id="dmEditDueDate" style="width:100%; padding:9px; display:block; background:var(--chip); border:1px solid var(--border2); border-radius:12px; color:var(--text);" />
+                </div>
+             </div>
+          </div>
+
           <div id="dmImgContainer" style="display:none;">
             <img id="dmImg" class="detailImg" alt="Prueba gráfica" loading="lazy" />
           </div>
@@ -1076,10 +1111,20 @@
              <div id="dmStatusBadge" class="status-badge">Abierta</div>
              <!-- Edit Mode: Status Select -->
              <select id="dmEditStatus" class="btn small" style="display:none; width:100%; margin-top:6px; text-align:left;">
-               <option value="open">🟦 Abierta</option>
-               <option value="in_progress">🟧 En proceso</option>
-               <option value="resolved">🟩 Resuelta</option>
+               <option value="open">Abierta</option>
+               <option value="in_progress">En proceso</option>
+               <option value="resolved">Resuelta</option>
              </select>
+          </div>
+
+          <div id="dmPriorityBox" style="margin-top:10px;">
+             <label style="margin-bottom:4px;">Prioridad</label>
+             <div id="dmPriorityBadge" class="status-badge">Media</div>
+          </div>
+
+          <div id="dmDueDateBox" style="margin-top:10px; display:none;">
+             <label style="margin-bottom:4px;">Fecha Límite</label>
+             <div id="dmDueDateText" class="status-badge" style="color:var(--text);">---</div>
           </div>
           
           <div style="height:1px; background:var(--border2); margin:4px 0;"></div>

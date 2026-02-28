@@ -10,6 +10,15 @@ import { loadIssues } from "./list.v2.js";
 let currentDetailId = null;
 let currentReplyToId = null; // ID del comentario al que estamos respondiendo
 
+function translatePriority(p) {
+  switch (p) {
+    case "low": return "Baja";
+    case "high": return "Alta";
+    case "critical": return "Crítica";
+    default: return "Media";
+  }
+}
+
 function renderHistory(logs) {
   const container = $("#dmHistoryItems");
   if (!container) return;
@@ -33,6 +42,14 @@ function renderHistory(logs) {
       case "update_status":
         text = `Estado: ${translateStatus(log.old_value)} ➝ <strong>${translateStatus(log.new_value)}</strong>`;
         icon = "🔄";
+        break;
+      case "update_priority":
+        text = `Prioridad: ${translatePriority(log.old_value)} ➝ <strong>${translatePriority(log.new_value)}</strong>`;
+        icon = "🚩";
+        break;
+      case "update_due_date":
+        text = `Fecha límite: ${log.old_value || 'Sin fecha'} ➝ <strong>${log.new_value || 'Quitada'}</strong>`;
+        icon = "📅";
         break;
       case "update_description":
         text = "Descripción actualizada";

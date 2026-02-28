@@ -229,6 +229,12 @@ async function migrate() {
     if (!issueCols.has("assigned_to")) {
       await exec(`ALTER TABLE issues ADD COLUMN assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
     }
+    if (!issueCols.has("priority")) {
+      await exec(`ALTER TABLE issues ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium';`);
+    }
+    if (!issueCols.has("due_date")) {
+      await exec(`ALTER TABLE issues ADD COLUMN due_date TEXT;`);
+    }
 
     return Promise.resolve();
   } catch (err) {

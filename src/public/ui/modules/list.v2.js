@@ -84,6 +84,15 @@ function renderSkeletonList() {
   if (listEl) listEl.innerHTML = `<div class="issueCard" style="padding:20px;opacity:.5;">Cargando...</div>`;
 }
 
+function priorityLabel(p) {
+  switch (p) {
+    case "low": return '<span style="color:#2ecc71;">● Baja</span>';
+    case "high": return '<span style="color:#e67e22;">● Alta</span>';
+    case "critical": return '<span style="color:#e74c3c; font-weight:bold;">● Crítica</span>';
+    default: return '<span style="color:#f1c40f;">● Media</span>';
+  }
+}
+
 function renderList(items, mode) {
   const listEl = $("#list");
   if (!listEl) return;
@@ -108,6 +117,7 @@ function renderList(items, mode) {
     const title = safeText(it.title);
     const desc = safeText(it.description);
     const dateStr = it.created_at ? new Date(it.created_at).toLocaleDateString() : "";
+    const dueDateStr = it.due_date ? new Date(it.due_date).toLocaleDateString() : null;
     
     // Autor y Responsable
     let metaHtml = "";
@@ -129,17 +139,29 @@ function renderList(items, mode) {
        thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(255,255,255,.2);">📷</div>`;
     }
 
+    let dueDateHtml = "";
+    if (dueDateStr) {
+      const isOverdue = new Date(it.due_date) < new Date() && it.status !== 'resolved';
+      dueDateHtml = `<span style="color:${isOverdue ? 'var(--bad)' : 'var(--muted)'}; font-size:11px;">📅 ${dueDateStr}</span>`;
+    }
+
     row.innerHTML = `
       ${thumbHtml}
       <div class="info">
          <div class="title">${title}</div>
          <div class="desc">${desc}</div>
          <div class="meta-mobile" style="display:flex; flex-wrap:wrap; gap:6px;">
-            ${statusLabel(it.status)} · ${dateStr} ${metaHtml}
+            ${statusLabel(it.status)} · ${priorityLabel(it.priority)} · ${dateStr} ${dueDateHtml ? ' · ' + dueDateHtml : ''} ${metaHtml}
          </div>
       </div>
-      <div class="col-cat"><span class="badge" style="background:var(--chip2);border:1px solid rgba(255,255,255,.1);">${safeText(it.category)}</span></div>
-      <div class="col-status"><span class="badge" style="color:var(--text);opacity:.8;">${statusLabel(it.status)}</span></div>
+      <div class="col-cat">
+        <div style="font-size:11px; margin-bottom:4px; opacity:.7;">${priorityLabel(it.priority)}</div>
+        <span class="badge" style="background:var(--chip2);border:1px solid rgba(255,255,255,.1);">${safeText(it.category)}</span>
+      </div>
+      <div class="col-status">
+        <span class="badge" style="color:var(--text);opacity:.8;">${statusLabel(it.status)}</span>
+        <div style="font-size:10px; margin-top:4px; opacity:.6;">${dueDateStr ? 'Vence: ' + dueDateStr : ''}</div>
+      </div>
       <div class="col-action" style="text-align:right;display:flex;gap:6px;justify-content:flex-end;">
         <button class="btn small btn-fav-quick">${isFav(it.id) ? "⭐" : "☆"}</button>
         ${it.photo_url ? `<button class="btn small btn-photo-quick">📷</button>` : ''}

@@ -378,6 +378,23 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * Ejecución exitosa de la suite completa de 35 tests (incluyendo los nuevos de WebSockets y Settings) en un contenedor aislado.
   * Validación de salud exitosa sobre el proxy Caddy (`HTTP 200`).
 
+### 2026-02-28 | Fase 32: Sistema de Prioridades y Fechas Límite ✅
+
+* **Base de Datos:**
+  * Incorporación de las columnas `priority` (low, medium, high, critical) y `due_date` (ISO date) en la tabla `issues`.
+  * Sistema de migración automática (`ALTER TABLE`) para preservar la compatibilidad.
+* **Backend y Validación:**
+  * Actualización de los esquemas Zod para la validación estricta de prioridades y formatos de fecha.
+  * Mejora de la ruta de exportación CSV para incluir los nuevos campos.
+  * Implementación de auditoría automática: cada cambio de prioridad o fecha límite se registra en el historial (`issue_logs`).
+* **Interfaz de Usuario (UI/UX):**
+  * **Formularios Reactivos**: Selectores de prioridad con indicadores visuales y selectores de fecha integrados en creación y edición.
+  * **Visualización en Lista**: Los niveles de urgencia se muestran con colores semánticos (Rojo para Crítica, Naranja para Alta). Las fechas de vencimiento aparecen con alerta visual si están próximas o pasadas.
+  * **Mapa Inteligente**: Los marcadores ahora reflejan la urgencia mediante el grosor y color del borde (ej. borde rojo grueso para tareas críticas), facilitando el triaje visual sobre el plano.
+* **Validación de Calidad:**
+  * Actualización de la suite de tests (`tests/api.test.js`) para reflejar los nuevos formatos de datos y exportación.
+  * Confirmación de paso exitoso de los 35 tests en entorno Docker.
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
@@ -385,8 +402,8 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
 2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
 3. ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
-4. **🧪 Refuerzo de Tests**: Actualizar la suite de pruebas para cubrir las nuevas funcionalidades de WebSockets y Settings, asegurando que el entorno de test en Docker sea consistente.
-5. **🚩 Sistema de Prioridades y Fechas Límite**: Implementar niveles de urgencia y fechas de vencimiento con recordatorios por email.
+4. ~~🧪 Refuerzo de Tests~~ (completado en Fase 31/32).
+5. ~~🚩 Sistema de Prioridades y Fechas Límite~~ (completado en Fase 32).
 6. **📱 Modo Offline y PWA**: Convertir la aplicación en una PWA para permitir el uso sin conexión y sincronización posterior.
 7. **🔳 Integración con Códigos QR**: Generación de códigos QR únicos por tarea o plano para acceso rápido desde el lugar físico.
 8. **📐 Herramientas de Dibujo (Zonas)**: Permitir dibujar áreas (polígonos) en el mapa para delimitar zonas afectadas.

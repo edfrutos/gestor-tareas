@@ -118,6 +118,15 @@ export function clearMarkers() {
   }
 }
 
+function getPriorityColor(p) {
+  switch (p) {
+    case "critical": return "#e74c3c";
+    case "high": return "#e67e22";
+    case "low": return "#2ecc71";
+    default: return "#f1c40f";
+  }
+}
+
 export function addMarkers(items, onClickMarker) {
   ensureMap();
   if (!state.markersLayer || !Array.isArray(items)) return;
@@ -136,23 +145,26 @@ export function addMarkers(items, onClickMarker) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
     const isMine = currentUser && it.created_by === currentUser.id;
-    const color = catColor(it.category);
+    const catCol = catColor(it.category);
+    const prioCol = getPriorityColor(it.priority);
     
-    // Marcadores más grandes en móvil para facilitar el toque
+    // El color del borde refleja la prioridad, el fondo la categoría
     const m = L.circleMarker([lat, lng], { 
       radius: isMobile ? 10 : 7, 
-      weight: isMine ? 2 : 4,
-      opacity: 0.9, 
-      fillOpacity: 0.6,
-      color: isMine ? color : "#ffffff",
-      fillColor: color 
+      weight: it.priority === 'critical' ? 5 : (it.priority === 'high' ? 3 : 2),
+      opacity: 1, 
+      fillOpacity: 0.7,
+      color: prioCol, // Borde por prioridad
+      fillColor: catCol // Relleno por categoría
     });
 
     const title = safeText(it.title);
     const cat = safeText(it.category);
     const st = safeText(statusLabel(it.status));
+    const prioLabel = it.priority === 'medium' ? '' : ` · <strong>${it.priority.toUpperCase()}</strong>`;
     const author = it.created_by_username ? `<br><small>👤 ${safeText(it.created_by_username)}</small>` : '';
-    m.bindPopup(`<strong>${title}</strong><br>${cat} · ${st}${author}`);
+    
+    m.bindPopup(`<strong>${title}</strong><br>${cat} · ${st}${prioLabel}${author}`);
     
     m.on("click", () => onClickMarker(it));
     state.markersLayer.addLayer(m);
