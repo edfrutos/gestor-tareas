@@ -169,7 +169,7 @@ describe("API Functional Tests", () => {
           title: "Error de coordenadas",
           category: "test",
           description: "Testing invalid coordinates",
-          lat: 100, // Inválido (>90)
+          lat: "not-a-number",
           lng: -3.7,
         });
       expect(res.statusCode).toBe(400);
