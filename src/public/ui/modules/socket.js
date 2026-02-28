@@ -1,3 +1,4 @@
+/* global io */
 import { loadIssues } from "./list.v2.js";
 import { toast } from "./utils.js";
 
@@ -7,6 +8,15 @@ export function initSocketModule() {
   if (typeof io === "undefined") {
     console.error("[Socket] io is not defined. Script not loaded?");
     return;
+  }
+
+  if (socket?.connected) {
+    return;
+  }
+
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
   }
 
   socket = io();

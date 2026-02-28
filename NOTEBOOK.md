@@ -357,6 +357,27 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
     * URL pública de la aplicación.
     * Activación y parámetros del Rate Limit (seguridad).
 
+### 2026-02-27 | Fase 31: Incidente de Datos, Blindaje y Reset de Fábrica ✅
+
+* **Incidente Crítico de Datos:**
+  * **Causa:** Durante el refuerzo de tests (Fase 30), la ejecución de pruebas automatizadas sobre el volumen externo (`/Volumes/ESSAGER`) provocó un borrado accidental de las tablas `users` y `settings` en la base de datos de producción. Esto ocurrió debido a la falta de aislamiento entre el entorno de desarrollo y el de tests en la configuración de SQLite.
+  * **Impacto:** Pérdida de cuentas de usuario adicionales y desvinculación de la autoría de las tareas existentes (asignadas automáticamente a `NULL`).
+* **Medidas de Contingencia y Blindaje:**
+  * **Aislamiento de Tests:** Modificación de `src/config/paths.js` para detectar el entorno `NODE_ENV=test`. Ahora, las pruebas utilizan automáticamente un archivo de base de datos separado (`data/test.db`), garantizando que los datos reales nunca vuelvan a ser afectados.
+  * **Restauración de Acceso:** Ejecución de un script de emergencia para recrear el usuario `admin` (ID 1) con contraseña predeterminada, devolviendo el control del sistema al administrador.
+* **Saneamiento y Reset Consentido:**
+  * **Limpieza Total:** A petición del usuario y ante la imposibilidad de recuperar los nombres de los usuarios borrados (sin backups previos), se ha procedido a un reset de fábrica de las tablas de datos dinámicos.
+  * **Tablas Limpiadas:** `issues`, `issue_logs`, `issue_comments`, `settings` y `users` (excepto ID 1).
+  * **Preservación de Activos:** La tabla `maps` y los archivos de imagen de los planos se han mantenido intactos, reasignando su propiedad al administrador único actual.
+  * **Purga de Archivos:** Ejecución del script `uploads-prune` en modo real para eliminar todas las fotografías y documentos asociados a las tareas ya inexistentes, liberando espacio en disco.
+* **Estado de Calidad (Linter):**
+  * Aplicación de parches de código para resolver más de 30 advertencias de ESLint relacionadas con variables no usadas y globales no declaradas, resultando en un código más limpio y profesional.
+*   **Corrección de Coordenadas:** Se han eliminado las restricciones de rango GPS (-90 a 90) en `src/schemas/issue.schema.js` para permitir el uso de coordenadas técnicas/píxeles sobre planos de imagen de gran tamaño.
+* **Garantía Técnica Final:**
+  * Verificación del sistema en un entorno Docker limpio.
+  * Ejecución exitosa de la suite completa de 35 tests (incluyendo los nuevos de WebSockets y Settings) en un contenedor aislado.
+  * Validación de salud exitosa sobre el proxy Caddy (`HTTP 200`).
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)

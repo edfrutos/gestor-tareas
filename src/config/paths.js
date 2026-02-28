@@ -34,7 +34,8 @@ function getThumbsDir() {
 }
 
 function getDbFile() {
-  const def = path.join(ROOT_DIR, "data", "data.db");
+  const isTest = process.env.NODE_ENV === "test";
+  const def = path.join(ROOT_DIR, "data", isTest ? "test.db" : "data.db");
   return resolveFromRoot(process.env.DB_FILE || def);
 }
 

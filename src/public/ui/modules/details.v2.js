@@ -1,4 +1,4 @@
-import { getToken, getUser } from "./auth.js";
+import { getUser } from "./auth.js";
 import { state, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
 import { fetchJson, getIssueLogs } from "./api.js";
@@ -236,7 +236,7 @@ async function saveDetailChanges() {
     fd.set("category", cat);
     fd.set("status", status);
     if(mapId) fd.set("map_id", mapId);
-    if (assignedTo) fd.set("assigned_to", assignedTo);
+    if (assignedTo !== undefined) fd.set("assigned_to", assignedTo);
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
     if (docInput?.files[0]) fd.set("resolution_doc", docInput.files[0]);

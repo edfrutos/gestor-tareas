@@ -34,10 +34,10 @@ const createIssueSchema = z.object({
   category: z.string().trim().min(1, "Category is required"),
   description: z.string().trim().min(1, "Description is required"),
   lat: z.any().transform(parseCoordinate).pipe(
-    z.number({ invalid_type_error: "Lat must be a number" }).min(-90).max(90)
+    z.number({ invalid_type_error: "Lat must be a number" })
   ),
   lng: z.any().transform(parseCoordinate).pipe(
-    z.number({ invalid_type_error: "Lng must be a number" }).min(-180).max(180)
+    z.number({ invalid_type_error: "Lng must be a number" })
   ),
   map_id: z.coerce.number().optional(),
   assigned_to: z.coerce.number().optional().nullable(),
@@ -49,7 +49,10 @@ const updateIssueSchema = z.object({
   description: z.string().trim().optional(),
   category: z.string().trim().optional(),
   map_id: z.coerce.number().optional(),
-  assigned_to: z.coerce.number().optional().nullable(),
+  assigned_to: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.coerce.number().nullable().optional()
+  ),
 });
 
 module.exports = {

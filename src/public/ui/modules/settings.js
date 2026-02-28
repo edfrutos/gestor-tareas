@@ -26,7 +26,7 @@ async function openSettingsModal() {
   const form = $("#settingsForm");
   const status = $("#settingsStatus");
 
-  if (!modal || !form) return;
+  if (!modal || !form || !status) return;
 
   status.textContent = "Cargando...";
   status.style.color = "var(--text)";
@@ -61,9 +61,11 @@ async function handleSettingsSubmit(e) {
   const btn = form.querySelector("button[type='submit']");
 
   try {
-    status.textContent = "Guardando...";
-    status.style.color = "var(--text)";
-    btn.disabled = true;
+    if (status) {
+      status.textContent = "Guardando...";
+      status.style.color = "var(--text)";
+    }
+    if (btn) btn.disabled = true;
 
     const formData = new FormData(form);
     const payload = {};
@@ -85,19 +87,24 @@ async function handleSettingsSubmit(e) {
       body: JSON.stringify(payload)
     });
 
-    status.textContent = "Configuración guardada ✅";
-    status.style.color = "var(--ok)";
+    if (status) {
+      status.textContent = "Configuración guardada ✅";
+      status.style.color = "var(--ok)";
+    }
     toast("Configuración actualizada correctamente", "success");
     
     setTimeout(() => {
-      $("#settingsModal").style.display = "none";
+      const modal = $("#settingsModal");
+      if (modal) modal.style.display = "none";
     }, 1500);
 
   } catch (err) {
     console.error("[Settings] Error saving:", err);
-    status.textContent = err.message || "Error al guardar";
-    status.style.color = "var(--bad)";
+    if (status) {
+      status.textContent = err.message || "Error al guardar";
+      status.style.color = "var(--bad)";
+    }
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }

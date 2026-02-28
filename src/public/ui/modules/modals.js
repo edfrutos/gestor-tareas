@@ -1,3 +1,4 @@
+/* global marked */
 import { resolveSameOriginUrl } from "./utils.js";
 
 // --- Foto ---

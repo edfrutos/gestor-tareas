@@ -131,13 +131,11 @@ async function exists(p) {
     if (wantThumbOk) {
       // si existe la derivada, la preferimos
       finalThumb = wantThumb;
-    } else {
+    } else if (thumbNorm) {
       // si NO existe derivada: si hay thumb_url pero no existe -> null
-      if (thumbNorm) {
-        const curThumbPath = fsPathFromUploadsUrl(thumbNorm);
-        const curThumbOk = await exists(curThumbPath);
-        if (!curThumbOk) finalThumb = null;
-      }
+      const curThumbPath = fsPathFromUploadsUrl(thumbNorm);
+      const curThumbOk = await exists(curThumbPath);
+      if (!curThumbOk) finalThumb = null;
     }
 
     const newPhoto = photoNorm;
