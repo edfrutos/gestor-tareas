@@ -1,11 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# Intentar correr tests en Docker si el contenedor está arriba
-if docker compose ps gestor-tareas --status running > /dev/null 2>&1; then
-  echo "🧪 Ejecutando tests en contenedor..."
-  docker compose exec -T gestor-tareas npm test
-else
-  # Si no hay Docker, intentamos local pero sin alarmas de arquitectura
-  npm test > /dev/null 2>&1 || true
-fi
+# Ejecutar tests localmente para asegurar validación total (evita problemas de dependencias en contenedor)
+echo "🧪 Ejecutando tests de validación..."
+npm test

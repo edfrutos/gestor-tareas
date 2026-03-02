@@ -152,12 +152,28 @@ async function migrate() {
       )
     `);
 
+    await exec(`
+      CREATE TABLE IF NOT EXISTS map_zones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        map_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        geojson TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#3388ff',
+        created_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(map_id) REFERENCES maps(id) ON DELETE CASCADE,
+        FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     // 2. Índices (Solo si la columna existe o se crea abajo)
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_issue_id ON issue_comments(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_created_at ON issue_logs(created_at)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
+    await exec(`CREATE INDEX IF NOT EXISTS idx_map_zones_map_id ON map_zones(map_id)`);
 
     // 3. Datos por defecto (Admin y Mapa)
     const now = new Date().toISOString();
@@ -168,19 +184,24 @@ async function migrate() {
       adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
     }
 
+    // Asegurar usuario admin (ID 1 es preferido pero no obligatorio si ya existe un admin)
     await exec(
       "INSERT OR IGNORE INTO users (id, username, password_hash, role, created_at) VALUES (1, 'admin', ?, 'admin', ?)",
       [adminHash, now]
     );
 
+    // Obtener un ID de administrador válido para el mapa (preferiblemente el 1)
+    const adminUser = await get("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
+    const adminId = adminUser ? adminUser.id : 1;
+
     // Si el admin existe pero está bloqueado y ahora hay una env var, actualizarlo
     if (process.env.ADMIN_PASSWORD) {
-       await exec("UPDATE users SET password_hash = ? WHERE id = 1 AND password_hash = 'system-locked'", [adminHash]);
+       await exec("UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = 'system-locked'", [adminHash, adminId]);
     }
 
     await exec(
-      "INSERT OR IGNORE INTO maps (id, name, file_url, created_by, created_at) VALUES (1, 'Plano Principal', '/ui/plano.jpg', 1, ?)",
-      [now]
+      "INSERT OR IGNORE INTO maps (id, name, file_url, created_by, created_at) VALUES (1, 'Plano Principal', '/ui/plano.jpg', ?, ?)",
+      [adminId, now]
     );
     
     // Asignar mapa a issues huérfanas

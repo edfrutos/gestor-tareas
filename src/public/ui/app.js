@@ -336,6 +336,60 @@ function initRecovery() {
   checkToken();
 }
 
+// Detectar parámetros en la URL (Deep Linking)
+async function handleDeepLinks() {
+  const params = new URLSearchParams(window.location.search);
+  const issueId = params.get("issue");
+  const mapId = params.get("map");
+
+  if (mapId) {
+    const { state } = await import("./modules/store.js");
+    const targetMap = state.mapsList.find(m => m.id === Number(mapId));
+    if (targetMap) {
+      const { selectMap } = await import("./modules/maps.js");
+      await selectMap(targetMap, false);
+    }
+  }
+
+  if (issueId) {
+    const { fetchJson } = await import("./modules/api.js");
+    const { openDetailModal } = await import("./modules/details.v2.js");
+    try {
+      const it = await fetchJson(`${API_BASE}/issues/${issueId}`);
+      if (it) {
+        // Asegurarse de que el mapa correcto esté cargado antes de abrir
+        if (it.map_id && (!state.currentMap || state.currentMap.id !== it.map_id)) {
+           const targetMap = state.mapsList.find(m => m.id === it.map_id);
+           if (targetMap) {
+              const { selectMap } = await import("./modules/maps.js");
+              await selectMap(targetMap, false);
+           }
+        }
+        openDetailModal(it);
+      }
+    } catch (e) {
+      console.warn("Could not load deep linked issue", e);
+    }
+  }
+}
+
+function initOfflineSupport() {
+  const updateStatus = () => {
+    const isOnline = navigator.onLine;
+    if (!isOnline) {
+      setStatus("Modo sin conexión activo 📶", "warn");
+      document.body.style.filter = "grayscale(0.2)";
+    } else {
+      document.body.style.filter = "none";
+      if ($("#status")?.textContent.includes("sin conexión")) setStatus("", "info");
+    }
+  };
+
+  window.addEventListener("online", updateStatus);
+  window.addEventListener("offline", updateStatus);
+  updateStatus();
+}
+
 // Boot
 (async () => {
   try {
@@ -344,6 +398,7 @@ function initRecovery() {
         await new Promise(r => document.addEventListener("DOMContentLoaded", r));
     }
 
+    initOfflineSupport();
     const isAuth = await initAuth();
     initRecovery(); // Siempre inicializar para detectar tokens en URL
 
@@ -375,6 +430,9 @@ function initRecovery() {
     await loadMaps(); // Cargar mapas antes
     await loadIssues({ reset: true });
     
+    // Manejar Deep Links después de cargar todo
+    await handleDeepLinks();
+
     // Iniciar polling de stats
     startStatsPolling();
     

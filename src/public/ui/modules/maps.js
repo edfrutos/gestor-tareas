@@ -4,6 +4,7 @@ import { state } from "./store.js";
 import { $, toast, setButtonBusy, safeText } from "./utils.js";
 import { loadIssues } from "./list.v2.js";
 import { getUser } from "./auth.js";
+import { showQrModal, getMapUrl } from "./qr.js";
 
 let showArchived = false;
 
@@ -138,6 +139,7 @@ function renderMapsList() {
         <button class="btn small btn-select-map" style="${state.currentMap?.id === m.id ? 'background:var(--ok); color:#fff; border:none;' : ''}">
           ${state.currentMap?.id === m.id ? 'Activo' : 'Usar'}
         </button>
+        <button class="btn small btn-qr-map" title="Código QR">🔳</button>
         ${canManage && !isSystem ? `
           <button class="btn small btn-archive-map" title="${m.archived ? 'Desarchivar' : 'Archivar'}">
             ${m.archived ? '📤' : '📦'}
@@ -150,6 +152,11 @@ function renderMapsList() {
     el.querySelector(".btn-select-map").onclick = () => {
       selectMap(m);
       renderMapsList(); // Re-render para actualizar botones
+    };
+
+    el.querySelector(".btn-qr-map").onclick = () => {
+      const url = getMapUrl(m.id);
+      showQrModal(url, `Plano: ${m.name}`);
     };
 
     if (canManage && !isSystem) {

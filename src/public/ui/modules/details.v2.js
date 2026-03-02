@@ -6,6 +6,7 @@ import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, withBus
 import { setLatLng } from "./map.js";
 import { showDocModal } from "./modals.js";
 import { loadIssues } from "./list.v2.js";
+import { showQrModal, getIssueUrl } from "./qr.js";
 
 let currentDetailId = null;
 let currentReplyToId = null; // ID del comentario al que estamos respondiendo
@@ -480,6 +481,14 @@ export async function openDetailModal(it) {
     setLatLng(it.lat, it.lng, { pan: true, setPin: true });
     $("#map")?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const btnQr = $("#dmBtnQr");
+  if (btnQr) {
+    btnQr.onclick = () => {
+      const url = getIssueUrl(it.id);
+      showQrModal(url, `Tarea #${it.id}`);
+    };
+  }
 
   const btnHistory = $("#dmBtnHistory");
   const historyList = $("#dmHistoryList");

@@ -172,4 +172,113 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
   }
 });
 
+// GET /v1/maps/:id
+router.get("/:id", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const map = await get("SELECT * FROM maps WHERE id = ?", [id]);
+    if (!map) return res.status(404).json({ error: "Mapa no encontrado" });
+
+    // RBAC
+    if (req.user.role !== 'admin' && map.created_by !== req.user.id && map.created_by !== 1) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
+
+    res.json(map);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// --- MAP ZONES ---
+
+const zoneSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.string().min(1),
+  geojson: z.string().min(1),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default("#3388ff"),
+});
+
+// GET /v1/maps/:mapId/zones
+router.get("/:mapId/zones", requireAuth(), async (req, res, next) => {
+  try {
+    const mapId = Number(req.params.mapId);
+    const zones = await all("SELECT * FROM map_zones WHERE map_id = ? ORDER BY created_at ASC", [mapId]);
+    res.json(zones);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /v1/maps/:mapId/zones
+router.post("/:mapId/zones", requireAuth(), async (req, res, next) => {
+  try {
+    const mapId = Number(req.params.mapId);
+    const body = zoneSchema.parse(req.body);
+    const userId = req.user.id;
+
+    const result = await run(
+      `INSERT INTO map_zones (map_id, name, type, geojson, color, created_by, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [mapId, body.name, body.type, body.geojson, body.color, userId, new Date().toISOString()]
+    );
+
+    const newItem = await get("SELECT * FROM map_zones WHERE id = ?", [result.lastID]);
+    res.status(201).json(newItem);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    next(e);
+  }
+});
+
+// PATCH /v1/maps/:mapId/zones/:id
+router.patch("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const body = zoneSchema.partial().parse(req.body);
+
+    const zone = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
+    if (!zone) return res.status(404).json({ error: "Zona no encontrada" });
+
+    // RBAC: Solo admin o dueño
+    if (req.user.role !== 'admin' && zone.created_by !== req.user.id) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
+
+    const updates = [];
+    const params = [];
+    Object.keys(body).forEach(key => {
+      updates.push(`${key} = ?`);
+      params.push(body[key]);
+    });
+    params.push(id);
+
+    await run(`UPDATE map_zones SET ${updates.join(", ")} WHERE id = ?`, params);
+    const updatedItem = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
+    res.json(updatedItem);
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    next(e);
+  }
+});
+
+// DELETE /v1/maps/:mapId/zones/:id
+router.delete("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const zone = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
+    if (!zone) return res.status(404).json({ error: "Zona no encontrada" });
+
+    // RBAC
+    if (req.user.role !== 'admin' && zone.created_by !== req.user.id) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
+
+    await run("DELETE FROM map_zones WHERE id = ?", [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;

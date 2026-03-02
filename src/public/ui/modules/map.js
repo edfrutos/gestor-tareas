@@ -1,6 +1,7 @@
 import { state } from "./store.js";
 import { getUser } from "./auth.js";
-import { $, catColor, statusLabel, safeText } from "./utils.js";
+import { $, catColor, statusLabel, safeText, toast } from "./utils.js";
+import { fetchJson } from "./api.js";
 
 // Fuente única de verdad para detección móvil (usado en ensureMap y addMarkers)
 function getIsMobile() {
@@ -51,6 +52,9 @@ export function initMapModule() {
       const allIssues = Array.from(state.allItemsById.values());
       clearMarkers();
       addMarkers(allIssues, defaultOnClickMarker);
+      
+      // Cargar zonas del nuevo plano
+      loadZones(mapData.id);
     }
   });
 }
@@ -96,9 +100,128 @@ export function ensureMap() {
   state.markersLayer = L.layerGroup().addTo(state.map);
 
   state.map.on("click", (ev) => {
+    // Si el control de dibujo está activo, no poner pin de tarea
+    if (state.isDrawing) return;
     if (!ev || !ev.latlng) return;
     setLatLng(ev.latlng.lat, ev.latlng.lng, { pan: false, setPin: true });
   });
+
+  // --- DIBUJO DE ZONAS (Fase 35) ---
+  if (state.zonesLayer) state.map.removeLayer(state.zonesLayer);
+  state.zonesLayer = L.featureGroup().addTo(state.map);
+  
+  const drawControl = new L.Control.Draw({
+    draw: {
+      polyline: false,
+      marker: false,
+      circlemarker: false,
+      circle: false,
+      rectangle: { shapeOptions: { color: '#7c5cff', weight: 3, fillOpacity: 0.2 } },
+      polygon: {
+        allowIntersection: false,
+        showArea: true,
+        drawError: { color: '#e1e100', message: '<strong>¡No puedes cruzar líneas!</strong>' },
+        shapeOptions: { color: '#7c5cff', weight: 3, fillOpacity: 0.2 }
+      }
+    },
+    edit: {
+      featureGroup: state.zonesLayer,
+      remove: true
+    }
+  });
+
+  if (getUser()) {
+    state.map.addControl(drawControl);
+    
+    state.map.on(L.Draw.Event.DRAWSTART, () => { state.isDrawing = true; });
+    state.map.on(L.Draw.Event.DRAWSTOP, () => { state.isDrawing = false; });
+
+    state.map.on(L.Draw.Event.CREATED, async (e) => {
+      if (!state.currentMap) {
+        toast("❌ Debes seleccionar un plano primero", "error");
+        return;
+      }
+
+      const layer = e.layer;
+      const type = e.layerType;
+      
+      const name = prompt("Nombre de la zona (ej: Almacén, Pasillo B):", "Nueva Zona");
+      if (!name) return;
+
+      try {
+        const geojson = JSON.stringify(layer.toGeoJSON());
+        const res = await fetchJson(`/v1/maps/${state.currentMap.id}/zones`, {
+          method: "POST",
+          body: { name, type, geojson, color: "#7c5cff" }
+        });
+        
+        layer.options.id = res.id;
+        layer.bindTooltip(`<strong>${safeText(name)}</strong>`, { sticky: true });
+        state.zonesLayer.addLayer(layer);
+        toast("✅ Zona guardada");
+      } catch (err) {
+        toast("❌ Error al guardar zona", "error");
+      }
+    });
+
+    state.map.on(L.Draw.Event.DELETED, async (e) => {
+      if (!state.currentMap) return;
+      const layers = e.layers;
+      layers.eachLayer(async (layer) => {
+        if (layer.options.id) {
+          try {
+            await fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
+              method: "DELETE"
+            });
+            toast("🗑️ Zona eliminada");
+          } catch (err) { console.error("Error deleting zone:", err); }
+        }
+      });
+    });
+
+    state.map.on(L.Draw.Event.EDITED, async (e) => {
+      if (!state.currentMap) return;
+      const layers = e.layers;
+      layers.eachLayer(async (layer) => {
+        if (layer.options.id) {
+          try {
+            const geojson = JSON.stringify(layer.toGeoJSON());
+            await fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
+              method: "PATCH",
+              body: { geojson }
+            });
+            toast("💾 Zona actualizada");
+          } catch (err) { console.error("Error updating zone:", err); }
+        }
+      });
+    });
+  }
+
+  // Cargar zonas iniciales si hay plano seleccionado
+  if (state.currentMap) loadZones(state.currentMap.id);
+}
+
+export async function loadZones(mapId) {
+  if (!state.map || !state.zonesLayer) return;
+  state.zonesLayer.clearLayers();
+
+  try {
+    const zones = await fetchJson(`/v1/maps/${mapId}/zones`);
+    zones.forEach(z => {
+      const geo = JSON.parse(z.geojson);
+      const layer = L.geoJSON(geo, {
+        style: { color: z.color, weight: 2, fillOpacity: 0.2 }
+      });
+      
+      layer.eachLayer(l => {
+        l.options.id = z.id;
+        l.bindTooltip(`<strong>${safeText(z.name)}</strong>`, { sticky: true });
+        state.zonesLayer.addLayer(l);
+      });
+    });
+  } catch (err) {
+    console.error("Error loading zones:", err);
+  }
 }
 
 export function updateMapImage(url) {

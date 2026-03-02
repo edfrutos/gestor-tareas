@@ -160,10 +160,36 @@ app.use(
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "https://unpkg.com"],
-        "script-src-elem": ["'self'", "https://unpkg.com"],
-        "style-src": ["'self'", "https://unpkg.com", "'unsafe-inline'"],
-        "style-src-elem": ["'self'", "https://unpkg.com", "'unsafe-inline'"],
+        "script-src": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdn.jsdelivr.net", 
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io",
+          "'unsafe-inline'"
+        ],
+        "script-src-elem": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdn.jsdelivr.net", 
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io",
+          "'unsafe-inline'"
+        ],
+        "style-src": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdnjs.cloudflare.com", 
+          "https://cdn.jsdelivr.net",
+          "'unsafe-inline'"
+        ],
+        "style-src-elem": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdnjs.cloudflare.com", 
+          "https://cdn.jsdelivr.net",
+          "'unsafe-inline'"
+        ],
         "img-src": [
           "'self'",
           "data:",
@@ -174,6 +200,11 @@ app.use(
         "connect-src": [
           "'self'",
           "https://unpkg.com",
+          "https://cdn.jsdelivr.net",
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io",
+          "wss:", // Para Socket.io en producción
+          "ws:"   // Para Socket.io en desarrollo
         ],
         "font-src": ["'self'", "https:", "data:"],
         "object-src": ["'none'"],

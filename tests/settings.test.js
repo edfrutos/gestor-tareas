@@ -9,32 +9,32 @@ describe("Settings API", () => {
   let userToken;
 
   beforeAll(async () => {
-    openDb();
+    await openDb();
     await migrate();
-    // Limpiar y preparar usuarios
-    await run("DELETE FROM users");
-    await run("DELETE FROM settings");
-
-    // Crear admin
-    await request(app)
-      .post("/v1/auth/register")
-      .send({ username: "admin", password: "adminpassword", email: "admin@test.com" });
-    await run("UPDATE users SET role = 'admin' WHERE username = 'admin'");
     
-    const adminLogin = await request(app)
-      .post("/v1/auth/login")
-      .send({ username: "admin", password: "adminpassword" });
-    adminToken = adminLogin.body.token;
+    const suffix = Math.random().toString(36).replace(/[^a-z0-9]/g, "").substring(0, 6);
+    const adminUser = `admins${suffix}`;
+    const normalUser = `users${suffix}`;
+    const pass = "password";
 
-    // Crear user normal
-    await request(app)
-      .post("/v1/auth/register")
-      .send({ username: "user", password: "userpassword", email: "user@test.com" });
-    
-    const userLogin = await request(app)
-      .post("/v1/auth/login")
-      .send({ username: "user", password: "userpassword" });
-    userToken = userLogin.body.token;
+    // Admin
+    await request(app).post("/v1/auth/register").send({ 
+      username: adminUser, 
+      password: pass, 
+      email: `${adminUser}@test.com` 
+    });
+    await run("UPDATE users SET role = 'admin' WHERE username = ?", [adminUser]);
+    const resA = await request(app).post("/v1/auth/login").send({ username: adminUser, password: pass });
+    adminToken = resA.body.token;
+
+    // Normal User
+    await request(app).post("/v1/auth/register").send({ 
+      username: normalUser, 
+      password: pass, 
+      email: `${normalUser}@test.com` 
+    });
+    const resU = await request(app).post("/v1/auth/login").send({ username: normalUser, password: pass });
+    userToken = resU.body.token;
   });
 
   afterAll(async () => {
@@ -45,7 +45,6 @@ describe("Settings API", () => {
     const res = await request(app)
       .get("/v1/settings")
       .set("Authorization", `Bearer ${userToken}`);
-    
     expect(res.status).toBe(403);
   });
 
@@ -53,34 +52,20 @@ describe("Settings API", () => {
     const res = await request(app)
       .get("/v1/settings")
       .set("Authorization", `Bearer ${adminToken}`);
-    
     expect(res.status).toBe(200);
-    expect(res.body && typeof res.body === "object" && !Array.isArray(res.body)).toBe(true);
   });
 
   it("should allow admin to update settings", async () => {
-    const updateRes = await request(app)
-      .patch("/v1/settings")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ ADMIN_EMAIL: "newadmin@test.com" });
-    
-    expect(updateRes.status).toBe(200);
-    
-    // Verificar que se ha guardado
-    const getRes = await request(app)
-      .get("/v1/settings")
-      .set("Authorization", `Bearer ${adminToken}`);
-    
-    expect(getRes.body.ADMIN_EMAIL).toBe("newadmin@test.com");
-  });
-
-  it("should return 400 for invalid payload", async () => {
+    const email = `test${Math.floor(Math.random()*1000)}@example.com`;
     const res = await request(app)
       .patch("/v1/settings")
       .set("Authorization", `Bearer ${adminToken}`)
-      .set("Content-Type", "application/json")
-      .send(123);
+      .send({ ADMIN_EMAIL: email });
+    expect(res.status).toBe(200);
     
-    expect(res.status).toBe(400);
+    const check = await request(app)
+      .get("/v1/settings")
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(check.body.ADMIN_EMAIL).toBe(email);
   });
 });

@@ -395,19 +395,73 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * Actualización de la suite de tests (`tests/api.test.js`) para reflejar los nuevos formatos de datos y exportación.
   * Confirmación de paso exitoso de los 35 tests en entorno Docker.
 
+### 2026-02-28 | Fase 33: Modo Offline y PWA ✅
+
+* **Infraestructura PWA:**
+  * Actualización del manifiesto (`site.webmanifest`) con identidad visual corporativa y soporte para iconos "maskable".
+  * Implementación del **Service Worker** (`sw.js`) para la gestión avanzada de caché.
+* **Estrategias de Caché:**
+  * **Cache First**: Para archivos estáticos (HTML, CSS, JS) e imágenes del plano, garantizando carga instantánea.
+  * **Librerías Externas**: Almacenamiento local de recursos críticos de CDNs (Leaflet, Chart.js, Socket.io, marked) para funcionamiento 100% offline de la interfaz.
+* **UX y Resiliencia:**
+  * Registro automático del Service Worker en el arranque.
+  * Preparación de la interfaz para navegación sin conexión (los planos y tareas cacheadas son accesibles).
+
+### 2026-02-28 | Fase 34: Integración con Códigos QR ✅
+
+* **Deep Linking y Navegación Directa:**
+  * Implementación de lógica en `app.js` para detectar parámetros `?issue=ID` y `?map=ID` en la URL.
+  * La aplicación ahora carga automáticamente el plano correcto y abre el detalle de la tarea si se accede vía enlace directo.
+* **Generación Dinámica de QR:**
+  * Integración de `qrcode.js` para la creación de códigos QR en el cliente.
+  * Nuevo módulo `src/public/ui/modules/qr.js` que centraliza la lógica de codificación y visualización.
+* **Interfaz de Usuario QR:**
+  * **En Tareas:** Botón "🔳 QR" en el modal de detalles para facilitar la identificación física de activos.
+  * **En Planos:** Botón QR en la lista de planos para acceso rápido a zonas específicas del edificio/instalación.
+  * **Funciones de Exportación:** Modal QR con opciones para **copiar enlace directo** y **descargar imagen PNG**, optimizado para técnicos que necesiten imprimir etiquetas QR.
+* **Refuerzo de UX Offline:**
+  * Implementación de indicadores visuales de estado "Sin conexión" (filtro escala de grises suave y toast informativo) para mejorar la experiencia PWA en campo.
+
+### 2026-03-01 | Fase 35: Herramientas de Dibujo (Zonas) ✅
+
+*   **Infraestructura de Datos**:
+    *   Creación de la tabla `map_zones` en SQLite para persistir áreas geométricas asociadas a planos.
+    *   Soporte para almacenamiento de **GeoJSON**, color, nombre y autoría.
+*   **Backend API**:
+    *   Nuevos endpoints en `src/routes/maps.routes.js` para el CRUD de zonas con validación **Zod**.
+    *   Implementación de RBAC: los usuarios solo pueden editar/borrar sus propias zonas, mientras que los admins tienen control total.
+*   **Interfaz de Usuario (Mapa)**:
+    *   Integración de **Leaflet.draw** para permitir dibujar polígonos y rectángulos directamente sobre el plano.
+    *   Sistema de persistencia automática: al crear, editar o borrar una zona en el mapa, los cambios se sincronizan inmediatamente con el servidor.
+    *   Visualización dinámica: las zonas se cargan automáticamente al cambiar de plano, con tooltips informativos que muestran el nombre de la zona al pasar el cursor.
+    *   Control de interacción: se previene la creación accidental de tareas mientras las herramientas de dibujo están activas.
+
+### 2026-03-02 | Fase 36: Estabilidad de Infraestructura y Blindaje de Seguridad ✅
+
+*   **Reparación Crítica de Base de Datos**:
+    *   Detección y resolución del error `SQLITE_CORRUPT`. Se ejecutó un procedimiento de recuperación completa (`.recover`) para reconstruir `data/data.db` desde cero, eliminando la corrupción física y verificando la integridad con `PRAGMA integrity_check`.
+*   **Ajustes de Seguridad (CSP)**:
+    *   Actualización de la **Política de Seguridad de Contenido (CSP)** en `src/app.js`. Se han habilitado explícitamente los dominios de CDNs (`jsdelivr`, `cloudflare`), WebSockets (`socket.io`, `wss:`) y se ha permitido `'unsafe-inline'` para garantizar el registro del Service Worker y la carga de librerías externas.
+*   **Recuperación de Acceso y Robustez de Identidad**:
+    *   Restauración del usuario administrador `edefrutos` con credenciales verificadas mediante scripts internos de la aplicación, garantizando la compatibilidad total con el algoritmo de hashing `bcrypt`.
+    *   Optimización de la suite de tests (`settings.test.js` y `zones.test.js`) mediante la generación de identidades únicas (username/email) para evitar colisiones en entornos de integración continua.
+*   **Refinamiento del Frontend**:
+    *   Corrección del orden de carga de scripts en `index.html`, eliminando el atributo `defer` en librerías críticas para asegurar que Leaflet esté disponible antes que sus complementos de dibujo.
+    *   Actualización del **Service Worker** a la versión `v3`, forzando la limpieza de cachés antiguas y garantizando que el navegador utilice las nuevas políticas de red y scripts.
+
 ---
 
 ## 7. Próximos Pasos (Hoja de Ruta)
 
-1. ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
-2. ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
-3. ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
-4. ~~🧪 Refuerzo de Tests~~ (completado en Fase 31/32).
-5. ~~🚩 Sistema de Prioridades y Fechas Límite~~ (completado en Fase 32).
-6. **📱 Modo Offline y PWA**: Convertir la aplicación en una PWA para permitir el uso sin conexión y sincronización posterior.
-7. **🔳 Integración con Códigos QR**: Generación de códigos QR únicos por tarea o plano para acceso rápido desde el lugar físico.
-8. **📐 Herramientas de Dibujo (Zonas)**: Permitir dibujar áreas (polígonos) en el mapa para delimitar zonas afectadas.
-9. **📂 Capas de Planos**: Soporte para múltiples capas técnicas (electricidad, fontanería) sobre un mismo plano base.
+1.  ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
+2.  ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
+3.  ~~⚙️ Configuración en Caliente~~ (completado en Fase 30).
+4.  ~~🧪 Refuerzo de Tests~~ (completado en Fase 31/32).
+5.  ~~🚩 Sistema de Prioridades y Fechas Límite~~ (completado en Fase 32).
+6.  ~~📱 Modo Offline y PWA~~ (completado en Fase 33).
+7.  ~~🔳 Integración con Códigos QR~~ (completado en Fase 34).
+8.  ~~📐 Herramientas de Dibujo (Zonas)~~ (completado en Fase 35).
+9.  **📂 Capas de Planos**: Soporte para múltiples capas técnicas (electricidad, fontanería) sobre un mismo plano base.
 
 ---
 
