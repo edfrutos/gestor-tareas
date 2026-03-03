@@ -18,27 +18,43 @@ describe("Settings API", () => {
     const pass = "password";
 
     // Admin
-    await request(app).post("/v1/auth/register").send({ 
-      username: adminUser, 
-      password: pass, 
-      email: `${adminUser}@test.com` 
+    const regA = await request(app).post("/v1/auth/register").send({
+      username: adminUser,
+      password: pass,
+      email: `${adminUser}@test.com`
     });
+    expect(regA.status).toBe(201);
+    expect(regA.body).toBeDefined();
+
     await run("UPDATE users SET role = 'admin' WHERE username = ?", [adminUser]);
+
     const resA = await request(app).post("/v1/auth/login").send({ username: adminUser, password: pass });
+    expect(resA.status).toBe(200);
+    expect(resA.body?.token).toBeDefined();
     adminToken = resA.body.token;
 
     // Normal User
-    await request(app).post("/v1/auth/register").send({ 
-      username: normalUser, 
-      password: pass, 
-      email: `${normalUser}@test.com` 
+    const regU = await request(app).post("/v1/auth/register").send({
+      username: normalUser,
+      password: pass,
+      email: `${normalUser}@test.com`
     });
+    expect(regU.status).toBe(201);
+    expect(regU.body).toBeDefined();
+
     const resU = await request(app).post("/v1/auth/login").send({ username: normalUser, password: pass });
+    expect(resU.status).toBe(200);
+    expect(resU.body?.token).toBeDefined();
     userToken = resU.body.token;
   });
 
   afterAll(async () => {
     await closeDb();
+  });
+
+  it("should deny unauthenticated requests to settings", async () => {
+    const res = await request(app).get("/v1/settings");
+    expect(res.status).toBe(401);
   });
 
   it("should deny access to settings for non-admin users", async () => {

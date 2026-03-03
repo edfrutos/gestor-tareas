@@ -167,16 +167,24 @@ export function ensureMap() {
     state.map.on(L.Draw.Event.DELETED, async (e) => {
       if (!state.currentMap) return;
       const layers = e.layers;
-      layers.eachLayer(async (layer) => {
+      const promises = [];
+      layers.eachLayer((layer) => {
         if (layer.options.id) {
-          try {
-            await fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
+          promises.push(
+            fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
               method: "DELETE"
-            });
-            toast("🗑️ Zona eliminada");
-          } catch (err) { console.error("Error deleting zone:", err); }
+            }).then(() => true).catch((err) => {
+              console.error("Error deleting zone:", layer.options.id, err);
+              return false;
+            })
+          );
         }
       });
+      const results = await Promise.all(promises);
+      const successCount = results.filter(Boolean).length;
+      if (successCount > 0) {
+        toast(successCount === 1 ? "🗑️ Zona eliminada" : `🗑️ ${successCount} zonas eliminadas`);
+      }
     });
 
     state.map.on(L.Draw.Event.EDITED, async (e) => {
@@ -208,16 +216,20 @@ export async function loadZones(mapId) {
   try {
     const zones = await fetchJson(`/v1/maps/${mapId}/zones`);
     zones.forEach(z => {
-      const geo = JSON.parse(z.geojson);
-      const layer = L.geoJSON(geo, {
-        style: { color: z.color, weight: 2, fillOpacity: 0.2 }
-      });
-      
-      layer.eachLayer(l => {
-        l.options.id = z.id;
-        l.bindTooltip(`<strong>${safeText(z.name)}</strong>`, { sticky: true });
-        state.zonesLayer.addLayer(l);
-      });
+      try {
+        const geo = JSON.parse(z.geojson);
+        const layer = L.geoJSON(geo, {
+          style: { color: z.color, weight: 2, fillOpacity: 0.2 }
+        });
+
+        layer.eachLayer(l => {
+          l.options.id = z.id;
+          l.bindTooltip(`<strong>${safeText(z.name)}</strong>`, { sticky: true });
+          state.zonesLayer.addLayer(l);
+        });
+      } catch (err) {
+        console.error("Error loading zone:", z.id, z.name, err);
+      }
     });
   } catch (err) {
     console.error("Error loading zones:", err);
@@ -284,7 +296,7 @@ export function addMarkers(items, onClickMarker) {
     const title = safeText(it.title);
     const cat = safeText(it.category);
     const st = safeText(statusLabel(it.status));
-    const prioLabel = it.priority === 'medium' ? '' : ` · <strong>${it.priority.toUpperCase()}</strong>`;
+    const prioLabel = it.priority && it.priority !== 'medium' ? ` · <strong>${String(it.priority).toUpperCase()}</strong>` : '';
     const author = it.created_by_username ? `<br><small>👤 ${safeText(it.created_by_username)}</small>` : '';
     
     m.bindPopup(`<strong>${title}</strong><br>${cat} · ${st}${prioLabel}${author}`);

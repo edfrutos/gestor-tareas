@@ -1,7 +1,8 @@
-const CACHE_NAME = "gt-v3";
+const CACHE_NAME = "gt-v4";
 const ASSETS = [
   "/",
   "/index.html",
+  "/offline.html",
   "/ui/app.js?v=11",
   "/ui/plano.jpg",
   "/ui/modules/api.js",
@@ -25,7 +26,7 @@ const ASSETS = [
   "https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css",
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js",
-  "https://cdn.jsdelivr.net/npm/chart.js",
+  "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js",
   "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0",
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
@@ -66,8 +67,14 @@ self.addEventListener("fetch", (event) => {
 
   // Estrategia Cache First para el resto
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).catch(() => {
+        if (event.request.mode === "navigate") {
+          return caches.match("/offline.html").then((fallback) => fallback || new Response("Sin conexión", { status: 503, statusText: "Service Unavailable" }));
+        }
+        return new Response("", { status: 503, statusText: "Service Unavailable" });
+      });
     })
   );
 });

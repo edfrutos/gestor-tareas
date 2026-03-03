@@ -1,3 +1,6 @@
-# Ejecutar tests localmente para asegurar validación total (evita problemas de dependencias en contenedor)
-echo "🧪 Ejecutando tests de validación..."
+#!/usr/bin/env bash
+set -e
+
+# Run validation tests locally (avoids dependency issues in container)
+echo "🧪 Running validation tests..."
 npm test

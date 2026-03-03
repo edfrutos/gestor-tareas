@@ -12,44 +12,83 @@ export function showQrModal(url, title = "Código QR") {
     modal = document.createElement("div");
     modal.id = "qrModal";
     modal.className = "modal";
-    modal.innerHTML = `
-      <div class="modalCard" style="max-width: 350px; text-align: center; padding: 20px;">
-        <div class="modalTop">
-          <div class="title"><strong>${title}</strong></div>
-          <button class="btn small" id="qrClose">✕</button>
-        </div>
-        <div id="qrContainer" style="padding: 20px; background: white; display: inline-block; margin: 20px 0; border-radius: 10px;"></div>
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 15px; word-break: break-all; padding: 0 10px;">
-          ${url}
-        </div>
-        <div style="display: flex; gap: 10px; justify-content: center; padding-bottom: 10px;">
-          <button class="btn primary small" id="qrDownload">📥 Descargar PNG</button>
-          <button class="btn small" id="qrCopy">📋 Copiar Link</button>
-        </div>
-      </div>
-    `;
+
+    const card = document.createElement("div");
+    card.className = "modalCard";
+    card.style.cssText = "max-width: 350px; text-align: center; padding: 20px;";
+
+    const top = document.createElement("div");
+    top.className = "modalTop";
+
+    const titleWrap = document.createElement("div");
+    titleWrap.className = "title";
+    const titleStrong = document.createElement("strong");
+    titleStrong.textContent = title;
+    titleWrap.appendChild(titleStrong);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn small";
+    closeBtn.id = "qrClose";
+    closeBtn.textContent = "✕";
+
+    top.appendChild(titleWrap);
+    top.appendChild(closeBtn);
+
+    const container = document.createElement("div");
+    container.id = "qrContainer";
+    container.style.cssText = "padding: 20px; background: white; display: inline-block; margin: 20px 0; border-radius: 10px;";
+
+    const urlDiv = document.createElement("div");
+    urlDiv.id = "qrUrl";
+    urlDiv.style.cssText = "font-size: 12px; color: var(--muted); margin-bottom: 15px; word-break: break-all; padding: 0 10px;";
+    urlDiv.textContent = url;
+
+    const btnWrap = document.createElement("div");
+    btnWrap.style.cssText = "display: flex; gap: 10px; justify-content: center; padding-bottom: 10px;";
+
+    const downloadBtn = document.createElement("button");
+    downloadBtn.className = "btn primary small";
+    downloadBtn.id = "qrDownload";
+    downloadBtn.textContent = "📥 Descargar PNG";
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn small";
+    copyBtn.id = "qrCopy";
+    copyBtn.textContent = "📋 Copiar Link";
+
+    btnWrap.appendChild(downloadBtn);
+    btnWrap.appendChild(copyBtn);
+
+    card.appendChild(top);
+    card.appendChild(container);
+    card.appendChild(urlDiv);
+    card.appendChild(btnWrap);
+    modal.appendChild(card);
     document.body.appendChild(modal);
 
-    $("#qrClose").onclick = () => modal.style.display = "none";
-    
-    $("#qrCopy").onclick = () => {
-      navigator.clipboard.writeText(url);
-      const originalText = $("#qrCopy").textContent;
-      $("#qrCopy").textContent = "✅ Copiado";
-      setTimeout(() => $("#qrCopy").textContent = originalText, 2000);
+    closeBtn.onclick = () => (modal.style.display = "none");
+
+    copyBtn.onclick = () => {
+      const urlToCopy = urlDiv.textContent || "";
+      navigator.clipboard.writeText(urlToCopy);
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "✅ Copiado";
+      setTimeout(() => (copyBtn.textContent = originalText), 2000);
     };
 
-    $("#qrDownload").onclick = () => {
-      const img = $("#qrContainer img");
-      if (!img) return;
+    downloadBtn.onclick = () => {
+      const img = container.querySelector("img");
+      if (!img || !img.src) return;
       const link = document.createElement("a");
       link.download = `qr-${Date.now()}.png`;
       link.href = img.src;
       link.click();
     };
   } else {
-    modal.querySelector(".title strong").textContent = title;
-    modal.querySelector("div[style*='word-break']").textContent = url;
+    const titleEl = modal.querySelector(".title strong");
+    const urlEl = modal.querySelector("#qrUrl") || modal.querySelector("div[style*='word-break']");
+    if (titleEl) titleEl.textContent = title;
+    if (urlEl) urlEl.textContent = url;
   }
 
   const container = $("#qrContainer");

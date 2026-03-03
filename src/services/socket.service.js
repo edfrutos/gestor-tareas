@@ -4,12 +4,23 @@ const { Server } = require("socket.io");
 const { logger } = require("../middleware/logger");
 
 let io = null;
+let boundServer = null;
 
 /**
  * Inicializa Socket.io con el servidor HTTP
- * @param {import("http").Server} httpServer 
+ * @param {import("http").Server} httpServer
+ * @returns {import("socket.io").Server}
  */
 function initSocket(httpServer) {
+  if (io && boundServer === httpServer) {
+    return io;
+  }
+  if (io) {
+    io.close().catch(() => {});
+    io = null;
+    boundServer = null;
+  }
+
   io = new Server(httpServer, {
     cors: {
       origin: "*", // En producción se podría restringir más
@@ -25,6 +36,7 @@ function initSocket(httpServer) {
     });
   });
 
+  boundServer = httpServer;
   return io;
 }
 
@@ -43,6 +55,9 @@ function getIo() {
 function emitEvent(event, data) {
   if (io) {
     io.emit(event, data);
+  } else {
+    const dataPreview = data === undefined ? "undefined" : typeof data === "object" ? JSON.stringify(data).slice(0, 80) : String(data);
+    logger.warn({ event, dataPreview }, "[socket] emitEvent skipped: io not initialized");
   }
 }
 

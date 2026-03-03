@@ -24,8 +24,8 @@ const getIssuesSchema = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   mapId: z.coerce.number().optional(),
   assigned_to: z.coerce.number().optional(),
-  only_assigned_to_me: z.string().optional(), // boolean-like string
-  only_created_by_me: z.string().optional(), // boolean-like string
+  only_assigned_to_me: z.enum(["true", "false"]).optional(),
+  only_created_by_me: z.enum(["true", "false"]).optional(),
 });
 
 const priorityEnum = z.enum(["low", "medium", "high", "critical"]);
@@ -36,15 +36,18 @@ const createIssueSchema = z.object({
   category: z.string().trim().min(1, "Category is required"),
   description: z.string().trim().min(1, "Description is required"),
   lat: z.any().transform(parseCoordinate).pipe(
-    z.number({ invalid_type_error: "Lat must be a number" })
+    z.number({ invalid_type_error: "Lat must be a number" }).min(-90).max(90)
   ),
   lng: z.any().transform(parseCoordinate).pipe(
-    z.number({ invalid_type_error: "Lng must be a number" })
+    z.number({ invalid_type_error: "Lng must be a number" }).min(-180).max(180)
   ),
   map_id: z.coerce.number().optional(),
   assigned_to: z.coerce.number().optional().nullable(),
   priority: priorityEnum.default("medium"),
-  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  due_date: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()
+  ),
 });
 
 // Esquema para actualización (PATCH /v1/issues/:id)

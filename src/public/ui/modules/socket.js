@@ -21,6 +21,16 @@ export function initSocketModule() {
 
   socket = io();
 
+  let debounceTimer = null;
+  const DEBOUNCE_MS = 200;
+  const debouncedRefreshAll = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      refreshAll();
+    }, DEBOUNCE_MS);
+  };
+
   socket.on("connect", () => {
     console.log("[Socket] Connected to server");
   });
@@ -28,17 +38,17 @@ export function initSocketModule() {
   socket.on("issue:created", (data) => {
     console.log("[Socket] Issue created:", data);
     toast(`Nueva tarea: ${data.title}`, "info");
-    refreshAll();
+    debouncedRefreshAll();
   });
 
   socket.on("issue:updated", (data) => {
     console.log("[Socket] Issue updated:", data);
-    refreshAll();
+    debouncedRefreshAll();
   });
 
   socket.on("issue:deleted", (data) => {
     console.log("[Socket] Issue deleted:", data);
-    refreshAll();
+    debouncedRefreshAll();
   });
 
   socket.on("disconnect", () => {
@@ -47,10 +57,12 @@ export function initSocketModule() {
 }
 
 async function refreshAll() {
-  // Recargar la lista de tareas
-  loadIssues({ reset: false }).catch(e => console.error("[Socket] Error reloading issues:", e));
-  
-  // Recargar las estadísticas (contadores del header)
+  try {
+    await loadIssues({ reset: false });
+  } catch (e) {
+    console.error("[Socket] Error reloading issues:", e);
+  }
+
   try {
     const { updateStats } = await import("./stats.js");
     if (updateStats) updateStats();

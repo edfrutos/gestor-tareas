@@ -161,7 +161,7 @@ describe("API Functional Tests", () => {
   });
 
   describe("Edge Cases & Validation", () => {
-    test("POST /v1/issues fails with invalid coordinates", async () => {
+    test("POST /v1/issues fails with invalid coordinates (type)", async () => {
       const res = await request(app)
         .post("/v1/issues")
         .set("x-api-key", process.env.API_KEY)
@@ -170,6 +170,21 @@ describe("API Functional Tests", () => {
           category: "test",
           description: "Testing invalid coordinates",
           lat: "not-a-number",
+          lng: -3.7,
+        });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBeDefined();
+    });
+
+    test("POST /v1/issues fails with out-of-range latitude", async () => {
+      const res = await request(app)
+        .post("/v1/issues")
+        .set("x-api-key", process.env.API_KEY)
+        .send({
+          title: "Latitud fuera de rango",
+          category: "test",
+          description: "Testing range validation",
+          lat: 100,
           lng: -3.7,
         });
       expect(res.statusCode).toBe(400);

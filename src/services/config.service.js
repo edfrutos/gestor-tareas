@@ -130,7 +130,10 @@ async function getAllSettings() {
 function parseValue(val) {
   if (val === "true") return true;
   if (val === "false") return false;
-  if (typeof val === "string" && !isNaN(val) && val.trim() !== "") return Number(val);
+  if (typeof val === "string" && val.trim() !== "") {
+    const num = Number(val);
+    if (Number.isFinite(num)) return num;
+  }
   return val;
 }
 

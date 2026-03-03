@@ -122,9 +122,9 @@ El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pu
 
 ---
 
-## 6. Próximos Pasos y Sugerencias de Funcionalidades
+## 5. Registro de Fases Completadas
 
-Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña, asignación de tareas y optimización móvil ya están implementadas. Véase: [Fase 18](#fase-18-gestión-de-comunicaciones-y-notificaciones-14-feb-2026-), [Fase 20](#fase-20-sistema-de-comunicación-comentarios-), [Fase 22](#2026-02-15--fase-22-sistema-de-comentarios-avanzado-), [Fase 23](#2026-02-15--fase-23-recuperación-de-cuentas-password-reset-), [Fase 25](#2026-02-15--fase-25-asignación-de-tareas-y-rescate-de-datos-) y [Fase 27](#2026-02-25--fase-27-optimización-móvil-avanzada-y-corrección-ui-). Para el estado actual de pendientes, véase la [sección 7. Próximos Pasos](#7-próximos-pasos-hoja-de-ruta).
+Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña, asignación de tareas y optimización móvil ya están implementadas. Véase: [Fase 18](#fase-18-gestión-de-comunicaciones-y-notificaciones-14-feb-2026-), [Fase 20](#fase-20-sistema-de-comunicación-comentarios-), [Fase 22](#2026-02-15--fase-22-sistema-de-comentarios-avanzado-), [Fase 23](#2026-02-15--fase-23-recuperación-de-cuentas-password-reset-), [Fase 25](#2026-02-15--fase-25-asignación-de-tareas-y-rescate-de-datos-) y [Fase 27](#2026-02-25--fase-27-optimización-móvil-avanzada-y-corrección-ui-). Para el estado actual de pendientes, véase la [sección 6. Próximos Pasos](#6-próximos-pasos-hoja-de-ruta).
 
 ### Fase 14: Gestión de Planos, Búsqueda Avanzada y Dashboard (12 Feb 2026) ✅
 
@@ -378,6 +378,25 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   * Ejecución exitosa de la suite completa de 35 tests (incluyendo los nuevos de WebSockets y Settings) en un contenedor aislado.
   * Validación de salud exitosa sobre el proxy Caddy (`HTTP 200`).
 
+### 2026-03-02 | Fase 31b: Plan de Backup y Recuperación Automatizada ✅
+
+* **Contexto:** Tras el incidente de Fase 31 (pérdida de datos sin backups), se implementa un plan integral de backup y recuperación.
+* **Mecanismo de Backup (verificado y reforzado):**
+  * `src/cron/backup.js` ejecuta backups automáticos cada 24h (configurable con `BACKUP_INTERVAL_MS`).
+  * Backup full: copia de `data.db` y comprimido tar.gz de `uploads`.
+  * **Protección NODE_ENV=test:** Los backups están deshabilitados cuando `NODE_ENV=test`; nunca se respalda `test.db`.
+  * `paths.js`: `getBackupDir()` retorna `null` en entorno test; `getDbFile()` ya aislaba tests.
+* **Retención y purga:**
+  * `BACKUP_RETENTION_DAYS` (default 7): backups más antiguos se purgan automáticamente.
+  * Script `backup-prune`: purga manual auditable (dry-run por defecto, `PRUNE=1` para ejecutar).
+* **Restauración:**
+  * Script `backup-restore.js`: lista backups; con `RESTORE=1 BACKUP_DB=<archivo> [BACKUP_UPLOADS=<archivo>]` restaura BD y/o uploads.
+  * Rechaza restauración en `NODE_ENV=test` salvo `RESTORE_TO_TEST=1` (para CI).
+* **Scripts npm:** `npm run backup`, `npm run backup:restore`, `npm run backup:prune`, `npm run uploads:prune`.
+* **CI:** Job `restore-test` ejecuta `tests/restore.test.js` (ciclo backup → restore → verificación).
+* **uploads-prune:** Actualizado para usar `paths.js` y rechazar en `NODE_ENV=test` salvo `PRUNE_FORCE=1`.
+* **Procedimientos documentados:** Ver Readme.md y esta sección para retención y recuperación.
+
 ### 2026-02-28 | Fase 32: Sistema de Prioridades y Fechas Límite ✅
 
 * **Base de Datos:**
@@ -440,8 +459,14 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 
 *   **Reparación Crítica de Base de Datos**:
     *   Detección y resolución del error `SQLITE_CORRUPT`. Se ejecutó un procedimiento de recuperación completa (`.recover`) para reconstruir `data/data.db` desde cero, eliminando la corrupción física y verificando la integridad con `PRAGMA integrity_check`.
+*   **Mitigaciones SQLITE_CORRUPT (post-incidente)**:
+    *   **Configuración SQLite**: `PRAGMA synchronous=FULL`, detección de corrupción en arranque con mensaje de recuperación.
+    *   **Backup seguro**: SQLite Backup API en lugar de `fs.copyFile`; fallback a copia si falla.
+    *   **Monitoreo**: `integrity_check` periódico (6h), estado en `/health` (`dbIntegrity`).
+    *   **Runbook**: `docs/RECOVERY.md` con causas raíz, procedimiento `.recover` y drills.
+    *   **Script**: `npm run db:recover` / `src/scripts/db-recover.js` (requiere sqlite3 CLI en Docker).
 *   **Ajustes de Seguridad (CSP)**:
-    *   Actualización de la **Política de Seguridad de Contenido (CSP)** en `src/app.js`. Se han habilitado explícitamente los dominios de CDNs (`jsdelivr`, `cloudflare`), WebSockets (`socket.io`, `wss:`) y se ha permitido `'unsafe-inline'` para garantizar el registro del Service Worker y la carga de librerías externas.
+    *   Actualización de la **Política de Seguridad de Contenido (CSP)** en `src/app.js`. Se han habilitado explícitamente los dominios de CDNs (`jsdelivr`, `cloudflare`), WebSockets (`socket.io`, `wss:`). Se eliminó `'unsafe-inline'` de `script-src`/`script-src-elem` para reforzar la protección XSS: el registro del Service Worker se movió a `ui/sw-register.js` (archivo externo) en lugar de script inline.
 *   **Recuperación de Acceso y Robustez de Identidad**:
     *   Restauración del usuario administrador `edefrutos` con credenciales verificadas mediante scripts internos de la aplicación, garantizando la compatibilidad total con el algoritmo de hashing `bcrypt`.
     *   Optimización de la suite de tests (`settings.test.js` y `zones.test.js`) mediante la generación de identidades únicas (username/email) para evitar colisiones en entornos de integración continua.
@@ -451,7 +476,7 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 
 ---
 
-## 7. Próximos Pasos (Hoja de Ruta)
+## 6. Próximos Pasos (Hoja de Ruta)
 
 1.  ~~📱 Optimización Móvil Avanzada~~ (completado en Fase 27).
 2.  ~~🔄 Actualización en Tiempo Real~~ (completado en Fase 29).
@@ -465,7 +490,7 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 
 ---
 
-## 8. Resumen de Metodología (15 Feb 2026) 🚀
+## 7. Resumen de Metodología (15 Feb 2026) 🚀
 
 * **Flujo Profesional consolidado**: El proyecto opera bajo un flujo de trabajo basado en **ramas de funcionalidad** (`feat/`) y validación mediante tests integrados en el pre-commit de Husky.
 * **Soberanía de Datos**: El control de la persistencia ha pasado de Docker interno al sistema de archivos del usuario, facilitando el mantenimiento y la seguridad.

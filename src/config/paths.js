@@ -39,10 +39,27 @@ function getDbFile() {
   return resolveFromRoot(process.env.DB_FILE || def);
 }
 
+/** @returns {boolean} true si estamos en entorno de tests */
+function isTestEnv() {
+  return process.env.NODE_ENV === "test";
+}
+
+/**
+ * Directorio de backups. NUNCA debe usarse cuando NODE_ENV=test.
+ * @returns {string|null} ruta del directorio o null si es entorno test
+ */
+function getBackupDir() {
+  if (isTestEnv()) return null;
+  const def = path.join(ROOT_DIR, "backups");
+  return resolveFromRoot(process.env.BACKUP_DIR || def);
+}
+
 module.exports = {
   ROOT_DIR,
   resolveFromRoot,
   getUploadDir,
   getThumbsDir,
   getDbFile,
+  isTestEnv,
+  getBackupDir,
 };

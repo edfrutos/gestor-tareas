@@ -26,16 +26,21 @@ async function openDb() {
     const newDb = new sqlite3.Database(file, (err) => {
       if (err) {
         console.error(`[sqlite] FATAL: Could not open database at ${file}`, err);
+        if (err.code === "SQLITE_CORRUPT" || err.message?.includes("SQLITE_CORRUPT")) {
+          console.error("[sqlite] CORRUPTION DETECTED. See docs/RECOVERY.md or run: node src/scripts/db-recover.js");
+        }
         dbPromise = null; // permitir reintento
         return reject(err);
       }
 
-      // Configuración inicial robusta
+      // Configuración inicial robusta (mitigación SQLITE_CORRUPT - Fase 36)
       newDb.serialize(() => {
         newDb.run("PRAGMA journal_mode=WAL;");
         newDb.run("PRAGMA foreign_keys=ON;");
         newDb.run("PRAGMA busy_timeout=5000;"); // Esperar hasta 5s si está bloqueada
-        
+        newDb.run("PRAGMA synchronous=FULL;");  // Durabilidad máxima; reduce riesgo de corrupción
+        newDb.run("PRAGMA temp_store=MEMORY;");  // Evita I/O extra en disco para temporales
+
         db = newDb;
         resolve(db);
       });
@@ -43,6 +48,9 @@ async function openDb() {
 
     newDb.on("error", (err) => {
       console.error("[sqlite] Unhandled error:", err);
+      if (err && (err.code === "SQLITE_CORRUPT" || err.message?.includes("SQLITE_CORRUPT"))) {
+        console.error("[sqlite] CORRUPTION DETECTED. Run: node src/scripts/db-recover.js");
+      }
     });
   });
 
@@ -191,18 +199,29 @@ async function migrate() {
     );
 
     // Obtener un ID de administrador válido para el mapa (preferiblemente el 1)
-    const adminUser = await get("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
-    const adminId = adminUser ? adminUser.id : 1;
+    let adminUser = await get("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
 
-    // Si el admin existe pero está bloqueado y ahora hay una env var, actualizarlo
-    if (process.env.ADMIN_PASSWORD) {
-       await exec("UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = 'system-locked'", [adminHash, adminId]);
+    if (!adminUser) {
+      console.warn("[sqlite] No admin user found; attempting to fix by promoting id=1 to admin");
+      await exec("UPDATE users SET role = 'admin', password_hash = ? WHERE id = 1", [adminHash]);
+      adminUser = await get("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
     }
 
-    await exec(
-      "INSERT OR IGNORE INTO maps (id, name, file_url, created_by, created_at) VALUES (1, 'Plano Principal', '/ui/plano.jpg', ?, ?)",
-      [adminId, now]
-    );
+    const adminId = adminUser ? adminUser.id : (await get("SELECT id FROM users ORDER BY id ASC LIMIT 1"))?.id ?? null;
+
+    // Si el admin existe pero está bloqueado y ahora hay una env var, actualizarlo
+    if (adminUser && process.env.ADMIN_PASSWORD) {
+      await exec("UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = 'system-locked'", [adminHash, adminId]);
+    }
+
+    if (adminId !== null) {
+      await exec(
+        "INSERT OR IGNORE INTO maps (id, name, file_url, created_by, created_at) VALUES (1, 'Plano Principal', '/ui/plano.jpg', ?, ?)",
+        [adminId, now]
+      );
+    } else {
+      console.warn("[sqlite] No user found for maps.created_by; skipping default map insert");
+    }
     
     // Asignar mapa a issues huérfanas
     await exec("UPDATE issues SET map_id = 1 WHERE map_id IS NULL");
@@ -267,10 +286,14 @@ async function migrate() {
 
 function closeDb() {
   return new Promise((resolve, reject) => {
-    if (!db) return resolve();
+    if (!db) {
+      dbPromise = null;
+      return resolve();
+    }
     db.close((err) => {
       if (err) return reject(err);
       db = null;
+      dbPromise = null;
       resolve();
     });
   });
@@ -315,4 +338,24 @@ function all(sql, params = []) {
   });
 }
 
-module.exports = { openDb, migrate, closeDb, run, get, all };
+/**
+ * Ejecuta PRAGMA integrity_check. Útil para detectar corrupción.
+ * @returns {Promise<{ok: boolean, result?: string}>}
+ */
+function integrityCheck() {
+  return openDb().then(
+    (d) =>
+      new Promise((resolve) => {
+        d.get("PRAGMA integrity_check;", (err, row) => {
+          if (err) {
+            resolve({ ok: false, result: err.message });
+            return;
+          }
+          const result = row ? row.integrity_check : "unknown";
+          resolve({ ok: result === "ok", result });
+        });
+      })
+  );
+}
+
+module.exports = { openDb, migrate, closeDb, run, get, all, integrityCheck };

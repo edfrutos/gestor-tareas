@@ -609,7 +609,7 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
     if (due_date !== undefined) { updates.push("due_date = ?"); params.push(due_date); }
 
     if (assigned_to !== undefined) {
-      if (!isAdmin && !isOwner) return res.status(403).json({ error: "Solo el administrador o el creador pueden reasignar la tarea" });
+      if (!isAdmin && !isOwner) return res.status(403).json({ error: { code: "forbidden", message: "Solo el administrador o el creador pueden reasignar la tarea", requestId: req.id } });
       updates.push("assigned_to = ?"); params.push(assigned_to);
     }
 

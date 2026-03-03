@@ -1,0 +1,25 @@
+# Docker Compose para CI: backup/restore test
+# platform omitido para usar amd64 en GitHub Actions
+services:
+  gestor-tareas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NODE_ENV: production
+      DB_FILE: /app/data/data.db
+      UPLOAD_DIR: /app/uploads
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ci_data:/app/data
+      - ci_uploads:/app/uploads
+      - ci_backups:/app/backups
+    ports:
+      - "3000:3000"
+
+volumes:
+  ci_data:
+  ci_uploads:
+  ci_backups:

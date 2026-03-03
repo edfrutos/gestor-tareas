@@ -5,10 +5,12 @@ ENV NODE_ENV=$NODE_ENV
 WORKDIR /app
 
 # Instalar dependencias para compilar módulos nativos (sqlite3, sharp, etc.)
+# sqlite3 CLI para .recover (recuperación ante SQLITE_CORRUPT)
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
     g++ \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 # deps

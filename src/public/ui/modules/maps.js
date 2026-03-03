@@ -156,7 +156,7 @@ function renderMapsList() {
 
     el.querySelector(".btn-qr-map").onclick = () => {
       const url = getMapUrl(m.id);
-      showQrModal(url, `Plano: ${m.name}`);
+      showQrModal(url, `Plano: ${safeText(m.name)}`);
     };
 
     if (canManage && !isSystem) {

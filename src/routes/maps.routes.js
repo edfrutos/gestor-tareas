@@ -203,6 +203,14 @@ const zoneSchema = z.object({
 router.get("/:mapId/zones", requireAuth(), async (req, res, next) => {
   try {
     const mapId = Number(req.params.mapId);
+    const map = await get("SELECT * FROM maps WHERE id = ?", [mapId]);
+    if (!map) return res.status(404).json({ error: "Mapa no encontrado" });
+
+    // RBAC (misma lógica que GET /v1/maps/:id)
+    if (req.user.role !== 'admin' && map.created_by !== req.user.id && map.created_by !== 1) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
+
     const zones = await all("SELECT * FROM map_zones WHERE map_id = ? ORDER BY created_at ASC", [mapId]);
     res.json(zones);
   } catch (e) {
@@ -216,6 +224,13 @@ router.post("/:mapId/zones", requireAuth(), async (req, res, next) => {
     const mapId = Number(req.params.mapId);
     const body = zoneSchema.parse(req.body);
     const userId = req.user.id;
+
+    const map = await get("SELECT * FROM maps WHERE id = ?", [mapId]);
+    if (!map) return res.status(404).json({ error: "Mapa no encontrado" });
+
+    if (req.user.role !== 'admin' && map.created_by !== req.user.id) {
+      return res.status(403).json({ error: "No tienes permiso" });
+    }
 
     const result = await run(
       `INSERT INTO map_zones (map_id, name, type, geojson, color, created_by, created_at) 
@@ -235,10 +250,13 @@ router.post("/:mapId/zones", requireAuth(), async (req, res, next) => {
 router.patch("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const body = zoneSchema.partial().parse(req.body);
+    const mapId = Number(req.params.mapId);
 
     const zone = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
     if (!zone) return res.status(404).json({ error: "Zona no encontrada" });
+    if (zone.map_id !== mapId) return res.status(404).json({ error: "Zona no encontrada" });
+
+    const body = zoneSchema.partial().parse(req.body);
 
     // RBAC: Solo admin o dueño
     if (req.user.role !== 'admin' && zone.created_by !== req.user.id) {
@@ -266,8 +284,10 @@ router.patch("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
 router.delete("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
+    const mapId = Number(req.params.mapId);
     const zone = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
     if (!zone) return res.status(404).json({ error: "Zona no encontrada" });
+    if (mapId !== zone.map_id) return res.status(404).json({ error: "Zona no encontrada" });
 
     // RBAC
     if (req.user.role !== 'admin' && zone.created_by !== req.user.id) {

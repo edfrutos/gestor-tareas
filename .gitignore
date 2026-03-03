@@ -19,6 +19,9 @@ db/*.db
 uploads/
 uploads/thumbs/
 
+# --- Backups ---
+backups/
+
 # --- OS / Editor ---
 .DS_Store
 Thumbs.db

@@ -77,15 +77,39 @@ docker exec -it cola-ciudadana-cola-ciudadana-1 node src/scripts/db-repair.js
 docker exec -it cola-ciudadana-cola-ciudadana-1 sh -c "DRY_RUN=0 node src/scripts/db-repair.js"
 ```
 
+### Backup y Recuperación
+
+Los backups automáticos se ejecutan cada 24h (configurable con `BACKUP_INTERVAL_MS`). Retención: 7 días por defecto (`BACKUP_RETENTION_DAYS`).
+
+```bash
+# Backup manual (dentro del contenedor)
+docker exec -it <container_id> npm run backup
+
+# Listar backups disponibles
+docker exec -it <container_id> npm run backup:restore
+
+# Restaurar BD y uploads
+docker exec -it <container_id> sh -c "RESTORE=1 BACKUP_DB=db-2026-03-02T12-00-00.sqlite BACKUP_UPLOADS=uploads-2026-03-02T12-00-00.tar.gz npm run backup:restore"
+
+# Purgar backups antiguos (dry-run primero)
+docker exec -it <container_id> npm run backup:prune
+docker exec -it <container_id> sh -c "PRUNE=1 npm run backup:prune"
+
+# Recuperación ante SQLITE_CORRUPT (detener app antes)
+docker exec -it <container_id> npm run db:recover
+```
+
+**Importante:** Monta `BACKUP_DIR` (o `./backups`) como volumen para persistir backups fuera del contenedor. Ver `docs/RECOVERY.md` para el runbook completo ante corrupción de BD.
+
 ### Limpieza de Archivos (Prune)
 Elimina fotos que no están referenciadas en ninguna incidencia:
 
 ```bash
 # Ver qué se borraría (Dry Run)
-docker exec -it cola-ciudadana-cola-ciudadana-1 node src/scripts/uploads-prune.js
+docker exec -it <container_id> node src/scripts/uploads-prune.js
 
 # Ejecutar limpieza real
-docker exec -it cola-ciudadana-cola-ciudadana-1 sh -c "PRUNE=1 node src/scripts/uploads-prune.js"
+docker exec -it <container_id> sh -c "PRUNE=1 node src/scripts/uploads-prune.js"
 ```
 
 ---
