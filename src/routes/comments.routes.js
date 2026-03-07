@@ -1,8 +1,9 @@
 // src/routes/comments.routes.js
 const express = require("express");
 const { z } = require("zod");
-const { run, all } = require("../db/sqlite");
+const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
+const { notifyNewComment } = require("../services/mail.service");
 
 const router = express.Router({ mergeParams: true });
 
@@ -83,6 +84,45 @@ router.post("/", requireAuth(), async (req, res, next) => {
       created_at: now,
       replies: []
     };
+
+    // Notificar por email: autor de la tarea, asignado y autor del comentario padre (si es respuesta)
+    try {
+      const issue = await get(
+        "SELECT i.title, i.created_by, i.assigned_to FROM issues i WHERE i.id = ?",
+        [issueId]
+      );
+      if (issue) {
+        const { title, created_by, assigned_to } = issue;
+        const recipients = [];
+        if (created_by && created_by !== userId) {
+          const author = await get("SELECT id, username, email FROM users WHERE id = ?", [created_by]);
+          if (author) recipients.push(author);
+        }
+        if (assigned_to && assigned_to !== userId) {
+          const assignee = await get("SELECT id, username, email FROM users WHERE id = ?", [assigned_to]);
+          if (assignee && !recipients.some((r) => r.id === assignee.id)) recipients.push(assignee);
+        }
+        // Si es respuesta, notificar también al autor del comentario padre
+        if (parent_id) {
+          const parentComment = await get("SELECT user_id FROM issue_comments WHERE id = ? AND issue_id = ?", [parent_id, issueId]);
+          if (parentComment?.user_id && parentComment.user_id !== userId) {
+            const parentAuthor = await get("SELECT id, username, email FROM users WHERE id = ?", [parentComment.user_id]);
+            if (parentAuthor && !recipients.some((r) => r.id === parentAuthor.id)) recipients.push(parentAuthor);
+          }
+        }
+        if (recipients.length > 0) {
+          notifyNewComment(
+            { username: req.user.username },
+            { title },
+            text,
+            recipients,
+            !!parent_id
+          );
+        }
+      }
+    } catch (mailErr) {
+      console.error("[Comments] Error enviando notificación de comentario:", mailErr);
+    }
 
     res.status(201).json(created);
   } catch (e) {

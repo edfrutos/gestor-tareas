@@ -7,6 +7,8 @@ const { initSocket } = require("./services/socket.service");
 
 // Backup system
 require("./cron/backup");
+// DB health monitoring (integrity_check periódico)
+require("./cron/db-health");
 
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
@@ -19,9 +21,9 @@ async function main() {
   await migrate();
 
   const server = http.createServer(app);
-  
+
   // Initialize Socket.io
-  initSocket(server);
+  const io = initSocket(server);
 
   server.listen(PORT, HOST, () => {
     logger.info({ HOST, PORT }, "[server] listening");
@@ -34,6 +36,10 @@ async function main() {
     shuttingDown = true;
 
     logger.info({ signal }, "[server] shutdown start");
+
+    try {
+      if (io) await io.close();
+    } catch (_err) { /* noop */ }
 
     // deja de aceptar nuevas conexiones
     server.close(async () => {

@@ -16,6 +16,9 @@ export const state = {
   // Mapas
   currentMap: null, // Objeto mapa activo
   mapsList: [],
+  mapBounds: null, // Bounds actuales del overlay (proporción de la imagen)
+  technicalLayersControl: null,
+  activeTechnicalLayers: new Map(),
 
   // Elementos DOM cacheados que se usan en múltiples sitios
   els: {} 

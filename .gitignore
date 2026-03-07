@@ -1,57 +1,70 @@
-# --- Node ---
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Sync .project/sourceTexts/ folder (source text files)
 
-# --- Env ---
+# --- Material sensible (gestor-tareas) ---
 .env
-.env.*
-
-# --- SQLite ---
-*.db
-*.sqlite
-*.sqlite3
-data/
-db/*.db
-
-# --- Uploads ---
+.env.local
+.env.*.local
+data/*.db
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm
 uploads/
-uploads/thumbs/
+backups/
 
-# --- OS / Editor ---
+# Don't sync user-specific SQLite databases
+.project/*.sqlite
+
+# Don't sync SQLite auxiliary files
+.project/*.sqlite-wal
+.project/*.sqlite-shm
+
+# Don't sync user-specific files
+.project/complete_drafts.txt
+.project/localProjectSettings.json
+.project/localProjectSwap.json
+copilot-messages.log
+
+# Archive formats
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+
+# Windows executables and installers
+*.exe
+*.msi
+*.bat
+*.cmd
+*.com
+*.scr
+*.dll
+
+# macOS executables and disk images
+*.dmg
+*.pkg
+
+# Disk images and virtual machine files
+*.iso
+*.img
+*.vhd
+*.vmdk
+
+# System files
 .DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-.idea/
+.project/attachments/files/**
+node_modules
+
+# IDE / AI / Editor config (no versionar)
+.agent/
+.auxly/
+.claude/
 .gemini/
-.gemini.settings.json
-
-# --- Logs ---
-logs/
-*.log
-
-# --- Temp ---
-tmp/
-.cache/
-
-# --- Build ---
-dist/
-build/
-
-# --- Docs ---
-docs/
-notas/
-
-# --- Patches ---
-*.patch
-
-# --- Local TLS / Certs (NO versionar) ---
-.certs/
-*.crt
-*.der
-localhost+*.pem
-*.pem
-*.key
+.qodo/
+.antigravityrules
+metadata.json

@@ -160,10 +160,34 @@ app.use(
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "https://unpkg.com"],
-        "script-src-elem": ["'self'", "https://unpkg.com"],
-        "style-src": ["'self'", "https://unpkg.com", "'unsafe-inline'"],
-        "style-src-elem": ["'self'", "https://unpkg.com", "'unsafe-inline'"],
+        "script-src": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdn.jsdelivr.net", 
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io"
+        ],
+        "script-src-elem": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdn.jsdelivr.net", 
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io"
+        ],
+        "style-src": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdnjs.cloudflare.com", 
+          "https://cdn.jsdelivr.net",
+          "'unsafe-inline'"
+        ],
+        "style-src-elem": [
+          "'self'", 
+          "https://unpkg.com", 
+          "https://cdnjs.cloudflare.com", 
+          "https://cdn.jsdelivr.net",
+          "'unsafe-inline'"
+        ],
         "img-src": [
           "'self'",
           "data:",
@@ -174,6 +198,11 @@ app.use(
         "connect-src": [
           "'self'",
           "https://unpkg.com",
+          "https://cdn.jsdelivr.net",
+          "https://cdnjs.cloudflare.com",
+          "https://cdn.socket.io",
+          "wss:", // Para Socket.io en producción
+          "ws:"   // Para Socket.io en desarrollo
         ],
         "font-src": ["'self'", "https:", "data:"],
         "object-src": ["'none'"],
@@ -219,6 +248,17 @@ async function checkDatabaseConnection() {
   }
 }
 
+function getDbIntegrityStatus() {
+  try {
+    const { getLastIntegrityResult } = require("./cron/db-health");
+    const r = getLastIntegrityResult();
+    if (r.ok === null) return { ok: null, result: null, lastCheck: null };
+    return { ok: r.ok, result: r.result, lastCheck: r.at };
+  } catch {
+    return { ok: null, result: null, lastCheck: null };
+  }
+}
+
 async function checkUploadsDir() {
   try {
     await fs.access(uploadDir, fs.constants.W_OK);
@@ -247,7 +287,8 @@ app.get("/health", async (req, res) => {
     checkExternalService(),
   ]);
 
-  const dependencies = { database: db, uploads, externalService: external };
+  const dbIntegrity = getDbIntegrityStatus();
+  const dependencies = { database: db, dbIntegrity, uploads, externalService: external };
   const requiredOk = Boolean(db.ok) && Boolean(uploads.ok);
   const overallOk = requiredOk && (external.skipped === true || Boolean(external.ok));
 
@@ -338,6 +379,7 @@ const photosRoutes = require("./routes/photos.routes");
 const usersRoutes = require("./routes/users.routes");
 const mapsRoutes = require("./routes/maps.routes");
 const commentsRoutes = require("./routes/comments.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 const settingsRoutes = require("./routes/settings.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
 
@@ -367,6 +409,7 @@ app.use("/v1/issues", issuesRoutes);
 app.use("/v1/issues/:id/comments", commentsRoutes);
 app.use("/v1/photos", photosRoutes);
 app.use("/v1/users", usersRoutes);
+app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1/maps", mapsRoutes);
 app.use("/v1/settings", settingsRoutes);
 app.use("/api/auth", authRoutes);

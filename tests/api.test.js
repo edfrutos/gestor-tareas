@@ -161,7 +161,7 @@ describe("API Functional Tests", () => {
   });
 
   describe("Edge Cases & Validation", () => {
-    test("POST /v1/issues fails with invalid coordinates", async () => {
+    test("POST /v1/issues fails with invalid coordinates (type)", async () => {
       const res = await request(app)
         .post("/v1/issues")
         .set("x-api-key", process.env.API_KEY)
@@ -169,6 +169,21 @@ describe("API Functional Tests", () => {
           title: "Error de coordenadas",
           category: "test",
           description: "Testing invalid coordinates",
+          lat: "not-a-number",
+          lng: -3.7,
+        });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBeDefined();
+    });
+
+    test("POST /v1/issues fails with invalid latitude", async () => {
+      const res = await request(app)
+        .post("/v1/issues")
+        .set("x-api-key", process.env.API_KEY)
+        .send({
+          title: "Latitud inválida",
+          category: "test",
+          description: "Testing validation",
           lat: "not-a-number",
           lng: -3.7,
         });
@@ -216,10 +231,10 @@ describe("API Functional Tests", () => {
 
     test("PATCH /v1/issues/:id fails with invalid status", async () => {
       // Usamos el ID de la issue creada anteriormente con coma
-      const setup = await request(app)
+      const { body: { items } } = await request(app)
         .get("/v1/issues")
         .set("x-api-key", process.env.API_KEY);
-      const id = setup.body.items[0].id;
+      const { id } = items[0];
 
       const res = await request(app)
         .patch(`/v1/issues/${id}`)
@@ -235,8 +250,8 @@ describe("API Functional Tests", () => {
         .set("x-api-key", process.env.API_KEY);
       expect(res.statusCode).toBe(200);
       expect(res.headers["content-type"]).toContain("text/csv");
-      // Cabeceras reales en español incluyendo la nueva columna de asignación
-      expect(res.text).toContain("ID,Fecha,Creado Por,Asignado A,Estado,Categoría,Título");
+      // Cabeceras reales en español incluyendo las nuevas columnas
+      expect(res.text).toContain("ID,Fecha,Creado Por,Asignado A,Prioridad,Fecha Límite,Estado,Categoría,Título");
     });
 
     test("GET /v1/issues/categories returns a list of categories with API Key", async () => {

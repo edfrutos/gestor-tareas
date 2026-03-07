@@ -197,7 +197,7 @@ async function logChange(issueId, userId, action, oldValue = null, newValue = nu
 router.get("/", requireAuth(), async (req, res, next) => {
   try {
     const query = validateSchema(getIssuesSchema, req.query);
-    const { page, pageSize, status, category, q, sort } = query;
+    const { page, pageSize, status, category, q } = query;
     let { order } = query;
 
     // Legacy support logic moved from manual parsing
@@ -208,9 +208,6 @@ router.get("/", requireAuth(), async (req, res, next) => {
       order = sortLegacy.trim() === "oldest" ? "old" : "new";
     }
     
-    // Default fallback provided by schema, but ensure valid enum if legacy overrode it poorly (though schema catches most)
-    if (!["new", "old", "cat", "status"].includes(order)) order = "new";
-
     const offset = (page - 1) * pageSize;
     
     // Construir WHERE
@@ -232,23 +229,31 @@ router.get("/", requireAuth(), async (req, res, next) => {
     if (order === "old") {
       orderSql = "ORDER BY datetime(i.created_at) ASC";
     } else if (order === "cat") {
-      // por categoría (alfabético), y dentro por más nuevas
       orderSql = "ORDER BY lower(i.category) ASC, datetime(i.created_at) DESC";
     } else if (order === "status") {
-      // open -> in_progress -> resolved, y dentro por más nuevas
       orderSql = `ORDER BY CASE i.status
         WHEN 'open' THEN 0
         WHEN 'in_progress' THEN 1
         WHEN 'resolved' THEN 2
         ELSE 9
       END ASC, datetime(i.created_at) DESC`;
+    } else if (order === "priority") {
+      orderSql = `ORDER BY CASE i.priority
+        WHEN 'critical' THEN 0
+        WHEN 'high' THEN 1
+        WHEN 'medium' THEN 2
+        WHEN 'low' THEN 3
+        ELSE 9
+      END ASC, datetime(i.created_at) DESC`;
+    } else if (order === "due_date") {
+      orderSql = "ORDER BY i.due_date ASC, datetime(i.created_at) DESC";
     }
 
     const items = await all(
       `
       SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.photo_url, i.thumb_url, i.text_url, 
              i.resolution_photo_url, i.resolution_thumb_url, i.resolution_text_url, i.status, i.created_at,
-             i.created_by, i.map_id, i.assigned_to, 
+             i.created_by, i.map_id, i.assigned_to, i.priority, i.due_date,
              u.username as created_by_username,
              ua.username as assigned_to_username
       FROM issues i
@@ -286,7 +291,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
   }
 });
 
-// GET /v1/issues/:id/logs
+// GET /v1/issues/:id/logs (debe ir antes de /:id para que coincida correctamente)
 router.get("/:id/logs", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -390,18 +395,15 @@ router.get("/categories", requireAuth(), async (req, res, next) => {
 // GET /v1/issues/export (CSV)
 router.get("/export", requireAuth(), async (req, res, next) => {
   try {
-    // Validamos query params (reutilizamos el esquema de GET, aunque ignoraremos page/pageSize)
     const query = validateSchema(getIssuesSchema, req.query);
     let { order } = query;
 
-    // Legacy support logic
     const orderRaw = req.query.order ? String(req.query.order) : "";
     const sortLegacy = req.query.sort ? String(req.query.sort) : "";
 
     if (!orderRaw && sortLegacy) {
       order = sortLegacy.trim() === "oldest" ? "old" : "new";
     }
-    if (!["new", "old", "cat", "status"].includes(order)) order = "new";
 
     // Construir WHERE base
     const { sql: whereBase, params } = buildWhereClause(query, req.user);
@@ -427,12 +429,22 @@ router.get("/export", requireAuth(), async (req, res, next) => {
         WHEN 'resolved' THEN 2
         ELSE 9
       END ASC, datetime(i.created_at) DESC`;
+    } else if (order === "priority") {
+      orderSql = `ORDER BY CASE i.priority
+        WHEN 'critical' THEN 0
+        WHEN 'high' THEN 1
+        WHEN 'medium' THEN 2
+        WHEN 'low' THEN 3
+        ELSE 9
+      END ASC, datetime(i.created_at) DESC`;
+    } else if (order === "due_date") {
+      orderSql = "ORDER BY i.due_date ASC, datetime(i.created_at) DESC";
     }
 
-    // Sin límite de paginación para exportar todo lo filtrado
     const items = await all(
       `
       SELECT i.id, i.title, i.category, i.description, i.lat, i.lng, i.status, i.created_at, i.photo_url, i.text_url,
+             i.priority, i.due_date,
              u.username as created_by_username,
              ua.username as assigned_to_username
       FROM issues i
@@ -445,9 +457,8 @@ router.get("/export", requireAuth(), async (req, res, next) => {
     );
 
     // Generar CSV
-    const headers = ["ID", "Fecha", "Creado Por", "Asignado A", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
+    const headers = ["ID", "Fecha", "Creado Por", "Asignado A", "Prioridad", "Fecha Límite", "Estado", "Categoría", "Título", "Descripción", "Latitud", "Longitud", "Foto URL", "Doc URL"];
     
-    // Helper para escapar CSV (comillas dobles -> dobles comillas dobles, envolver en comillas si hay comas o saltos)
     const escapeCsv = (val) => {
       if (val === null || val === undefined) return "";
       const str = String(val);
@@ -463,6 +474,8 @@ router.get("/export", requireAuth(), async (req, res, next) => {
         it.created_at,
         it.created_by_username || "Desconocido",
         it.assigned_to_username || "Sin asignar",
+        it.priority,
+        it.due_date || "Sin fecha",
         it.status,
         it.category,
         it.title,
@@ -485,7 +498,34 @@ router.get("/export", requireAuth(), async (req, res, next) => {
   }
 });
 
-// POST /v1/issues (multipart con file opcional) - Autenticación requerida
+// GET /v1/issues/:id - Obtener una tarea por ID (debe ir después de /stats, /categories, /export)
+router.get("/:id", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || !Number.isInteger(id)) return res.status(400).json({ error: { code: "bad_request", message: "ID inválido" } });
+
+    const row = await get(
+      `SELECT i.*, u.username as created_by_username, ua.username as assigned_to_username
+       FROM issues i
+       LEFT JOIN users u ON i.created_by = u.id
+       LEFT JOIN users ua ON i.assigned_to = ua.id
+       WHERE i.id = ?`,
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+
+    if (req.user.role !== "admin" && row.created_by !== req.user.id && row.assigned_to !== req.user.id) {
+      return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para ver esta tarea" } });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json(row);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /v1/issues
 router.post("/", requireAuth(), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
     if (err) {
@@ -494,89 +534,68 @@ router.post("/", requireAuth(), (req, res, next) => {
     }
     next();
   });
-  }, async (req, res, next) => {
+}, async (req, res, next) => {
   try {
     const body = validateSchema(createIssueSchema, req.body);
-    const { title, category, description, lat, lng, assigned_to } = body;
-    // Si no se proporciona map_id, por defecto es 1 (Plano Principal)
+    const { title, category, description, lat, lng, assigned_to, priority, due_date } = body;
     const mapId = body.map_id || 1;
-
     const createdAt = new Date().toISOString();
 
     let photoUrl = null;
     let thumbUrl = null;
-
     let textUrl = null;
 
-    // Procesar Foto
     if (req.files && req.files["photo"] && req.files["photo"][0]) {
       const f = req.files["photo"][0];
       photoUrl = `/uploads/${f.filename}`;
       thumbUrl = photoToThumbUrl(photoUrl);
-
-      // Generar thumb
-      try {
-        await makeThumbIfNeeded(f.filename);
-      } catch (_e) { /* ignore */ }
+      try { await makeThumbIfNeeded(f.filename); } catch (_e) { /* ignore */ }
     }
 
-    // Procesar Documento
     if (req.files && req.files["file"] && req.files["file"][0]) {
       const f = req.files["file"][0];
       textUrl = `/uploads/${f.filename}`;
     }
 
-    const userId = req.user.id; // Asumimos que requireAuth() ya validó y populó esto
+    const userId = req.user.id;
 
     const result = await run(
       `
-      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at, created_by, map_id, assigned_to)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)
+      INSERT INTO issues (title, category, description, lat, lng, photo_url, thumb_url, text_url, status, created_at, created_by, map_id, assigned_to, priority, due_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?, ?)
       `,
-      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt, userId, mapId, assigned_to || null]
+      [title, category, description, lat, lng, photoUrl, thumbUrl, textUrl, createdAt, userId, mapId, assigned_to || null, priority || 'medium', due_date || null]
     );
 
-    // Log creation with userId
     await logChange(result.lastID, userId, "create");
-    if (assigned_to) {
-      await logChange(result.lastID, userId, "assign", null, assigned_to);
-    }
+    if (assigned_to) await logChange(result.lastID, userId, "assign", null, assigned_to);
+    if (priority && priority !== 'medium') await logChange(result.lastID, userId, "update_priority", 'medium', priority);
+    if (due_date) await logChange(result.lastID, userId, "update_due_date", null, due_date);
 
-    const created = await get(
-      `SELECT * FROM issues WHERE id = ?`,
-      [result.lastID]
-    );
+    const created = await get(`SELECT * FROM issues WHERE id = ?`, [result.lastID]);
 
-    // Notificación por correo (opcional, no bloqueante)
     if (process.env.ADMIN_EMAIL) {
       notifyNewIssue(process.env.ADMIN_EMAIL, req.user, created).catch(e => console.error("Error notifying admin:", e));
     }
 
-    // Notificación al asignado
     if (assigned_to) {
       (async () => {
         try {
           const assignee = await get("SELECT username, email FROM users WHERE id = ?", [assigned_to]);
-          if (assignee && assignee.email) {
-            await notifyTaskAssignment(assignee, created, req.user);
-          }
-        } catch (err) {
-          console.error("Error notifying assignee:", err);
-        }
+          if (assignee && assignee.email) await notifyTaskAssignment(assignee, created, req.user);
+        } catch (err) { console.error("Error notifying assignee:", err); }
       })();
     }
 
     res.setHeader("Cache-Control", "no-store");
     res.status(201).json(created);
-
-    // Emitir evento en tiempo real
     emitEvent("issue:created", created);
   } catch (e) {
     next(e);
   }
 });
 
-// PATCH /v1/issues/:id (multipart opcional: status, description, resolution_file)
+// PATCH /v1/issues/:id
 router.patch("/:id", requireAuth(), (req, res, next) => {
   uploadMiddleware(req, res, (err) => {
       if (err) return res.status(400).json({ error: { code: "upload_error", message: err.message } });
@@ -585,195 +604,110 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
 }, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    // Validar cuerpo
     const body = validateSchema(updateIssueSchema, req.body || {});
-    const { status, description, category, map_id, assigned_to } = body;
+    const { status, description, category, map_id, assigned_to, priority, due_date } = body;
 
     if (!id || !Number.isInteger(id)) {
-      return res.status(400).json({
-        error: { code: "bad_request", message: "id inválido", requestId: req.id },
-      });
+      return res.status(400).json({ error: { code: "bad_request", message: "id inválido", requestId: req.id } });
     }
 
-    // 1. Obtener estado actual para comparar archivos
     const currentIssue = await get(`SELECT * FROM issues WHERE id = ?`, [id]);
     if (!currentIssue) {
-      return res.status(404).json({
-        error: { code: "not_found", message: "Issue no encontrada", requestId: req.id },
-      });
+      return res.status(404).json({ error: { code: "not_found", message: "Issue no encontrada", requestId: req.id } });
     }
 
-    // RBAC Check: Si no es admin y no es el dueño ni el asignado, rechazar
     const isAdmin = req.user.role === 'admin';
     const isOwner = currentIssue.created_by === req.user.id;
     const isAssignee = currentIssue.assigned_to === req.user.id;
 
     if (!isAdmin && !isOwner && !isAssignee) {
-       return res.status(403).json({
-        error: { code: "forbidden", message: "No tienes permiso para editar esta tarea", requestId: req.id },
-      });
+       return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para editar esta tarea", requestId: req.id } });
     }
 
     const updates = [];
     const params = [];
-    const filesToDelete = []; // Lista de archivos viejos a borrar si el update es exitoso
+    const filesToDelete = [];
 
-    // Validar status si viene (ya validado por schema, solo añadir a query)
-    if (status) {
-      updates.push("status = ?");
-      params.push(status);
-    }
+    if (status) { updates.push("status = ?"); params.push(status); }
+    if (description !== undefined && description !== null) { updates.push("description = ?"); params.push(description); }
+    if (category) { updates.push("category = ?"); params.push(category); }
+    if (map_id !== undefined && map_id !== null) { updates.push("map_id = ?"); params.push(map_id); }
+    if (priority) { updates.push("priority = ?"); params.push(priority); }
+    if (due_date !== undefined) { updates.push("due_date = ?"); params.push(due_date); }
 
-    // Validar description si viene
-    if (description !== undefined && description !== null) {
-      updates.push("description = ?");
-      params.push(description);
-    }
-
-    // Validar category si viene
-    if (category) {
-      updates.push("category = ?");
-      params.push(category);
-    }
-
-    // Validar map_id si viene
-    if (map_id !== undefined && map_id !== null) {
-      updates.push("map_id = ?");
-      params.push(map_id);
-    }
-
-    // Validar assigned_to si viene (Solo Admin o Dueño pueden reasignar)
     if (assigned_to !== undefined) {
-      if (!isAdmin && !isOwner) {
-        return res.status(403).json({ error: "Solo el administrador o el creador pueden reasignar la tarea" });
-      }
-      updates.push("assigned_to = ?");
-      params.push(assigned_to);
+      if (!isAdmin && !isOwner) return res.status(403).json({ error: { code: "forbidden", message: "Solo el administrador o el creador pueden reasignar la tarea", requestId: req.id } });
+      updates.push("assigned_to = ?"); params.push(assigned_to);
     }
 
-    // Procesar foto original reemplazo
     if (req.files && req.files["photo"] && req.files["photo"][0]) {
       const f = req.files["photo"][0];
       const photoUrl = `/uploads/${f.filename}`;
       const thumbUrl = photoToThumbUrl(photoUrl);
-
-      updates.push("photo_url = ?");
-      params.push(photoUrl);
-      
-      updates.push("thumb_url = ?");
-      params.push(thumbUrl);
-
+      updates.push("photo_url = ?"); params.push(photoUrl);
+      updates.push("thumb_url = ?"); params.push(thumbUrl);
       if (currentIssue.photo_url) filesToDelete.push(currentIssue.photo_url);
-
-      try {
-        await makeThumbIfNeeded(f.filename);
-      } catch (_e) { /* ignore */ }
+      try { await makeThumbIfNeeded(f.filename); } catch (_e) { /* ignore */ }
     }
 
-    // Procesar documento original reemplazo
     if (req.files && req.files["file"] && req.files["file"][0]) {
       const f = req.files["file"][0];
       const textUrl = `/uploads/${f.filename}`;
-
-      updates.push("text_url = ?");
-      params.push(textUrl);
-
+      updates.push("text_url = ?"); params.push(textUrl);
       if (currentIssue.text_url) filesToDelete.push(currentIssue.text_url);
     }
 
-    // Procesar foto de resolución
     if (req.files && req.files["resolution_photo"] && req.files["resolution_photo"][0]) {
       const f = req.files["resolution_photo"][0];
       const photoUrl = `/uploads/${f.filename}`;
       const thumbUrl = photoToThumbUrl(photoUrl);
-
-      updates.push("resolution_photo_url = ?");
-      params.push(photoUrl);
-      
-      updates.push("resolution_thumb_url = ?");
-      params.push(thumbUrl);
-
+      updates.push("resolution_photo_url = ?"); params.push(photoUrl);
+      updates.push("resolution_thumb_url = ?"); params.push(thumbUrl);
       if (currentIssue.resolution_photo_url) filesToDelete.push(currentIssue.resolution_photo_url);
-
-      try {
-        await makeThumbIfNeeded(f.filename);
-      } catch (_e) { /* ignore */ }
+      try { await makeThumbIfNeeded(f.filename); } catch (_e) { /* ignore */ }
     }
 
-    // Procesar documento de resolución
     if (req.files && req.files["resolution_doc"] && req.files["resolution_doc"][0]) {
       const f = req.files["resolution_doc"][0];
       const textUrl = `/uploads/${f.filename}`;
-
-      updates.push("resolution_text_url = ?");
-      params.push(textUrl);
-
+      updates.push("resolution_text_url = ?"); params.push(textUrl);
       if (currentIssue.resolution_text_url) filesToDelete.push(currentIssue.resolution_text_url);
     }
 
-    if (updates.length === 0) {
-       return res.status(400).json({
-        error: { code: "bad_request", message: "No hay campos para actualizar", requestId: req.id },
-      });
-    }
+    if (updates.length === 0) return res.status(400).json({ error: { code: "bad_request", message: "No hay campos para actualizar", requestId: req.id } });
 
-    // Ejecutar UPDATE
     params.push(id);
     await run(`UPDATE issues SET ${updates.join(", ")} WHERE id = ?`, params);
 
-    // Logging de cambios
     const userId = req.user?.id;
     const logPromises = [];
-    if (status && status !== currentIssue.status) {
-      logPromises.push(logChange(id, userId, "update_status", currentIssue.status, status));
-    }
-    if (description !== undefined && description !== currentIssue.description) {
-      logPromises.push(logChange(id, userId, "update_description", currentIssue.description, description));
-    }
-    if (category && category !== currentIssue.category) {
-      logPromises.push(logChange(id, userId, "update_category", currentIssue.category, category));
-    }
-    if (map_id !== undefined && map_id !== currentIssue.map_id) {
-      logPromises.push(logChange(id, userId, "update_map", currentIssue.map_id, map_id));
-    }
-    if (assigned_to !== undefined && assigned_to !== currentIssue.assigned_to) {
-      logPromises.push(logChange(id, userId, "assign", currentIssue.assigned_to, assigned_to));
-    }
+    if (status && status !== currentIssue.status) logPromises.push(logChange(id, userId, "update_status", currentIssue.status, status));
+    if (description !== undefined && description !== currentIssue.description) logPromises.push(logChange(id, userId, "update_description", currentIssue.description, description));
+    if (category && category !== currentIssue.category) logPromises.push(logChange(id, userId, "update_category", currentIssue.category, category));
+    if (map_id !== undefined && map_id !== currentIssue.map_id) logPromises.push(logChange(id, userId, "update_map", currentIssue.map_id, map_id));
+    if (assigned_to !== undefined && assigned_to !== currentIssue.assigned_to) logPromises.push(logChange(id, userId, "assign", currentIssue.assigned_to, assigned_to));
+    if (priority && priority !== currentIssue.priority) logPromises.push(logChange(id, userId, "update_priority", currentIssue.priority, priority));
+    if (due_date !== undefined && due_date !== currentIssue.due_date) logPromises.push(logChange(id, userId, "update_due_date", currentIssue.due_date, due_date));
     await Promise.all(logPromises);
 
-    // Si todo salió bien, borramos los archivos viejos
     await Promise.all(filesToDelete.map(url => deleteFileByUrl(url)));
+    const updated = await get(`SELECT * FROM issues WHERE id = ?`, [id]);
 
-    const updated = await get(
-      `SELECT * FROM issues WHERE id = ?`,
-      [id]
-    );
-
-    // Notificación por correo al autor si cambia el estado
     if (status && status !== currentIssue.status) {
       (async () => {
         try {
           const author = await get("SELECT username, email FROM users WHERE id = ?", [currentIssue.created_by]);
-          if (author && author.email) {
-            await notifyStatusChange(author, updated, currentIssue.status, status);
-          }
-        } catch (err) {
-          console.error("Error sending status change notification:", err);
-        }
+          if (author && author.email) await notifyStatusChange(author, updated, currentIssue.status, status);
+        } catch (err) { console.error("Error sending status change notification:", err); }
       })();
     }
 
-    // Notificación al nuevo asignado si cambia
     if (assigned_to && assigned_to !== currentIssue.assigned_to) {
       (async () => {
         try {
           const assignee = await get("SELECT username, email FROM users WHERE id = ?", [assigned_to]);
-          if (assignee && assignee.email) {
-            await notifyTaskAssignment(assignee, updated, req.user);
-          }
-        } catch (err) {
-          console.error("Error notifying new assignee:", err);
-        }
+          if (assignee && assignee.email) await notifyTaskAssignment(assignee, updated, req.user);
+        } catch (err) { console.error("Error notifying new assignee:", err); }
       })();
     }
 
@@ -783,12 +717,9 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
       thumb_url: updated.photo_url ? photoToThumbUrl(updated.photo_url) : null,
       resolution_thumb_url: updated.resolution_photo_url ? photoToThumbUrl(updated.resolution_photo_url) : null,
     });
-
-    // Emitir evento en tiempo real
     emitEvent("issue:updated", updated);
   } catch (e) {
     console.error("PATCH Error:", e);
-    // Propagar el error con detalles para el cliente
     e.status = e.status || 500;
     next(e);
   }
@@ -799,40 +730,20 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!id || !Number.isInteger(id)) {
-      return res.status(400).json({
-        error: { code: "bad_request", message: "id inválido", requestId: req.id },
-      });
+      return res.status(400).json({ error: { code: "bad_request", message: "id inválido", requestId: req.id } });
     }
-
     const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url, created_by FROM issues WHERE id = ?`, [id]);
-    
-    if (!row) {
-        return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
-    }
-
-    // RBAC Check
-    if (req.user.role !== 'admin' && row.created_by !== req.user.id) {
-       return res.status(403).json({
-        error: { code: "forbidden", message: "No tienes permiso para borrar esta tarea", requestId: req.id },
-      });
-    }
-
+    if (!row) return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+    if (req.user.role !== 'admin' && row.created_by !== req.user.id) return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para borrar esta tarea", requestId: req.id } });
     await run(`DELETE FROM issues WHERE id = ?`, [id]);
-
     if (row) {
-      // Borrar todos los archivos asociados y esperar a que terminen
       const fileUrls = [row.photo_url, row.resolution_photo_url, row.text_url, row.resolution_text_url];
       await Promise.all(fileUrls.map(u => deleteFileByUrl(u)));
     }
-
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true });
-
-    // Emitir evento en tiempo real
     emitEvent("issue:deleted", { id });
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

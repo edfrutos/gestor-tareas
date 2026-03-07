@@ -16,6 +16,8 @@ services:
       # HSTS_ENABLED: "0"
       DB_FILE: /app/data/data.db
       UPLOAD_DIR: /app/uploads
+      BACKUP_DIR: /app/backups
+      BACKUP_RETENTION_DAYS: "1"
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       PUBLIC_URL: https://localhost:8443
@@ -27,6 +29,7 @@ services:
       - ./tests:/app/tests
       - ./data:/app/data
       - ./uploads:/app/uploads
+      - /Volumes/ESSAGER/__Backups_Repositorios/gestor-tareas:/app/backups
     depends_on:
       - mailpit
 

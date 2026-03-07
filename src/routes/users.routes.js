@@ -14,6 +14,18 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ error: { code: "forbidden", message: "Acceso denegado: Se requiere rol de administrador" } });
 }
 
+// GET /v1/users/for-assign - Lista mínima para selector de asignación (cualquier usuario autenticado)
+router.get("/for-assign", requireAuth(), async (req, res, next) => {
+  try {
+    const users = await all(
+      "SELECT id, username FROM users ORDER BY username ASC"
+    );
+    res.json({ items: users });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // GET /v1/users - Listar todos los usuarios con paginación
 router.get("/", requireAuth(), requireAdmin, async (req, res, next) => {
   try {

@@ -22,7 +22,7 @@
 ### Docker (Recommended)
 ```bash
 # Start the full environment (App + Caddy)
-docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml --profile local-https up -d --build
 ```
 
 ### Local Development

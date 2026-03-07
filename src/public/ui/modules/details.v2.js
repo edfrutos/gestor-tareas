@@ -2,13 +2,23 @@ import { getUser } from "./auth.js";
 import { state, isFav, toggleFav } from "./store.js";
 import { API_BASE } from "./config.js";
 import { fetchJson, getIssueLogs } from "./api.js";
-import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, withBusy, setButtonBusy, toast } from "./utils.js";
+import { $, safeText, statusLabel, resolveSameOriginUrl, setImgFallback, setButtonBusy, toast } from "./utils.js";
 import { setLatLng } from "./map.js";
 import { showDocModal } from "./modals.js";
 import { loadIssues } from "./list.v2.js";
+import { showQrModal, getIssueUrl } from "./qr.js";
 
 let currentDetailId = null;
 let currentReplyToId = null; // ID del comentario al que estamos respondiendo
+
+function translatePriority(p) {
+  switch (p) {
+    case "low": return "Baja";
+    case "high": return "Alta";
+    case "critical": return "Crítica";
+    default: return "Media";
+  }
+}
 
 function renderHistory(logs) {
   const container = $("#dmHistoryItems");
@@ -33,6 +43,14 @@ function renderHistory(logs) {
       case "update_status":
         text = `Estado: ${translateStatus(log.old_value)} ➝ <strong>${translateStatus(log.new_value)}</strong>`;
         icon = "🔄";
+        break;
+      case "update_priority":
+        text = `Prioridad: ${translatePriority(log.old_value)} ➝ <strong>${translatePriority(log.new_value)}</strong>`;
+        icon = "🚩";
+        break;
+      case "update_due_date":
+        text = `Fecha límite: ${log.old_value || 'Sin fecha'} ➝ <strong>${log.new_value || 'Quitada'}</strong>`;
+        icon = "📅";
         break;
       case "update_description":
         text = "Descripción actualizada";
@@ -94,7 +112,7 @@ async function loadComments(issueId) {
     } else {
       renderCommentTree(comments, container);
     }
-  } catch (e) {
+  } catch {
     container.innerHTML = "<div style='color:var(--bad); padding:10px;'>Error al cargar comentarios.</div>";
   }
 }
@@ -104,20 +122,23 @@ function renderCommentTree(comments, container, depth = 0) {
     const date = new Date(c.created_at).toLocaleString();
     const div = document.createElement("div");
     div.style.padding = "10px";
-    div.style.borderLeft = depth > 0 ? "2px solid var(--border2)" : "none";
+    div.style.borderLeft = depth > 0 ? "2px solid var(--accent)" : "none";
     div.style.marginLeft = depth > 0 ? "15px" : "0";
     div.style.background = depth % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent";
     div.style.fontSize = "13px";
+    const replyPrefix = depth > 0 ? `<span style="color:var(--muted); font-size:11px;">↳ Respuesta de </span>` : "";
     div.innerHTML = `
       <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-        <strong style="color:var(--accent);">${safeText(c.username)}</strong>
+        <span>${replyPrefix}<strong style="color:var(--accent);">${safeText(c.username)}</strong></span>
         <span style="font-size:10px; color:var(--muted);">${date}</span>
       </div>
       <div style="white-space:pre-wrap; line-height:1.4; margin-bottom:6px;">${safeText(c.text)}</div>
       <div style="text-align:right;">
-        <button class="btn small" style="font-size:10px; padding:2px 8px; opacity:0.7;" onclick="window.setReplyTo(${c.id}, '${safeText(c.username)}')">Responder</button>
+        <button class="btn small dm-reply-btn" style="font-size:10px; padding:2px 8px; opacity:0.7;" data-id="${c.id}" data-username="${safeText(c.username).replace(/"/g, "&quot;")}">Responder</button>
       </div>
     `;
+    const replyBtn = div.querySelector(".dm-reply-btn");
+    if (replyBtn) replyBtn.onclick = () => setReplyTo(c.id, c.username);
     container.appendChild(div);
     
     if (c.replies && c.replies.length > 0) {
@@ -126,19 +147,20 @@ function renderCommentTree(comments, container, depth = 0) {
   });
 }
 
-// Global para que el onclick del HTML funcione
-window.setReplyTo = (id, username) => {
+function setReplyTo(id, username) {
   currentReplyToId = id;
   const label = $("#dmReplyIndicator");
   const input = $("#dmNewCommentInput");
   if (label) {
-    label.innerHTML = `Respondiendo a <strong>@${username}</strong> <button class="btn small danger" style="padding:0 4px; font-size:10px;" onclick="window.clearReplyTo()">✕</button>`;
+    label.innerHTML = `Respondiendo a <strong>@${safeText(username)}</strong> <button class="btn small danger dm-clear-reply" style="padding:0 4px; font-size:10px;">✕</button>`;
     label.style.display = "block";
+    const clearBtn = label.querySelector(".dm-clear-reply");
+    if (clearBtn) clearBtn.onclick = clearReplyTo;
   }
   if (input) input.focus();
-};
+}
 
-window.clearReplyTo = () => {
+function clearReplyTo() {
   currentReplyToId = null;
   const label = $("#dmReplyIndicator");
   if (label) {
@@ -166,10 +188,13 @@ async function addComment() {
     });
     
     input.value = "";
-    window.clearReplyTo();
+    clearReplyTo();
     await loadComments(currentDetailId);
+    // Hacer scroll al final para mostrar el comentario nuevo
+    const list = $("#dmCommentsList");
+    if (list) list.scrollTop = list.scrollHeight;
   } catch (e) {
-    toast(e.message, "error");
+    toast(e?.message || "Error al enviar comentario", "error");
   } finally {
     setButtonBusy(btn, false);
   }
@@ -196,6 +221,9 @@ function toggleEditMode(enable) {
 
   const assignContainer = $("#dmEditAssignContainer");
   if(assignContainer) assignContainer.style.display = displayEdit;
+
+  const priorityContainer = $("#dmEditPriorityContainer");
+  if(priorityContainer) priorityContainer.style.display = displayEdit;
 
   $("#dmDesc").style.display = displayView;
   $("#dmEditDesc").style.display = displayEdit;
@@ -225,6 +253,8 @@ async function saveDetailChanges() {
     const status = $("#dmEditStatus").value;
     const mapId = $("#dmEditMap")?.value;
     const assignedTo = $("#dmEditAssign")?.value;
+    const priority = $("#dmEditPriority")?.value;
+    const dueDate = $("#dmEditDueDate")?.value;
     
     const photoInput = $("#dmResPhotoInput");
     const docInput = $("#dmResDocInput");
@@ -236,7 +266,9 @@ async function saveDetailChanges() {
     fd.set("category", cat);
     fd.set("status", status);
     if(mapId) fd.set("map_id", mapId);
-    if (assignedTo !== undefined) fd.set("assigned_to", assignedTo);
+    fd.set("assigned_to", assignedTo || "");
+    fd.set("priority", priority || "medium");
+    fd.set("due_date", dueDate || "");
     
     if (photoInput?.files[0]) fd.set("resolution_photo", photoInput.files[0]);
     if (docInput?.files[0]) fd.set("resolution_doc", docInput.files[0]);
@@ -250,7 +282,7 @@ async function saveDetailChanges() {
     if (updated) openDetailModal(updated);
     else toggleEditMode(false);
   } catch (e) {
-    toast(`Error: ${e.message}`, "error");
+    toast(`Error: ${e?.message || "Error al guardar"}`, "error");
   } finally {
     setButtonBusy(btn, false);
   }
@@ -280,7 +312,7 @@ export async function openDetailModal(it) {
       let maps = state.mapsList;
       if (!maps || maps.length === 0) {
           try {
-             maps = await fetchJson(`${API_BASE}/maps`);
+             maps = await fetchJson(`${API_BASE}/maps?include_archived=true`);
              state.mapsList = maps || []; 
           } catch(e) { console.error("Error loading maps", e); }
       }
@@ -316,7 +348,7 @@ export async function openDetailModal(it) {
   if (assignSelect && canAssign) {
     try {
       assignSelect.innerHTML = '<option value="">Sin asignar</option>';
-      const data = await fetchJson(`${API_BASE}/users`);
+      const data = await fetchJson(`${API_BASE}/users/for-assign`);
       const users = data.items || [];
       users.forEach(u => {
         const opt = document.createElement("option");
@@ -365,6 +397,10 @@ export async function openDetailModal(it) {
   $("#dmEditDesc").value = it.description || "";
   $("#dmEditCategory").value = it.category || "";
   $("#dmEditStatus").value = it.status;
+  const dmEditPriority = $("#dmEditPriority");
+  if (dmEditPriority) dmEditPriority.value = it.priority || "medium";
+  const dmEditDueDate = $("#dmEditDueDate");
+  if (dmEditDueDate) dmEditDueDate.value = it.due_date ? it.due_date.slice(0, 10) : "";
 
   // Inyectar sección de comentarios si no existe
   let commentsWrap = $("#dmCommentsWrapper");
@@ -419,6 +455,41 @@ export async function openDetailModal(it) {
     imgCont.style.display = "none";
   }
 
+  // Recorte/ubicación en plano
+  const locPreview = $("#dmLocationPreview");
+  const locMapImg = $("#dmLocationMapImg");
+  const locMarker = $("#dmLocationMarker");
+  const btnShowOnMap = $("#dmBtnShowOnMap");
+  if (locPreview && it.lat != null && it.lng != null) {
+    const mapId = it.map_id;
+    let map = state.mapsList?.find((m) => m.id === mapId);
+    if (!map && mapId) {
+      try {
+        const maps = await fetchJson(`${API_BASE}/maps?include_archived=true`);
+        map = maps?.find((m) => m.id === mapId);
+      } catch {}
+    }
+    if (map?.file_url) {
+      locPreview.style.display = "block";
+      locMapImg.src = resolveSameOriginUrl(map.file_url);
+      locMapImg.alt = map.name || "Plano";
+      const maxLat = 1000, maxLng = 1000;
+      const leftPct = (Number(it.lng) / maxLng) * 100;
+      const topPct = (1 - Number(it.lat) / maxLat) * 100;
+      locMarker.style.left = `${leftPct}%`;
+      locMarker.style.top = `${topPct}%`;
+      if (btnShowOnMap) btnShowOnMap.onclick = () => {
+        modal.style.display = "none";
+        setLatLng(it.lat, it.lng, { pan: true, setPin: true });
+        $("#map")?.scrollIntoView({ behavior: "smooth" });
+      };
+    } else {
+      locPreview.style.display = "none";
+    }
+  } else if (locPreview) {
+    locPreview.style.display = "none";
+  }
+
   // Doc
   const textUrl = resolveSameOriginUrl(it.text_url);
   const docCont = $("#dmDocContainer");
@@ -464,6 +535,14 @@ export async function openDetailModal(it) {
     $("#map")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const btnQr = $("#dmBtnQr");
+  if (btnQr) {
+    btnQr.onclick = () => {
+      const url = getIssueUrl(it.id);
+      showQrModal(url, `Tarea #${it.id}`);
+    };
+  }
+
   const btnHistory = $("#dmBtnHistory");
   const historyList = $("#dmHistoryList");
   if (historyList) historyList.style.display = "none"; // Reset al abrir
@@ -480,7 +559,7 @@ export async function openDetailModal(it) {
         try {
           const logs = await getIssueLogs(it.id);
           renderHistory(logs);
-        } catch (e) {
+        } catch {
           if (items) items.innerHTML = "<div style='color:var(--bad); padding:10px;'>Error al cargar historial.</div>";
         }
       }

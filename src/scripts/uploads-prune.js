@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const sqlite = require("../db/sqlite");
+const { getUploadDir, getThumbsDir, isTestEnv } = require("../config/paths");
 
 // helpers db
 const all =
@@ -18,8 +19,14 @@ if (!all || !run) {
   process.exit(1);
 }
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
-const THUMBS_DIR = path.join(UPLOAD_DIR, "thumbs");
+// Usar paths.js para consistencia; rechazar en NODE_ENV=test salvo PRUNE_FORCE=1
+if (isTestEnv() && process.env.PRUNE_FORCE !== "1") {
+  console.error("[uploads-prune] Rechazado: NODE_ENV=test. Usa PRUNE_FORCE=1 para tests.");
+  process.exit(1);
+}
+
+const UPLOAD_DIR = getUploadDir();
+const THUMBS_DIR = getThumbsDir();
 
 // ⚠️ por defecto NO borra; solo borra si PRUNE=1
 const PRUNE = process.env.PRUNE === "1";

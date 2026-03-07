@@ -18,15 +18,17 @@ const getIssuesSchema = z.object({
   status: z.string().optional(),
   category: z.string().optional(),
   q: z.string().optional(),
-  order: z.enum(["new", "old", "cat", "status"]).optional().default("new"),
+  order: z.enum(["new", "old", "cat", "status", "priority", "due_date"]).optional().default("new"),
   sort: z.string().optional(), // legacy support
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   mapId: z.coerce.number().optional(),
   assigned_to: z.coerce.number().optional(),
-  only_assigned_to_me: z.string().optional(), // boolean-like string
-  only_created_by_me: z.string().optional(), // boolean-like string
+  only_assigned_to_me: z.enum(["true", "false"]).optional(),
+  only_created_by_me: z.enum(["true", "false"]).optional(),
 });
+
+const priorityEnum = z.enum(["low", "medium", "high", "critical"]);
 
 // Esquema para creación (POST /v1/issues)
 const createIssueSchema = z.object({
@@ -40,7 +42,15 @@ const createIssueSchema = z.object({
     z.number({ invalid_type_error: "Lng must be a number" })
   ),
   map_id: z.coerce.number().optional(),
-  assigned_to: z.coerce.number().optional().nullable(),
+  assigned_to: z.preprocess(
+    (v) => (v === "" || v === undefined ? null : v),
+    z.coerce.number().nullable().optional()
+  ),
+  priority: priorityEnum.default("medium"),
+  due_date: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()
+  ),
 });
 
 // Esquema para actualización (PATCH /v1/issues/:id)
@@ -52,6 +62,11 @@ const updateIssueSchema = z.object({
   assigned_to: z.preprocess(
     (v) => (v === "" ? null : v),
     z.coerce.number().nullable().optional()
+  ),
+  priority: priorityEnum.optional(),
+  due_date: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()
   ),
 });
 

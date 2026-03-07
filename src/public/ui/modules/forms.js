@@ -64,7 +64,7 @@ export async function loadUsersForForm() {
   const assignSelect = $("#assigned_to");
   if (!assignSelect) return;
   try {
-    const data = await fetchJson(`${API_BASE}/users`);
+    const data = await fetchJson(`${API_BASE}/users/for-assign`);
     // El backend devuelve { items: [], total: ... }
     const users = data.items || [];
     
@@ -94,6 +94,8 @@ const createIssueMultipart = withBusy(async () => {
     const lat = $("#lat")?.value;
     const lng = $("#lng")?.value;
     const assignedTo = $("#assigned_to")?.value;
+    const priority = $("#priority")?.value || "medium";
+    const dueDate = $("#due_date")?.value;
 
     if (!lat || !lng) {
       $("#map")?.scrollIntoView({ behavior: "smooth" });
@@ -107,6 +109,8 @@ const createIssueMultipart = withBusy(async () => {
     fd.set("description", desc);
     fd.set("lat", lat);
     fd.set("lng", lng);
+    fd.set("priority", priority);
+    if (dueDate) fd.set("due_date", dueDate);
     if (assignedTo) fd.set("assigned_to", assignedTo);
     
     if (state.currentMap) {
@@ -127,6 +131,8 @@ const createIssueMultipart = withBusy(async () => {
     $("#photo").value = "";
     $("#file").value = "";
     $("#assigned_to").value = "";
+    $("#priority").value = "medium";
+    $("#due_date").value = "";
     updatePhotoPreview(null);
     updateDocPreview(null);
 
@@ -176,6 +182,8 @@ export function wireForms() {
     $("#photo").value = "";
     $("#file").value = "";
     $("#assigned_to").value = "";
+    $("#priority").value = "medium";
+    $("#due_date").value = "";
     updatePhotoPreview(null);
     updateDocPreview(null);
     if (state.markerPin && state.map) {

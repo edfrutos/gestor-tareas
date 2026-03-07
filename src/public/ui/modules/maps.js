@@ -4,6 +4,7 @@ import { state } from "./store.js";
 import { $, toast, setButtonBusy, safeText } from "./utils.js";
 import { loadIssues } from "./list.v2.js";
 import { getUser } from "./auth.js";
+import { showQrModal, getMapUrl } from "./qr.js";
 
 let showArchived = false;
 
@@ -23,7 +24,19 @@ export function initMapsModule() {
 
   const form = $("#uploadMapForm");
   if (form) {
-    // Inyectar checkbox de archivados si no existe
+    // Inyectar select de mapa padre y checkbox de archivados si no existen
+    if (!$("#mapParent")) {
+      const parentWrap = document.createElement("div");
+      parentWrap.style.cssText = "margin-bottom:10px;";
+      parentWrap.innerHTML = `
+        <label style="display:block; font-size:12px; margin-bottom:4px;">Vincular como capa de:</label>
+        <select id="mapParent" style="width:100%; padding:6px; border-radius:4px; border:1px solid var(--border1); background:var(--bg2); color:var(--text1);">
+          <option value="">-- Ninguno (Plano base) --</option>
+        </select>
+      `;
+      $("#mapName").after(parentWrap);
+    }
+
     if (!$("#chkShowArchived")) {
       const chkWrap = document.createElement("div");
       chkWrap.style.cssText = "margin-top:10px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);";
@@ -40,6 +53,7 @@ export function initMapsModule() {
       e.preventDefault();
       const fileInput = $("#mapFile");
       const nameInput = $("#mapName");
+      const parentInput = $("#mapParent");
       const btn = form.querySelector("button[type=submit]");
 
       if (!fileInput.files[0]) return toast("Selecciona una imagen", "warn");
@@ -49,6 +63,9 @@ export function initMapsModule() {
         const formData = new FormData();
         formData.append("map", fileInput.files[0]);
         formData.append("name", nameInput.value.trim() || "Sin título");
+        if (parentInput.value) {
+          formData.append("parent_id", parentInput.value);
+        }
 
         await fetchUpload(`${API_BASE}/maps`, {
           method: "POST",
@@ -78,6 +95,22 @@ export async function loadMaps(includeArchived = false) {
       // Intentar buscar el ID 1, si no el primero
       const def = state.mapsList.find(m => m.id === 1) || state.mapsList[0];
       selectMap(def, false); // false = no recargar issues todavía
+    }
+
+    // Actualizar selector de padres (solo mapas base)
+    const parentSelect = $("#mapParent");
+    if (parentSelect) {
+      const currentVal = parentSelect.value;
+      parentSelect.innerHTML = '<option value="">-- Ninguno (Plano base) --</option>';
+      state.mapsList
+        .filter(m => !m.parent_id && !m.archived)
+        .forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = m.name;
+          parentSelect.appendChild(opt);
+        });
+      parentSelect.value = currentVal;
     }
   } catch (err) {
     console.error("Error cargando mapas:", err);
@@ -109,7 +142,27 @@ function renderMapsList() {
     return;
   }
 
-  state.mapsList.forEach(m => {
+  // Organizar jerárquicamente
+  const bases = state.mapsList.filter(m => !m.parent_id);
+  const layers = state.mapsList.filter(m => m.parent_id);
+
+  bases.forEach(m => {
+    renderMapRow(container, m, currentUser, isAdmin, false);
+    const myLayers = layers.filter(l => l.parent_id === m.id);
+    myLayers.forEach(l => {
+      renderMapRow(container, l, currentUser, isAdmin, true);
+    });
+  });
+
+  // Capas huérfanas (si el padre fue borrado o no está en la lista)
+  layers.forEach(l => {
+    if (!bases.find(b => b.id === l.parent_id)) {
+      renderMapRow(container, l, currentUser, isAdmin, false);
+    }
+  });
+}
+
+function renderMapRow(container, m, currentUser, isAdmin, isLayer) {
     const el = document.createElement("div");
     el.className = "map-item";
     el.style.cssText = `
@@ -117,6 +170,7 @@ function renderMapsList() {
       padding: 10px; border-bottom: 1px solid var(--border2);
       background: ${state.currentMap?.id === m.id ? 'var(--chip2)' : 'transparent'};
       opacity: ${m.archived ? '0.5' : '1'};
+      ${isLayer ? 'margin-left: 20px; border-left: 2px solid var(--border1);' : ''}
     `;
 
     const isMine = currentUser && m.created_by === currentUser.id;
@@ -128,7 +182,7 @@ function renderMapsList() {
       <img src="${m.thumb_url || m.file_url}" style="width:60px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
       <div style="flex:1; min-width:0;">
         <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          ${m.archived ? '📦 ' : ''}${safeText(m.name)}
+          ${m.archived ? '📦 ' : ''}${isLayer ? '↳ ' : ''}${safeText(m.name)}
         </div>
         <div style="font-size:11px; color:var(--muted);">
            ${m.created_by_username ? `Por ${safeText(m.created_by_username)}` : 'Sistema'}
@@ -138,6 +192,7 @@ function renderMapsList() {
         <button class="btn small btn-select-map" style="${state.currentMap?.id === m.id ? 'background:var(--ok); color:#fff; border:none;' : ''}">
           ${state.currentMap?.id === m.id ? 'Activo' : 'Usar'}
         </button>
+        <button class="btn small btn-qr-map" title="Código QR">🔳</button>
         ${canManage && !isSystem ? `
           <button class="btn small btn-archive-map" title="${m.archived ? 'Desarchivar' : 'Archivar'}">
             ${m.archived ? '📤' : '📦'}
@@ -152,13 +207,17 @@ function renderMapsList() {
       renderMapsList(); // Re-render para actualizar botones
     };
 
+    el.querySelector(".btn-qr-map").onclick = () => {
+      const url = getMapUrl(m.id);
+      showQrModal(url, `Plano: ${safeText(m.name)}`);
+    };
+
     if (canManage && !isSystem) {
       el.querySelector(".btn-del-map").onclick = () => deleteMap(m.id);
       el.querySelector(".btn-archive-map").onclick = () => archiveMap(m.id, !m.archived);
     }
 
     container.appendChild(el);
-  });
 }
 
 export function selectMap(map, reloadIssuesFlag = true) {

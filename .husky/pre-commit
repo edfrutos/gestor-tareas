@@ -1,11 +1,9 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+#!/usr/bin/env bash
+set -e
 
-# Intentar correr tests en Docker si el contenedor está arriba
-if docker compose ps gestor-tareas --status running > /dev/null 2>&1; then
-  echo "🧪 Ejecutando tests en contenedor..."
-  docker compose exec -T gestor-tareas npm test
-else
-  # Si no hay Docker, intentamos local pero sin alarmas de arquitectura
-  npm test > /dev/null 2>&1 || true
-fi
+# Tests: en macOS forzar Node arm64 (evita conflicto sqlite3 arm64 vs x86_64)
+echo "🧪 Running validation tests..."
+case "$(uname -s)" in
+  Darwin) arch -arm64 npm test ;;
+  *)      npm test ;;
+esac

@@ -33,5 +33,6 @@ síncrona
 sqlite
 sqlite3
 Valladolid
+vmdk
 x-api-key
 x-csrf-token

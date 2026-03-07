@@ -8,12 +8,17 @@
   "scripts": {
     "start": "node src/server.js",
     "start:prod": "NODE_ENV=production node src/server.js",
-    "test": "npx jest",
+    "test": "npx jest --forceExit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "snapshot": "node src/scripts/generate-snapshot.js --out esqueleto.txt",
     "snapshot:stdout": "node src/scripts/generate-snapshot.js --stdout",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "backup": "NODE_ENV=production node -e \"require('./src/cron/backup').runBackup()\"",
+    "backup:restore": "node src/scripts/backup-restore.js",
+    "backup:prune": "node src/scripts/backup-prune.js",
+    "db:recover": "node src/scripts/db-recover.js",
+    "uploads:prune": "node src/scripts/uploads-prune.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
