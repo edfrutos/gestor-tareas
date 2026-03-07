@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-# Run validation tests locally (avoids dependency issues in container)
+# Tests: en macOS forzar Node arm64 (evita conflicto sqlite3 arm64 vs x86_64)
 echo "🧪 Running validation tests..."
-npm test
+case "$(uname -s)" in
+  Darwin) arch -arm64 npm test ;;
+  *)      npm test ;;
+esac
