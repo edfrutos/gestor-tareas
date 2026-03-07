@@ -1,4 +1,4 @@
-import { API_BASE } from "./config.js";
+import { API_BASE, LS_API_KEY } from "./config.js";
 import { fetchJson } from "./api.js";
 
 const LS_TOKEN = "cc_token";
@@ -10,20 +10,41 @@ export function getToken() {
 
 export function getUser() {
   const u = localStorage.getItem(LS_USER);
-  try { return u ? JSON.parse(u) : null; } catch(e) { return null; }
+  try { return u ? JSON.parse(u) : null; } catch { return null; }
 }
 
 export async function login(username, password) {
-  const res = await fetchJson(`${API_BASE}/auth/login`, {
+  // Login sin auth (público)
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ username, password })
   });
 
-  if (res.token) {
-    localStorage.setItem(LS_TOKEN, res.token);
-    localStorage.setItem(LS_USER, JSON.stringify(res.user));
-    return res.user;
+  const data = res.ok ? await res.json().catch(() => ({})) : null;
+  if (!res.ok) {
+    const err = data?.error || new Error("Usuario o contraseña incorrectos");
+    throw typeof err === "string" ? new Error(err) : new Error(err.message || "Error en login");
+  }
+
+  if (data?.token) {
+    localStorage.setItem(LS_TOKEN, data.token);
+    localStorage.setItem(LS_USER, JSON.stringify(data.user || {}));
+
+    // Tras login: obtener API_KEY del servidor (desde .env) si no hay en localStorage
+    try {
+      const apiRes = await fetch(`${API_BASE}/auth/me/apikey`, {
+        headers: { "Authorization": `Bearer ${data.token}`, "Accept": "application/json" },
+        credentials: "include"
+      });
+      if (apiRes.ok) {
+        const { apiKey } = await apiRes.json().catch(() => ({}));
+        if (apiKey) localStorage.setItem(LS_API_KEY, apiKey);
+      }
+    } catch (_e) { /* ignorar si falla */ }
+
+    return data.user;
   }
   throw new Error("Error en la respuesta de autenticación");
 }
@@ -55,9 +76,10 @@ export async function changePassword(currentPassword, newPassword) {
 export function logout() {
   localStorage.removeItem(LS_TOKEN);
   localStorage.removeItem(LS_USER);
+  localStorage.removeItem(LS_API_KEY);
   location.reload();
 }
 
 export function isAuthenticated() {
-  return !!getToken();
+  return !!getToken() || !!(localStorage.getItem(LS_API_KEY) || "").trim();
 }

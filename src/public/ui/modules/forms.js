@@ -64,7 +64,7 @@ export async function loadUsersForForm() {
   const assignSelect = $("#assigned_to");
   if (!assignSelect) return;
   try {
-    const data = await fetchJson(`${API_BASE}/users`);
+    const data = await fetchJson(`${API_BASE}/users/for-assign`);
     // El backend devuelve { items: [], total: ... }
     const users = data.items || [];
     

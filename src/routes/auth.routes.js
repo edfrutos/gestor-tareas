@@ -162,6 +162,22 @@ router.post("/reset-password", async (req, res, next) => {
   }
 });
 
+// GET /v1/auth/me/apikey - Devuelve API_KEY del servidor (solo usuarios autenticados con JWT)
+router.get("/me/apikey", requireAuth(), async (req, res, next) => {
+  try {
+    if (req.authMethod !== "jwt") {
+      return res.status(403).json({ error: "Solo disponible tras login con usuario/contraseña" });
+    }
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      return res.json({ apiKey: null });
+    }
+    res.json({ apiKey });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // GET /v1/auth/me
 router.get("/me", requireAuth(), async (req, res, next) => {
   try {

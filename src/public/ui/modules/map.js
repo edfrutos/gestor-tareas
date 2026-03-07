@@ -2,6 +2,7 @@ import { state } from "./store.js";
 import { getUser } from "./auth.js";
 import { $, catColor, statusLabel, safeText, toast } from "./utils.js";
 import { fetchJson } from "./api.js";
+import { API_BASE } from "./config.js";
 
 // Fuente única de verdad para detección móvil (usado en ensureMap y addMarkers)
 function getIsMobile() {
@@ -55,7 +56,30 @@ export function initMapModule() {
       
       // Cargar zonas del nuevo plano
       loadZones(mapData.id);
+
+      // Cargar capas técnicas
+      loadMapLayers(mapData.id);
     }
+  });
+}
+
+// Obtener bounds que preservan la proporción de la imagen (fotos normales, no panorámicas)
+function getImageBoundsFromDimensions(width, height) {
+  if (!width || !height) return [[0, 0], [1000, 1000]];
+  const w = Number(width);
+  const h = Number(height);
+  if (w >= h) {
+    return [[0, 0], [1000 * h / w, 1000]];
+  }
+  return [[0, 0], [1000, 1000 * w / h]];
+}
+
+function loadImageDimensions(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url.startsWith("/") ? (window.location.origin + url) : url;
   });
 }
 
@@ -89,15 +113,29 @@ export function ensureMap() {
     position: isMobile ? "bottomright" : "topright"
   }).addTo(state.map);
 
-  const bounds = [[0, 0], [1000, 1000]];
-  
-  // Imagen inicial (fallback o state.currentMap)
   const imageUrl = state.currentMap ? state.currentMap.file_url : "/ui/plano.jpg";
+  const bounds = [[0, 0], [1000, 1000]];
 
   state.mapOverlay = L.imageOverlay(imageUrl, bounds).addTo(state.map);
+  state.mapBounds = bounds;
   state.map.fitBounds(bounds);
 
+  // Cargar dimensiones reales para preservar proporción (fotos normales)
+  loadImageDimensions(imageUrl).then((dims) => {
+    if (dims && state.mapOverlay) {
+      const newBounds = getImageBoundsFromDimensions(dims.width, dims.height);
+      state.map.removeLayer(state.mapOverlay);
+      state.mapOverlay = L.imageOverlay(imageUrl, newBounds).addTo(state.map);
+      state.mapBounds = newBounds;
+      state.map.fitBounds(newBounds);
+    }
+  });
+
   state.markersLayer = L.layerGroup().addTo(state.map);
+
+  // Control de capas (técnicas) - posicionado abajo a la derecha para que quede fuera del plano
+  state.technicalLayersControl = L.control.layers(null, null, { position: 'bottomright', collapsed: isMobile }).addTo(state.map);
+  state.activeTechnicalLayers = new Map();
 
   state.map.on("click", (ev) => {
     // Si el control de dibujo está activo, no poner pin de tarea
@@ -150,9 +188,10 @@ export function ensureMap() {
 
       try {
         const geojson = JSON.stringify(layer.toGeoJSON());
-        const res = await fetchJson(`/v1/maps/${state.currentMap.id}/zones`, {
+        const res = await fetchJson(`${API_BASE}/maps/${state.currentMap.id}/zones`, {
           method: "POST",
-          body: { name, type, geojson, color: "#7c5cff" }
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, type, geojson, color: "#7c5cff" })
         });
         
         layer.options.id = res.id;
@@ -171,7 +210,7 @@ export function ensureMap() {
       layers.eachLayer((layer) => {
         if (layer.options.id) {
           promises.push(
-            fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
+            fetchJson(`${API_BASE}/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
               method: "DELETE"
             }).then(() => true).catch((err) => {
               console.error("Error deleting zone:", layer.options.id, err);
@@ -194,9 +233,10 @@ export function ensureMap() {
         if (layer.options.id) {
           try {
             const geojson = JSON.stringify(layer.toGeoJSON());
-            await fetchJson(`/v1/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
+            await fetchJson(`${API_BASE}/maps/${state.currentMap.id}/zones/${layer.options.id}`, {
               method: "PATCH",
-              body: { geojson }
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ geojson })
             });
             toast("💾 Zona actualizada");
           } catch (err) { console.error("Error updating zone:", err); }
@@ -206,7 +246,41 @@ export function ensureMap() {
   }
 
   // Cargar zonas iniciales si hay plano seleccionado
-  if (state.currentMap) loadZones(state.currentMap.id);
+  if (state.currentMap) {
+    loadZones(state.currentMap.id);
+    loadMapLayers(state.currentMap.id);
+  }
+}
+
+export async function loadMapLayers(mapId) {
+  if (!state.map || !state.technicalLayersControl) return;
+
+  // Limpiar capas técnicas anteriores
+  state.activeTechnicalLayers.forEach((layer) => {
+    state.technicalLayersControl.removeLayer(layer);
+    state.map.removeLayer(layer);
+  });
+  state.activeTechnicalLayers.clear();
+
+  try {
+    const map = await fetchJson(`${API_BASE}/maps/${mapId}`);
+    if (map && map.layers) {
+      let bounds = state.mapBounds || [[0, 0], [1000, 1000]];
+      const fileUrl = state.currentMap?.file_url;
+      if (fileUrl) {
+        const fullUrl = fileUrl.startsWith("/") ? (window.location.origin + fileUrl) : fileUrl;
+        const dims = await loadImageDimensions(fullUrl);
+        if (dims) bounds = getImageBoundsFromDimensions(dims.width, dims.height);
+      }
+      map.layers.forEach(l => {
+        const overlay = L.imageOverlay(l.file_url, bounds, { opacity: 0.7 });
+        state.technicalLayersControl.addOverlay(overlay, `🛠️ ${safeText(l.name)}`);
+        state.activeTechnicalLayers.set(l.id, overlay);
+      });
+    }
+  } catch (err) {
+    console.error("Error loading map layers:", err);
+  }
 }
 
 export async function loadZones(mapId) {
@@ -214,7 +288,7 @@ export async function loadZones(mapId) {
   state.zonesLayer.clearLayers();
 
   try {
-    const zones = await fetchJson(`/v1/maps/${mapId}/zones`);
+    const zones = await fetchJson(`${API_BASE}/maps/${mapId}/zones`);
     zones.forEach(z => {
       try {
         const geo = JSON.parse(z.geojson);
@@ -241,7 +315,17 @@ export function updateMapImage(url) {
     console.warn("Map not ready for image update");
     return;
   }
+  const fullUrl = url.startsWith("/") ? (window.location.origin + url) : url;
   state.mapOverlay.setUrl(url);
+  loadImageDimensions(fullUrl).then((dims) => {
+    if (dims && state.mapOverlay) {
+      const bounds = getImageBoundsFromDimensions(dims.width, dims.height);
+      state.map.removeLayer(state.mapOverlay);
+      state.mapOverlay = L.imageOverlay(url, bounds).addTo(state.map);
+      state.mapBounds = bounds;
+      state.map.fitBounds(bounds);
+    }
+  });
 }
 
 export function clearMarkers() {

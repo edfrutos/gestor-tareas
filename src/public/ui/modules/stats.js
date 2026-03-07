@@ -72,6 +72,11 @@ function getChartBgColor() {
 }
 
 function renderCharts(data) {
+    if (!data || typeof data !== "object") return;
+    const byStatus = data.byStatus || {};
+    const byCategory = data.byCategory || {};
+    const byUser = data.byUser || [];
+
     const user = getUser();
     const isAdmin = user?.role === 'admin';
     const bgColor = getChartBgColor();
@@ -87,7 +92,7 @@ function renderCharts(data) {
             data: {
                 labels: ['Abiertas', 'En curso', 'Resueltas'],
                 datasets: [{
-                    data: [data.byStatus.open || 0, data.byStatus.in_progress || 0, data.byStatus.resolved || 0],
+                    data: [byStatus.open || 0, byStatus.in_progress || 0, byStatus.resolved || 0],
                     backgroundColor: ['#3498db', '#f39c12', '#2ecc71'],
                     borderWidth: 0
                 }]
@@ -129,14 +134,14 @@ function renderCharts(data) {
     destroyChart('category');
     const categoryCtx = $("#chartCategory");
     if (categoryCtx) {
-        const catLabels = Object.keys(data.byCategory);
+        const catLabels = Object.keys(byCategory);
         charts.category = new Chart(categoryCtx, {
             type: 'bar',
             data: {
                 labels: catLabels,
                 datasets: [{
                     label: 'Tareas',
-                    data: catLabels.map(l => data.byCategory[l]),
+                    data: catLabels.map(l => byCategory[l]),
                     backgroundColor: '#7c5cff'
                 }]
             },
@@ -169,7 +174,7 @@ function renderCharts(data) {
 
     // 3. Gráfico de Usuarios (Solo Admin)
     const userContainer = $("#chartUserContainer");
-    if (isAdmin && data.byUser && data.byUser.length > 0) {
+    if (isAdmin && Array.isArray(byUser) && byUser.length > 0) {
         if (userContainer) userContainer.style.display = "block";
         destroyChart('user');
         const userCtx = $("#chartUser");
@@ -177,10 +182,10 @@ function renderCharts(data) {
             charts.user = new Chart(userCtx, {
                 type: 'bar',
                 data: {
-                    labels: data.byUser.map(u => u.username),
+                    labels: byUser.map(u => u.username),
                     datasets: [{
                         label: 'Tareas creadas',
-                        data: data.byUser.map(u => u.count),
+                        data: byUser.map(u => u.count),
                         backgroundColor: '#00c7ff'
                     }]
                 },

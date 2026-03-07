@@ -117,7 +117,8 @@ async function getAllSettings() {
     "RATE_LIMIT_WINDOW_MS",
     "RATE_LIMIT_MAX",
     "ADMIN_EMAIL",
-    "PUBLIC_URL"
+    "PUBLIC_URL",
+    "MAILPIT_URL"
   ];
 
   const settings = {};

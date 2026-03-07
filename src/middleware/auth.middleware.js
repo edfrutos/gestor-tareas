@@ -15,6 +15,7 @@ function requireAuth(options = {}) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = decoded; // { id, username, role }
+        req.authMethod = "jwt";
         if (requiredRole && req.user.role !== requiredRole) {
           return res.status(403).json({
             error: { code: "forbidden", message: "Acceso denegado: Se requiere rol de administrador" },
@@ -36,6 +37,7 @@ function requireAuth(options = {}) {
           const b = Buffer.from(String(expectedKey));
           if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
             req.user = { id: 1, username: "system", role: "admin" };
+            req.authMethod = "apikey";
             if (requiredRole && req.user.role !== requiredRole) {
               return res.status(403).json({
                 error: { code: "forbidden", message: "Acceso denegado: Se requiere rol de administrador" },
@@ -46,9 +48,10 @@ function requireAuth(options = {}) {
        } catch (_e) { /* noop */ }
     }
 
-    // 3. Si estamos en DEV sin clave configurada, dejamos pasar
-    if (!expectedKey && process.env.NODE_ENV !== "production") {
+    // 3. Si estamos en DEV sin clave configurada, dejamos pasar (no en test: los tests deben verificar auth real)
+    if (!expectedKey && process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
       req.user = { id: 1, username: "dev-anonymous", role: "admin" };
+      req.authMethod = "dev";
       if (requiredRole && req.user.role !== requiredRole) {
         return res.status(403).json({
           error: { code: "forbidden", message: "Acceso denegado: Se requiere rol de administrador" },

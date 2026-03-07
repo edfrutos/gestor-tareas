@@ -379,6 +379,7 @@ const photosRoutes = require("./routes/photos.routes");
 const usersRoutes = require("./routes/users.routes");
 const mapsRoutes = require("./routes/maps.routes");
 const commentsRoutes = require("./routes/comments.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 const settingsRoutes = require("./routes/settings.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
 
@@ -408,6 +409,7 @@ app.use("/v1/issues", issuesRoutes);
 app.use("/v1/issues/:id/comments", commentsRoutes);
 app.use("/v1/photos", photosRoutes);
 app.use("/v1/users", usersRoutes);
+app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1/maps", mapsRoutes);
 app.use("/v1/settings", settingsRoutes);
 app.use("/api/auth", authRoutes);

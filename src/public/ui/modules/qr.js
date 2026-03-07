@@ -12,6 +12,7 @@ export function showQrModal(url, title = "Código QR") {
     modal = document.createElement("div");
     modal.id = "qrModal";
     modal.className = "modal";
+    modal.style.cssText = "position:fixed; inset:0; z-index:12000; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; display:none;";
 
     const card = document.createElement("div");
     card.className = "modalCard";
@@ -105,6 +106,7 @@ export function showQrModal(url, title = "Código QR") {
   });
 
   modal.style.display = "flex";
+  modal.style.zIndex = "12000";
 }
 
 /**

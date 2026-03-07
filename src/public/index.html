@@ -193,6 +193,29 @@
     /* Importante en layouts grid: permite que el contenido no “rompa” el ancho */
     section.card{ min-width: 0; }
 
+    /* Evitar recorte de la barra de dibujo/edición de zonas (Leaflet Draw) en el plano */
+    .map-card{ overflow: visible; }
+
+    /* Control de capas Leaflet: fuera del plano (en zona consejo) y contraste texto/fondo */
+    .map-card .leaflet-bottom.leaflet-right {
+      margin-bottom: -8px;
+      transform: translateY(100%);
+    }
+    .leaflet-control-layers,
+    .leaflet-control-layers-expanded {
+      background: var(--bg) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border2) !important;
+    }
+    .leaflet-control-layers-expanded {
+      padding: 8px 12px;
+    }
+    .leaflet-control-layers label,
+    .leaflet-control-layers-overlays label,
+    .leaflet-control-layers-overlays label span {
+      color: var(--text) !important;
+    }
+
     /* Asegura que la lista y las tarjetas ocupen todo el ancho disponible */
     #list{ width: 100%; min-width: 0; }
     .issueCard{ width: 100%; min-width: 0; }
@@ -787,9 +810,11 @@
         <span id="userInfo" style="display:none; font-size:13px; color:var(--muted); margin-right:10px;">
           👤 <strong id="userName" style="color:var(--text);"></strong>
         </span>
+        <button class="btn small" id="btnNotifications" title="Ver actividad en mis tareas (comentarios, respuestas, cambios)" style="margin-right:6px;">📬 Mis notificaciones</button>
         <button class="btn small" id="btnStats" title="Ver Estadísticas" style="margin-right:6px;">📊 Estadísticas</button>
         <button class="btn small" id="btnMaps" title="Gestionar Planos" style="margin-right:6px;">🗺️ Planos</button>
         <button class="btn small" id="btnSettings" title="Configuración Global" style="display:none; margin-right:6px;">⚙️ Config</button>
+        <button class="btn small" id="btnMailpit" title="Ver correos en Mailpit" style="display:none; margin-right:6px;">📧 Correos</button>
         <button class="btn small" id="btnUsers" style="display:none; margin-right:6px;">👥 Usuarios</button>
         <button class="btn small" id="btnLogout" style="display:none; margin-right:10px;">Salir</button>
 
@@ -814,16 +839,16 @@
 
   <main>
     <div class="top-panel">
-      <!-- Mapa -->
-      <section class="card">
+      <!-- Mapa (overflow:visible para que la barra de dibujo/edición de zonas no se recorte) -->
+      <section class="card map-card">
         <h2>
           <span id="mapTitle">🗺️ Mapa</span>
           <span class="muted" id="mapHint">Clic para ubicar</span>
         </h2>
         <div id="map"></div>
         <div class="pad">
-          <div class="muted">
-            Consejo: “Mi ubicación” intentará centrar el mapa.
+          <div class="muted" id="mapConsejo">
+            Consejo: “Mi ubicación” intentará centrar el mapa. Las zonas (rectángulos/polígonos) se muestran sobre el plano; usa el icono de dibujo para crear nuevas.
           </div>
         </div>
       </section>
@@ -1039,6 +1064,15 @@
           <div id="dmImgContainer" style="display:none;">
             <img id="dmImg" class="detailImg" alt="Prueba gráfica" loading="lazy" />
           </div>
+          <!-- Recorte/ubicación en plano -->
+          <div id="dmLocationPreview" style="display:none; margin-bottom:14px; border-radius:12px; overflow:hidden; border:1px solid var(--border2); background:var(--panel2);">
+            <div style="padding:8px 12px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--border2);">📍 Ubicación en plano</div>
+            <div id="dmLocationMapWrap" style="position:relative; height:140px; background:var(--chip);">
+              <img id="dmLocationMapImg" alt="" style="width:100%; height:100%; object-fit:contain; display:block;" />
+              <div id="dmLocationMarker" style="position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:var(--accent); border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.4); pointer-events:none;"></div>
+            </div>
+            <button type="button" class="btn small" id="dmBtnShowOnMap" style="margin:8px 12px; font-size:12px;">📍 Ver en mapa completo</button>
+          </div>
           
           <div id="dmDocContainer" style="display:none; padding:14px; background:var(--panel2); border-radius:12px; margin-bottom:16px; border:1px solid var(--border2);">
              <h4 style="margin:0 0 8px 0; font-size:13px; color:var(--muted);">Documento adjunto</h4>
@@ -1215,6 +1249,22 @@
     </div>
   </div>
 
+  <!-- Modal Centro de Notificaciones -->
+  <div class="modal" id="notificationsModal" style="display:none; z-index:15500; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="width:min(480px, 95vw); max-height:80vh; display:flex; flex-direction:column; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border2); display:flex; justify-content:space-between; align-items:center; background:var(--panel);">
+        <h3 style="margin:0; font-size:16px;">📬 Actividad en mis tareas</h3>
+        <button class="btn small" id="notificationsClose">✕</button>
+      </div>
+      <div id="notificationsList" style="overflow-y:auto; flex:1; max-height:400px; min-height:120px;">
+        <!-- Cargado por JS -->
+      </div>
+      <div style="padding:10px 16px; border-top:1px solid var(--border2); font-size:12px; color:var(--muted);">
+        Comentarios, respuestas y cambios en tareas que creaste o te asignaron.
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Perfil -->
   <div class="modal" id="profileModal" style="display:none; z-index:15000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; position:fixed; inset:0;">
     <div class="modalCard" style="max-width:350px; padding:20px; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
@@ -1222,6 +1272,7 @@
         <h3 style="margin:0;">Mi Perfil</h3>
         <button class="btn small" id="profileClose">✕</button>
       </div>
+      <button type="button" class="btn small" id="profileBtnNotifications" style="width:100%; margin-bottom:15px; display:flex; align-items:center; justify-content:center; gap:8px;">📬 Ver actividad en mis tareas</button>
       <form id="changePassForm">
         <!-- Campo oculto para que el gestor de contraseñas sepa a qué usuario pertenece -->
         <input type="text" name="username" id="profileStaticUser" style="display:none;" autocomplete="username" />
@@ -1395,6 +1446,12 @@
                <small class="muted" style="font-size:11px; opacity:0.7;">Para enlaces en correos de recuperación.</small>
             </div>
 
+            <div>
+               <label>URL de Mailpit (Correos)</label>
+               <input name="MAILPIT_URL" type="url" placeholder="http://localhost:8825" />
+               <small class="muted" style="font-size:11px; opacity:0.7;">Puerto 8825 (Web UI). El 8025 es solo SMTP. Guarda y usa el botón 📧 Correos.</small>
+            </div>
+
             <div style="border-top:1px solid var(--border2); padding-top:10px; margin-top:5px;">
                <h4 style="font-size:14px; margin-bottom:10px;">Seguridad (Rate Limit)</h4>
                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
@@ -1461,7 +1518,7 @@
   <script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-  <script src="ui/app.js?v=11" type="module"></script>
+  <script src="ui/app.js?v=14" type="module"></script>
   <script src="ui/sw-register.js"></script>
 </body>
 </html>

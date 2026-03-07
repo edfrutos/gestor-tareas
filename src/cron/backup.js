@@ -82,15 +82,35 @@ function runBackup() {
 
 function pruneOldBackups(backupDir) {
   try {
-    const files = fs.readdirSync(backupDir);
+    const files = fs.readdirSync(backupDir).filter((f) => {
+      const full = path.join(backupDir, f);
+      return fs.statSync(full).isFile();
+    });
+    if (files.length === 0) return;
+
     const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
     let pruned = 0;
-    for (const f of files) {
-      const full = path.join(backupDir, f);
-      const stat = fs.statSync(full);
-      if (stat.mtimeMs < cutoff) {
-        fs.unlinkSync(full);
-        pruned++;
+
+    if (RETENTION_DAYS <= 1) {
+      // Mantener solo el backup más reciente (par db + uploads con mismo timestamp)
+      const byMtime = files
+        .map((f) => ({ name: f, mtime: fs.statSync(path.join(backupDir, f)).mtimeMs }))
+        .sort((a, b) => b.mtime - a.mtime);
+      const keepBase = byMtime[0]?.name.replace(/^(db|uploads)-|\.(sqlite|tar\.gz)$/g, "") || "";
+      for (const f of files) {
+        const base = f.replace(/^(db|uploads)-|\.(sqlite|tar\.gz)$/g, "");
+        if (base !== keepBase) {
+          fs.unlinkSync(path.join(backupDir, f));
+          pruned++;
+        }
+      }
+    } else {
+      for (const f of files) {
+        const full = path.join(backupDir, f);
+        if (fs.statSync(full).mtimeMs < cutoff) {
+          fs.unlinkSync(full);
+          pruned++;
+        }
       }
     }
     if (pruned > 0) console.log(`[Backup] Pruned ${pruned} old backup(s)`);

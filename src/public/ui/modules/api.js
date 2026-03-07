@@ -1,11 +1,6 @@
 import { API_BASE, LS_API_KEY } from "./config.js";
 import { getToken } from "./auth.js";
 
-function isMutating(m) {
-  const mm = String(m || "GET").toUpperCase();
-  return ["POST", "PUT", "PATCH", "DELETE"].includes(mm);
-}
-
 export function getApiKey() {
   return (localStorage.getItem(LS_API_KEY) || "").trim();
 }
@@ -33,7 +28,7 @@ export async function fetchJson(url, opts = {}) {
   if (token) headers.set("authorization", `Bearer ${token}`);
 
   const key = getApiKey();
-  if (key && !token) headers.set("x-api-key", key);
+  if (key) headers.set("x-api-key", key);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -79,33 +74,29 @@ export async function fetchUpload(url, opts = {}) {
   if (token) headers.set("authorization", `Bearer ${token}`);
 
   const key = getApiKey();
-  if (key && !token) headers.set("x-api-key", key);
+  if (key) headers.set("x-api-key", key);
 
-  try {
-    const res = await fetch(url, {
-      ...opts,
-      credentials: "include",
-      headers,
-    });
+  const res = await fetch(url, {
+    ...opts,
+    credentials: "include",
+    headers,
+  });
 
-    const ct = res.headers.get("content-type") || "";
-    let data = null;
-    if (ct.includes("application/json")) {
-      data = await res.json().catch(() => null);
-    } else {
-      const txt = await res.text().catch(() => "");
-      data = { error: { message: txt || `Error HTTP ${res.status}` } };
-    }
+  const ct = res.headers.get("content-type") || "";
+  let data = null;
+  if (ct.includes("application/json")) {
+    data = await res.json().catch(() => null);
+  } else {
+    const txt = await res.text().catch(() => "");
+    data = { error: { message: txt || `Error HTTP ${res.status}` } };
+  }
 
-    if (!res.ok) {
-      const msg = data?.error?.message || data?.message || `HTTP ${res.status}`;
-      const err = new Error(msg);
-      err.status = res.status;
-      err.data = data;
-      throw err;
-    }
-    return data;
-  } catch (err) {
+  if (!res.ok) {
+    const msg = data?.error?.message || data?.message || `HTTP ${res.status}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.data = data;
     throw err;
   }
+  return data;
 }

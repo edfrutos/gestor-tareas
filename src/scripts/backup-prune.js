@@ -37,15 +37,27 @@ function run() {
     return;
   }
 
-  const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
-  const files = fs.readdirSync(backupDir);
+  const files = fs
+    .readdirSync(backupDir)
+    .filter((f) => fs.statSync(path.join(backupDir, f)).isFile());
   const toDelete = [];
 
-  for (const f of files) {
-    const full = path.join(backupDir, f);
-    const stat = fs.statSync(full);
-    if (stat.isFile() && stat.mtimeMs < cutoff) {
-      toDelete.push({ name: f, mtime: stat.mtime });
+  if (RETENTION_DAYS <= 1) {
+    // Mantener solo el backup más reciente (par db + uploads con mismo timestamp)
+    const byMtime = files
+      .map((f) => ({ name: f, mtime: fs.statSync(path.join(backupDir, f)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime);
+    const keepBase = byMtime[0]?.name.replace(/^(db|uploads)-|\.(sqlite|tar\.gz)$/g, "") || "";
+    for (const f of files) {
+      const base = f.replace(/^(db|uploads)-|\.(sqlite|tar\.gz)$/g, "");
+      if (base !== keepBase) toDelete.push({ name: f, mtime: new Date(fs.statSync(path.join(backupDir, f)).mtimeMs) });
+    }
+  } else {
+    const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    for (const f of files) {
+      const full = path.join(backupDir, f);
+      const stat = fs.statSync(full);
+      if (stat.mtimeMs < cutoff) toDelete.push({ name: f, mtime: stat.mtime });
     }
   }
 

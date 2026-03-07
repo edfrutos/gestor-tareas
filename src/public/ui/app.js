@@ -10,12 +10,14 @@ import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
 import { initSocketModule } from "./modules/socket.js";
 import { initSettingsModule } from "./modules/settings.js";
+import { initNotificationsModule, showNotificationsModal } from "./modules/notifications.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
 // Global Error Handler
 window.onerror = function(msg, _url, _line) {
   if (msg === "ResizeObserver loop completed with undelivered notifications.") return;
+  if (msg === "Script error.") return; // Suele venir de extensiones (ej. Dashlane), no es accionable
   const err = `JS Error: ${msg}`;
   console.error(err);
   const el = $("#status");
@@ -83,6 +85,14 @@ async function initAuth() {
       }
     };
   }
+
+  const profileBtnNotifications = $("#profileBtnNotifications");
+  if (profileBtnNotifications) {
+    profileBtnNotifications.onclick = () => {
+      if (profileModal) profileModal.style.display = "none";
+      showNotificationsModal();
+    };
+  }
   
   if(profileClose) profileClose.onclick = () => profileModal.style.display = "none";
   
@@ -130,6 +140,11 @@ async function initAuth() {
         }
         st.textContent = msg || "Error";
         st.style.color = "var(--bad)";
+        if (err.status === 404 || (msg && msg.toLowerCase().includes("no encontrado"))) {
+          setTimeout(() => {
+            logout();
+          }, 2500);
+        }
       }
     };
   }
@@ -188,9 +203,16 @@ async function initAuth() {
     };
   }
 
-  const check = () => {
+  const check = async () => {
     if (isAuthenticated()) {
-      const user = getUser();
+      let user = getUser();
+      if (!user && isAuthenticated()) {
+        try {
+          const { user: u } = await fetchJson(`${API_BASE}/auth/me`);
+          if (u) localStorage.setItem("cc_user", JSON.stringify(u));
+          user = u;
+        } catch (_e) { /* ignorar */ }
+      }
       modal.style.display = "none";
       if(userInfo) userInfo.style.display = "inline";
       if(btnLogout) btnLogout.style.display = "inline-block";
@@ -344,7 +366,16 @@ async function handleDeepLinks() {
 
   if (mapId) {
     const { state } = await import("./modules/store.js");
-    const targetMap = state.mapsList.find(m => m.id === Number(mapId));
+    const { fetchJson } = await import("./modules/api.js");
+    let targetMap = state.mapsList.find(m => m.id === Number(mapId));
+    if (!targetMap) {
+      try {
+        targetMap = await fetchJson(`${API_BASE}/maps/${mapId}`);
+        if (targetMap) state.mapsList = [...(state.mapsList || []), targetMap];
+      } catch (e) {
+        console.warn("Could not load deep linked map", e);
+      }
+    }
     if (targetMap) {
       const { selectMap } = await import("./modules/maps.js");
       await selectMap(targetMap, false);
@@ -354,12 +385,20 @@ async function handleDeepLinks() {
   if (issueId) {
     const { fetchJson } = await import("./modules/api.js");
     const { openDetailModal } = await import("./modules/details.v2.js");
+    const { state } = await import("./modules/store.js");
     try {
       const it = await fetchJson(`${API_BASE}/issues/${issueId}`);
       if (it) {
-        // Asegurarse de que el mapa correcto esté cargado antes de abrir
         if (it.map_id && (!state.currentMap || state.currentMap.id !== it.map_id)) {
-           const targetMap = state.mapsList.find(m => m.id === it.map_id);
+           let targetMap = state.mapsList.find(m => m.id === it.map_id);
+           if (!targetMap) {
+             try {
+               targetMap = await fetchJson(`${API_BASE}/maps/${it.map_id}`);
+               if (targetMap) state.mapsList = [...(state.mapsList || []), targetMap];
+             } catch (e) {
+               console.warn("Could not load map for issue", e);
+             }
+           }
            if (targetMap) {
               const { selectMap } = await import("./modules/maps.js");
               await selectMap(targetMap, false);
@@ -407,6 +446,7 @@ function initOfflineSupport() {
     // Inicializar módulos
     initUsersModule();
     initMapsModule();
+    initNotificationsModule();
     initMapModule();
     initStatsModule();
     initSocketModule();
@@ -419,6 +459,19 @@ function initOfflineSupport() {
        if (btnUsers) btnUsers.style.display = "inline-block";
        const btnSettings = $("#btnSettings");
        if (btnSettings) btnSettings.style.display = "inline-block";
+       const btnMailpit = $("#btnMailpit");
+       if (btnMailpit) {
+         btnMailpit.style.display = "inline-block";
+         btnMailpit.onclick = async () => {
+           try {
+             const settings = await fetchJson(`${API_BASE}/settings`);
+             const url = settings?.MAILPIT_URL || "http://localhost:8825";
+             window.open(url, "_blank", "noopener");
+           } catch {
+             window.open("http://localhost:8825", "_blank", "noopener");
+           }
+         };
+       }
     }
 
     wireForms();

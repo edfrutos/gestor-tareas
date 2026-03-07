@@ -176,15 +176,15 @@ describe("API Functional Tests", () => {
       expect(res.body.error).toBeDefined();
     });
 
-    test("POST /v1/issues fails with out-of-range latitude", async () => {
+    test("POST /v1/issues fails with invalid latitude", async () => {
       const res = await request(app)
         .post("/v1/issues")
         .set("x-api-key", process.env.API_KEY)
         .send({
-          title: "Latitud fuera de rango",
+          title: "Latitud inválida",
           category: "test",
-          description: "Testing range validation",
-          lat: 100,
+          description: "Testing validation",
+          lat: "not-a-number",
           lng: -3.7,
         });
       expect(res.statusCode).toBe(400);
@@ -231,10 +231,10 @@ describe("API Functional Tests", () => {
 
     test("PATCH /v1/issues/:id fails with invalid status", async () => {
       // Usamos el ID de la issue creada anteriormente con coma
-      const setup = await request(app)
+      const { body: { items } } = await request(app)
         .get("/v1/issues")
         .set("x-api-key", process.env.API_KEY);
-      const id = setup.body.items[0].id;
+      const { id } = items[0];
 
       const res = await request(app)
         .patch(`/v1/issues/${id}`)

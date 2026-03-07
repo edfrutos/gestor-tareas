@@ -20,8 +20,11 @@ const transporter = nodemailer.createTransport({
 const FROM_EMAIL = process.env.SMTP_FROM || '"Gestor de Tareas" <no-reply@cola-ciudadana.local>';
 
 async function sendMail({ to, subject, text, html }) {
-  // Si no hay configuración SMTP real y estamos en desarrollo, logueamos el correo
-  if (!process.env.SMTP_USER && process.env.NODE_ENV !== "production") {
+  // Si hay SMTP_HOST (ej. Mailpit) configurado, enviar aunque no haya SMTP_USER
+  const hasSmtp = process.env.SMTP_HOST || process.env.SMTP_PORT;
+  const shouldSend = hasSmtp || process.env.SMTP_USER;
+
+  if (!shouldSend && process.env.NODE_ENV !== "production") {
     console.log("------------------------------------------");
     console.log(`[MAIL DEBUG] Enviando correo a: ${to}`);
     console.log(`[MAIL DEBUG] Asunto: ${subject}`);
@@ -139,6 +142,28 @@ Si no has solicitado este cambio, puedes ignorar este correo. Este enlace expira
 }
 
 /**
+ * Notifica cuando alguien comenta en una tarea (autor, asignado y autor del comentario padre si es respuesta).
+ * @param {Object} opts - { commenter, issue, commentText, recipients, isReply }
+ */
+async function notifyNewComment(commenter, issue, commentText, recipients, isReply = false) {
+  if (!recipients || recipients.length === 0) return;
+
+  const subject = isReply ? `Respuesta a tu comentario en: ${issue.title}` : `Nuevo comentario en: ${issue.title}`;
+  const text = `${commenter.username} ha comentado en la tarea "${issue.title}":\n\n"${commentText}"\n\nPuedes ver el hilo completo en la aplicación.`;
+  const html = `
+    <h2>Nuevo comentario</h2>
+    <p><strong>${commenter.username}</strong> ha comentado en la tarea "<em>${issue.title}</em>":</p>
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border-left: 4px solid #7c5cff; margin: 20px 0;">
+      <p style="margin: 0;">${String(commentText).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")}</p>
+    </div>
+    <p>Puedes ver el hilo completo en la aplicación.</p>
+  `;
+
+  const promises = recipients.map((u) => (u && u.email ? sendMail({ to: u.email, subject, text, html }) : Promise.resolve(null)));
+  await Promise.allSettled(promises);
+}
+
+/**
  * Notifica al usuario cuando se le asigna una tarea.
  */
 async function notifyTaskAssignment(user, issue, assigner) {
@@ -168,6 +193,7 @@ module.exports = {
   sendMail,
   notifyStatusChange,
   notifyNewIssue,
+  notifyNewComment,
   notifyPasswordReset,
   notifyTaskAssignment,
 };

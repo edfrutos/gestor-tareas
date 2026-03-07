@@ -84,8 +84,10 @@ async function migrate() {
         name TEXT NOT NULL,
         file_url TEXT NOT NULL,
         thumb_url TEXT,
+        parent_id INTEGER,
         created_by INTEGER NOT NULL,
         created_at TEXT NOT NULL,
+        FOREIGN KEY(parent_id) REFERENCES maps(id) ON DELETE CASCADE,
         FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
@@ -247,6 +249,7 @@ async function migrate() {
 
     const mapCols = await checkColumns("maps");
     if (!mapCols.has("archived")) await exec(`ALTER TABLE maps ADD COLUMN archived INTEGER DEFAULT 0;`);
+    if (!mapCols.has("parent_id")) await exec(`ALTER TABLE maps ADD COLUMN parent_id INTEGER REFERENCES maps(id) ON DELETE CASCADE;`);
 
     const issueCols = await checkColumns("issues");
     if (!issueCols.has("thumb_url")) await exec(`ALTER TABLE issues ADD COLUMN thumb_url TEXT;`);

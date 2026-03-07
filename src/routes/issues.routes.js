@@ -291,7 +291,7 @@ router.get("/", requireAuth(), async (req, res, next) => {
   }
 });
 
-// GET /v1/issues/:id/logs
+// GET /v1/issues/:id/logs (debe ir antes de /:id para que coincida correctamente)
 router.get("/:id/logs", requireAuth(), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -493,6 +493,33 @@ router.get("/export", requireAuth(), async (req, res, next) => {
     res.setHeader("Content-Disposition", 'attachment; filename="issues.csv"');
     res.send(csvContent);
 
+  } catch (e) {
+    next(e);
+  }
+});
+
+// GET /v1/issues/:id - Obtener una tarea por ID (debe ir después de /stats, /categories, /export)
+router.get("/:id", requireAuth(), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || !Number.isInteger(id)) return res.status(400).json({ error: { code: "bad_request", message: "ID inválido" } });
+
+    const row = await get(
+      `SELECT i.*, u.username as created_by_username, ua.username as assigned_to_username
+       FROM issues i
+       LEFT JOIN users u ON i.created_by = u.id
+       LEFT JOIN users ua ON i.assigned_to = ua.id
+       WHERE i.id = ?`,
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+
+    if (req.user.role !== "admin" && row.created_by !== req.user.id && row.assigned_to !== req.user.id) {
+      return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para ver esta tarea" } });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json(row);
   } catch (e) {
     next(e);
   }
