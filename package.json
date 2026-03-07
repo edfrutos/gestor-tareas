@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node src/server.js",
     "start:prod": "NODE_ENV=production node src/server.js",
-    "test": "npx jest",
+    "test": "npx jest --forceExit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "snapshot": "node src/scripts/generate-snapshot.js --out esqueleto.txt",
