@@ -1,6 +1,6 @@
 # Notebook de Seguimiento - Gestor de Tareas
 
-**Fecha:** 2 de Marzo de 2026
+**Fecha:** 7 de Marzo de 2026
 **Contexto:** Intervención técnica sobre repositorio `gestor-tareas`.
 
 ## 1. Estado Inicial
@@ -44,7 +44,7 @@ Al tomar el proyecto, la aplicación presentaba una arquitectura funcional basad
 
 ## 3. Estado Actual
 
-El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pueden registrarse, iniciar sesión y gestionar su perfil. Todas las acciones quedan auditadas. El despliegue en Docker es estable bajo HTTPS. Incluye centro de notificaciones en tiempo real (comentarios y respuestas), asignación de tareas, prioridades editables, plan de backup automatizado y documentación actualizada (README.md).
+El sistema cuenta con una arquitectura de seguridad profesional. Los usuarios pueden registrarse, iniciar sesión y gestionar su perfil. Todas las acciones quedan auditadas. El despliegue en Docker es estable bajo HTTPS. Incluye centro de notificaciones en tiempo real (comentarios y respuestas), asignación de tareas, prioridades editables, plan de backup automatizado y documentación actualizada (README.md). Backups en directorio externo con retención de 1 día. Pre-commit ajustado para macOS (arm64) y Jest.
 
 ---
 
@@ -443,6 +443,20 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   - Toast de error al fallar el envío de comentarios.
   - Eliminada importación no usada de `state` en `app.js`.
 
+### 2026-03-07 | Fase 39: Backup Externo, Retención y Pre-commit ✅
+
+- **Backup en Directorio Externo:**
+  - `BACKUP_DIR` configurado en `/Volumes/ESSAGER/__Backups_Repositorios/gestor-tareas` (fuera del repositorio).
+  - Docker: volumen montado desde ruta externa. Local: variable en `.env`.
+  - Mayor seguridad ante fallos de disco o borrado del proyecto.
+- **Retención 1 Día:**
+  - `BACKUP_RETENTION_DAYS=1`: se conserva solo el backup más reciente (par db + uploads).
+  - Lógica en `backup.js` y `backup-prune.js` para `RETENTION_DAYS<=1`.
+- **Pre-commit y Tests:**
+  - Pre-commit: `arch -arm64 npm test` en macOS para evitar conflicto sqlite3 (arm64 vs x86_64).
+  - Jest: `--forceExit` para evitar cuelgue por operaciones asíncronas (cron, sockets).
+- **Documentación:** `.env.example` con `BACKUP_DIR` y `BACKUP_RETENTION_DAYS`. README actualizado.
+
 ---
 
 ## 6. Observaciones Pendientes (Recordatorio)
@@ -464,7 +478,7 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 
 ---
 
-## 8. Sugerencias de Nuevas Prestaciones
+## 8. Sugerencias de Nuevas Prestaciones (Pendientes)
 
 Propuestas de funcionalidades a incorporar, clasificadas por tipo de usuario.
 
@@ -482,6 +496,8 @@ Propuestas de funcionalidades a incorporar, clasificadas por tipo de usuario.
 | Media | **Exportación personal** | Exportar "Mis tareas" a CSV/PDF con filtros aplicados. |
 | Baja | **Ordenación personalizable** | Guardar preferencias de orden (por fecha, prioridad, asignado) en perfil. |
 | Baja | **Marcas de favoritos** | Marcar tareas como favoritas para acceso rápido (complementa "Mis tareas"). |
+| Baja | **Duplicar tarea** | Botón para clonar una tarea existente (misma categoría, descripción, plano) con un clic. |
+| Baja | **Historial de cambios en perfil** | Ver últimas acciones propias (tareas creadas, editadas, comentadas). |
 
 ### 8.2. Para Administrador
 
@@ -497,6 +513,8 @@ Propuestas de funcionalidades a incorporar, clasificadas por tipo de usuario.
 | Media | **API pública documentada** | Documentación OpenAPI/Swagger para integración con sistemas externos o automatización. |
 | Baja | **Roles personalizados** | Definir roles más allá de admin/user (ej. supervisor, técnico) con permisos granulares. |
 | Baja | **Herramientas de mantenimiento** | Botones en panel admin para ejecutar auditoría, reparación y prune de uploads sin terminal. |
+| Baja | **Bloqueo de usuarios** | Deshabilitar temporalmente cuentas sin borrarlas (ej. usuario de baja). |
+| Baja | **Exportación de auditoría** | Descargar logs de cambios en CSV/JSON para análisis externo. |
 
 ---
 
