@@ -125,7 +125,7 @@ export async function openUsersModal() {
     if (btnNext) btnNext.disabled = currentPage >= totalPages;
 
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--bad); padding:20px;">Error al cargar usuarios: ${err.message}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--bad); padding:20px;">Error al cargar usuarios: ${safeText(err.message)}</td></tr>`;
   }
 }
 
@@ -158,14 +158,14 @@ function renderUsersTable(users) {
       </td>
       <td style="padding:10px 14px;">
         <span class="badge" style="font-size:11px; ${u.role === 'admin' ? 'background:rgba(124,92,255,.2); color:var(--accent);' : 'background:var(--chip);'}">
-          ${u.role}
+          ${safeText(u.role)}
         </span>
       </td>
       <td style="padding:10px 14px; font-size:12px; color:var(--muted);">${dateStr}</td>
       <td style="padding:10px 14px; text-align:right;">
         <button class="btn small btn-pass-user" data-id="${u.id}" title="Cambiar contraseña">🔑</button>
         <button class="btn small btn-edit-user" data-id="${u.id}" title="Editar usuario">✎</button>
-        ${!isMe ? `<button class="btn small danger btn-del-user" data-id="${u.id}" title="Eliminar usuario">🗑️</button>` : ''}
+        ${isMe ? '' : `<button class="btn small danger btn-del-user" data-id="${u.id}" title="Eliminar usuario">🗑️</button>`}
       </td>
     `;
     

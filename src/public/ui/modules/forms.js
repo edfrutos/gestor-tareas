@@ -32,7 +32,7 @@ function updateDocPreview(file) {
   if (!file) { box.style.display = "none"; return; }
 
   box.style.display = "flex";
-  meta.innerHTML = `<strong>${file.name}</strong>`;
+  meta.innerHTML = `<strong>${safeText(file.name)}</strong>`;
   btn.onclick = () => { $("#file").value = ""; updateDocPreview(null); };
 }
 

@@ -8,7 +8,7 @@ const sharp = require("sharp");
 
 const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
-const { getUploadDir, getThumbsDir } = require("../config/paths");
+const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 const { notifyStatusChange, notifyNewIssue, notifyTaskAssignment } = require("../services/mail.service");
 const { emitEvent } = require("../services/socket.service");
@@ -92,8 +92,9 @@ function photoToThumbUrl(photoUrl) {
 }
 
 async function makeThumbIfNeeded(photoFilename) {
-  const srcPath = path.join(uploadDir, photoFilename);
-  const dstPath = path.join(thumbsDir, `${photoFilename}.webp`);
+  const srcPath = resolveSafe(uploadDir, photoFilename);
+  const dstPath = resolveSafe(thumbsDir, `${photoFilename}.webp`);
+  if (!srcPath || !dstPath) return;
 
   if (fs.existsSync(dstPath)) return;
 
@@ -117,17 +118,15 @@ function deleteFileByUrl(url) {
   return new Promise((resolve) => {
     if (!url || !url.startsWith("/uploads/")) return resolve();
     const filename = url.replace("/uploads/", "");
-    const filepath = path.join(uploadDir, filename);
-    
+    const filepath = resolveSafe(uploadDir, filename);
+    if (!filepath) return resolve();
+
     fs.unlink(filepath, (err) => {
       if (err && err.code !== "ENOENT") console.error(`Error deleting file ${filepath}:`, err);
-      
-      // Intentar borrar thumb si es imagen (por si acaso)
-      const thumbPath = path.join(thumbsDir, `${filename}.webp`);
-      fs.unlink(thumbPath, () => {
-        // Ignoramos error en thumb
-        resolve();
-      });
+
+      const thumbPath = resolveSafe(thumbsDir, `${filename}.webp`);
+      if (thumbPath) fs.unlink(thumbPath, () => {});
+      resolve();
     });
   });
 }

@@ -6,7 +6,9 @@ const os = require("os");
 // Configuración de entorno para tests
 const TEST_DIR = path.join(os.tmpdir(), `cola-ciudadana-test-${Date.now()}`);
 fs.mkdirSync(TEST_DIR, { recursive: true });
+fs.mkdirSync(path.join(TEST_DIR, "uploads"), { recursive: true });
 
+process.env.NODE_ENV = "test";
 process.env.DB_FILE = path.join(TEST_DIR, "test.db");
 process.env.UPLOAD_DIR = path.join(TEST_DIR, "uploads");
 process.env.API_KEY = "test-secret";

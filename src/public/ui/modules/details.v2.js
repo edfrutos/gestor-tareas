@@ -32,7 +32,7 @@ function renderHistory(logs) {
 
   logs.forEach(log => {
     const date = new Date(log.created_at).toLocaleString();
-    let text = `Acción: ${log.action}`;
+    let text = `Acción: ${safeText(log.action)}`;
     let icon = "🔹";
 
     switch(log.action) {
@@ -41,15 +41,15 @@ function renderHistory(logs) {
         icon = "✨";
         break;
       case "update_status":
-        text = `Estado: ${translateStatus(log.old_value)} ➝ <strong>${translateStatus(log.new_value)}</strong>`;
+        text = `Estado: ${safeText(translateStatus(log.old_value))} ➝ <strong>${safeText(translateStatus(log.new_value))}</strong>`;
         icon = "🔄";
         break;
       case "update_priority":
-        text = `Prioridad: ${translatePriority(log.old_value)} ➝ <strong>${translatePriority(log.new_value)}</strong>`;
+        text = `Prioridad: ${safeText(translatePriority(log.old_value))} ➝ <strong>${safeText(translatePriority(log.new_value))}</strong>`;
         icon = "🚩";
         break;
       case "update_due_date":
-        text = `Fecha límite: ${log.old_value || 'Sin fecha'} ➝ <strong>${log.new_value || 'Quitada'}</strong>`;
+        text = `Fecha límite: ${safeText(log.old_value || 'Sin fecha')} ➝ <strong>${safeText(log.new_value || 'Quitada')}</strong>`;
         icon = "📅";
         break;
       case "update_description":
@@ -57,7 +57,7 @@ function renderHistory(logs) {
         icon = "📝";
         break;
       case "update_category":
-        text = `Categoría: ${log.old_value} ➝ <strong>${log.new_value}</strong>`;
+        text = `Categoría: ${safeText(log.old_value)} ➝ <strong>${safeText(log.new_value)}</strong>`;
         icon = "🏷️";
         break;
       case "update_map":
@@ -91,7 +91,7 @@ function renderHistory(logs) {
     row.style.borderBottom = "1px solid var(--border2)";
     row.innerHTML = `
       <div style="display:flex; justify-content:space-between; color:var(--muted); font-size:10px;">
-        <span>${date}</span>
+        <span>${safeText(date)}</span>
       </div>
       <div style="margin-top:2px;">${icon} ${text}</div>
     `;
