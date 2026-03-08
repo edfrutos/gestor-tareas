@@ -8,7 +8,7 @@ const { z } = require("zod");
 
 const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
-const { getUploadDir, getThumbsDir } = require("../config/paths");
+const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 
 const router = express.Router();
 
@@ -36,9 +36,10 @@ const upload = multer({
 });
 
 async function makeMapThumb(filename) {
-  const srcPath = path.join(uploadDir, filename);
-  const dstPath = path.join(thumbsDir, `${filename}.webp`);
-  
+  const srcPath = resolveSafe(uploadDir, filename);
+  const dstPath = resolveSafe(thumbsDir, `${filename}.webp`);
+  if (!srcPath || !dstPath) return null;
+
   try {
     await sharp(srcPath)
       .resize(300, 200, { fit: "cover" }) // Thumb rectangular para selectores

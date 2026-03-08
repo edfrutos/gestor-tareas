@@ -179,7 +179,7 @@ function renderMapRow(container, m, currentUser, isAdmin, isLayer) {
     const isSystem = m.id === 1;
 
     el.innerHTML = `
-      <img src="${m.thumb_url || m.file_url}" style="width:60px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
+      <img src="${safeText(m.thumb_url || m.file_url || "")}" style="width:60px; height:40px; object-fit:cover; border-radius:4px; background:#000;">
       <div style="flex:1; min-width:0;">
         <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
           ${m.archived ? '📦 ' : ''}${isLayer ? '↳ ' : ''}${safeText(m.name)}

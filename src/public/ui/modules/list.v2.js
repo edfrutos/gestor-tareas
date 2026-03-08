@@ -132,7 +132,7 @@ function renderList(items, mode) {
     
     let thumbHtml;
     if (hasThumb) {
-       thumbHtml = `<img class="thumb" src="${thumbUrl}" alt="foto" loading="lazy">`;
+       thumbHtml = `<img class="thumb" src="${safeText(thumbUrl)}" alt="foto" loading="lazy">`;
     } else if (hasDoc) {
        thumbHtml = `<div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(255,255,255,.08);">📄</div>`;
     } else {

@@ -1,4 +1,4 @@
-/* global marked */
+/* global marked, DOMPurify */
 import { resolveSameOriginUrl } from "./utils.js";
 
 // --- Foto ---
@@ -50,7 +50,8 @@ export async function showDocModal(url, title = "Documento") {
           
           const isMd = resolvedUrl.toLowerCase().endsWith(".md") || resolvedUrl.toLowerCase().endsWith(".markdown");
           if (isMd && typeof marked !== "undefined") {
-              textContent.innerHTML = marked.parse(text);
+              const raw = marked.parse(text);
+              textContent.innerHTML = typeof DOMPurify !== "undefined" ? DOMPurify.sanitize(raw) : raw;
               textContent.style.whiteSpace = "normal";
               textContent.style.fontFamily = "system-ui, sans-serif";
               textContent.style.lineHeight = "1.6";

@@ -1,10 +1,9 @@
 "use strict";
 
 const fs = require("fs/promises");
-const path = require("path");
 
 const sqlite = require("../db/sqlite");
-const { getUploadDir, getThumbsDir, isTestEnv } = require("../config/paths");
+const { getUploadDir, getThumbsDir, isTestEnv, resolveSafe } = require("../config/paths");
 
 // helpers db
 const all =
@@ -31,12 +30,6 @@ const THUMBS_DIR = getThumbsDir();
 // ⚠️ por defecto NO borra; solo borra si PRUNE=1
 const PRUNE = process.env.PRUNE === "1";
 const MAX_DELETE = Number(process.env.MAX_DELETE || 200);
-
-function isSafePath(baseDir, maybeRelativePath) {
-  const base = path.resolve(baseDir);
-  const resolved = path.resolve(baseDir, maybeRelativePath);
-  return resolved === base || resolved.startsWith(base + path.sep);
-}
 
 function normalizeUploadPath(v) {
   if (!v) return null;
@@ -85,8 +78,14 @@ function fileNameFromUploadUrl(u) {
   console.log("thumbs files:", thumbs.length, "orphans:", orphanThumbs.length);
 
   const toDelete = [];
-  for (const f of orphanFiles) toDelete.push({ type: "upload", rel: f, abs: path.join(UPLOAD_DIR, f) });
-  for (const f of orphanThumbs) toDelete.push({ type: "thumb", rel: "thumbs/" + f, abs: path.join(THUMBS_DIR, f) });
+  for (const f of orphanFiles) {
+    const abs = resolveSafe(UPLOAD_DIR, f);
+    if (abs) toDelete.push({ type: "upload", rel: f, abs });
+  }
+  for (const f of orphanThumbs) {
+    const abs = resolveSafe(THUMBS_DIR, f);
+    if (abs) toDelete.push({ type: "thumb", rel: "thumbs/" + f, abs });
+  }
 
   if (!PRUNE) {
     console.log("\nSample orphans (first 30):");
@@ -106,22 +105,7 @@ function fileNameFromUploadUrl(u) {
       break;
     }
     try {
-      // Defensa en profundidad: evita traversal (p.ej. "../../../etc/passwd")
-      // que podría escaparse de UPLOAD_DIR al resolver la ruta final.
-      if (!isSafePath(UPLOAD_DIR, item.rel)) {
-        console.warn(
-          "unsafe path (skipping):",
-          item.rel,
-          "=>",
-          path.resolve(UPLOAD_DIR, item.rel),
-          "(base:",
-          path.resolve(UPLOAD_DIR) + ")"
-        );
-        continue;
-      }
-
-      const safeAbs = path.resolve(UPLOAD_DIR, item.rel);
-      await fs.unlink(safeAbs);
+      await fs.unlink(item.abs);
       deleted++;
       console.log("deleted:", item.rel);
     } catch (e) {

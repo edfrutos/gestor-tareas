@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const sqlite = require("../db/sqlite");
+const { getUploadDir, resolveSafe } = require("../config/paths");
 
 const all =
   (typeof sqlite.all === "function" && sqlite.all.bind(sqlite)) ||
@@ -11,7 +12,7 @@ const all =
 
 if (!all) throw new Error("No encuentro sqlite.all en ../db/sqlite");
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
+const UPLOAD_DIR = getUploadDir();
 
 function isRemote(u) {
   if (!u) return false;
@@ -41,7 +42,7 @@ function fsPathFromUploadsUrl(u) {
   if (!u) return null;
   if (isRemote(u)) return null;
   const rel = stripUploadsPrefix(u);
-  return path.join(UPLOAD_DIR, rel);
+  return resolveSafe(UPLOAD_DIR, rel);
 }
 
 function derivedThumbUrlFromPhoto(photoUrl) {

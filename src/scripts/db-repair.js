@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 const sqlite = require("../db/sqlite");
+const { getUploadDir, resolveSafe } = require("../config/paths");
 
 // Bind helpers (compatibles con tus exports actuales)
 const all =
@@ -17,7 +18,7 @@ const run =
 if (!all) throw new Error("No encuentro sqlite.all en ../db/sqlite");
 if (!run) throw new Error("No encuentro sqlite.run en ../db/sqlite");
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "/app/uploads";
+const UPLOAD_DIR = getUploadDir();
 const DRY_RUN = process.env.DRY_RUN !== "0"; // por defecto: DRY_RUN=1
 
 function normUploadUrl(v) {
@@ -47,7 +48,7 @@ function fsPathFromUploadsUrl(u) {
   if (!u) return null;
   if (u.startsWith("http://") || u.startsWith("https://")) return null;
   const rel = stripUploadsPrefix(u);
-  return path.join(UPLOAD_DIR, rel);
+  return resolveSafe(UPLOAD_DIR, rel);
 }
 
 function derivedThumbUrl(photoUrl) {

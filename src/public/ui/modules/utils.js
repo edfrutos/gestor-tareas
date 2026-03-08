@@ -52,7 +52,7 @@ export function resolveSameOriginUrl(u) {
 
 export function setImgFallback(img, { fallbackSrc = "", onFailReplace = true } = {}) {
   if (!img) return;
-  try { img.loading = "lazy"; img.decoding = "async"; } catch {} // hints
+  try { img.loading = "lazy"; img.decoding = "async"; } catch { /* ignore */ }
 
   const handler = () => {
     if (fallbackSrc && img.getAttribute("data-fallback-used") !== "1") {
@@ -101,7 +101,15 @@ export function toast(msg, kind = "info", ttl = 2600) {
   const border = kind === "ok" ? "rgba(34,197,94,.55)" : kind === "warn" ? "rgba(245,158,11,.55)" : kind === "error" ? "rgba(239,68,68,.55)" : "rgba(148,163,184,.45)";
 
   t.style.cssText = `background:rgba(17,17,17,.92);border:1px solid ${border};border-radius:14px;padding:10px 12px;box-shadow:0 18px 60px rgba(0,0,0,.35);backdrop-filter:blur(6px);color:#fff;display:flex;gap:10px;align-items:flex-start;opacity:0;transform:translateY(6px);transition:opacity .18s ease, transform .18s ease;`;
-  t.innerHTML = `<div style="flex:1;font-size:13px;line-height:1.3;">${safeText(msg)}</div><button class="btn small" style="padding:4px 8px;line-height:1;opacity:.85;">✕</button>`;
+  const msgEl = document.createElement("div");
+  msgEl.style.cssText = "flex:1;font-size:13px;line-height:1.3;";
+  msgEl.textContent = msg ?? "";
+  const btn = document.createElement("button");
+  btn.className = "btn small";
+  btn.style.cssText = "padding:4px 8px;line-height:1;opacity:.85;";
+  btn.textContent = "✕";
+  t.appendChild(msgEl);
+  t.appendChild(btn);
 
   const close = () => {
     if (!t.isConnected) return;
@@ -109,7 +117,7 @@ export function toast(msg, kind = "info", ttl = 2600) {
     t.style.transform = "translateY(6px)";
     setTimeout(() => t.remove(), 180);
   };
-  t.querySelector("button").onclick = close;
+  btn.onclick = close;
   host.appendChild(t);
   
   requestAnimationFrame(() => { t.style.opacity = "1"; t.style.transform = "translateY(0)"; });
@@ -178,7 +186,7 @@ export function setControlsDisabled(disabled) {
       el.disabled = !!disabled;
       el.style.opacity = disabled ? "0.6" : "";
       el.style.pointerEvents = disabled ? "none" : "";
-    } catch {}
+    } catch { /* ignore */ }
   });
   
   const listEl = $("#list");
