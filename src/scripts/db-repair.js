@@ -44,10 +44,12 @@ function stripUploadsPrefix(u) {
   return u.startsWith("/uploads/") ? u.slice("/uploads/".length) : u;
 }
 
+/** @returns {string|null} Ruta absoluta o null si la URL es inválida o contiene path traversal */
 function fsPathFromUploadsUrl(u) {
   if (!u) return null;
   if (u.startsWith("http://") || u.startsWith("https://")) return null;
   const rel = stripUploadsPrefix(u);
+  if (!rel) return null;
   return resolveSafe(UPLOAD_DIR, rel);
 }
 

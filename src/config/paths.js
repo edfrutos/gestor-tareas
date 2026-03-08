@@ -11,6 +11,15 @@ const ROOT_DIR = path.resolve(__dirname, "..", "..");
 const IS_IN_DOCKER = fs.existsSync("/.dockerenv");
 
 /**
+ * Comprueba si la ruta contiene el segmento ".." (path traversal).
+ * Permite nombres como "foto..bak" pero rechaza "a/../b" o "..".
+ */
+function hasParentSegment(s) {
+  const segments = s.split(/[/\\]/);
+  return segments.some((seg) => seg === "..");
+}
+
+/**
  * Resuelve una ruta relativa dentro de baseDir y verifica que no escape (path traversal).
  * Rechaza: rutas absolutas, segmentos "..", caracteres nulos.
  * @param {string} baseDir - Directorio base
@@ -21,10 +30,7 @@ function resolveSafe(baseDir, input) {
   if (!input || typeof input !== "string") return null;
   const s = input.trim();
   if (!s) return null;
-  // Rechazar rutas absolutas y segmentos ..
-  if (path.isAbsolute(s) || s.includes("..")) return null;
-  // Rechazar caracteres nulos
-  if (s.includes("\0")) return null;
+  if (path.isAbsolute(s) || hasParentSegment(s) || s.includes("\0")) return null;
   const base = path.resolve(baseDir);
   const resolved = path.resolve(base, s);
   return resolved === base || resolved.startsWith(base + path.sep) ? resolved : null;
@@ -41,12 +47,15 @@ function resolveFromRoot(p, fallback) {
     toResolve = p.slice(5); // quita "/app/"
   }
 
-  // Rutas absolutas explícitas (env) se aceptan; solo rechazamos .. y \0
-  if (toResolve.includes("..") || toResolve.includes("\0")) return fallback != null ? fallback : p;
+  // Rutas absolutas explícitas (env) se aceptan; solo rechazamos segmentos .. y \0
+  if (hasParentSegment(toResolve) || toResolve.includes("\0")) return fallback != null ? fallback : p;
   if (path.isAbsolute(toResolve)) return toResolve;
   const resolved = path.resolve(ROOT_DIR, toResolve);
   const rootResolved = path.resolve(ROOT_DIR);
-  return resolved.startsWith(rootResolved) ? resolved : (fallback != null ? fallback : p);
+  if (resolved === rootResolved || resolved.startsWith(rootResolved + path.sep)) {
+    return resolved;
+  }
+  return fallback != null ? fallback : p;
 }
 
 function getUploadDir() {
