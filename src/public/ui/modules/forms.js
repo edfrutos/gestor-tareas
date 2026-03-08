@@ -2,7 +2,6 @@ import { API_BASE, LS_API_KEY } from "./config.js";
 import { fetchJson, getApiKey } from "./api.js";
 import { $, withBusy, setStatus, setButtonBusy, setGlobalLoading, toast, safeText } from "./utils.js";
 import { loadIssues } from "./list.v2.js";
-import { setLatLng, ensureMap } from "./map.js";
 import { state, markMine } from "./store.js";
 
 // Previews creación
@@ -32,7 +31,10 @@ function updateDocPreview(file) {
   if (!file) { box.style.display = "none"; return; }
 
   box.style.display = "flex";
-  meta.innerHTML = `<strong>${safeText(file.name)}</strong>`;
+  meta.textContent = "";
+  const strong = document.createElement("strong");
+  strong.textContent = file.name ?? "";
+  meta.appendChild(strong);
   btn.onclick = () => { $("#file").value = ""; updateDocPreview(null); };
 }
 
@@ -75,7 +77,7 @@ export async function loadUsersForForm() {
       opt.textContent = u.username;
       assignSelect.appendChild(opt);
     });
-  } catch (e) {
+  } catch (_e) {
     // Si falla (ej. por ser usuario normal), ocultamos el campo de asignación
     console.log("No se pudieron cargar usuarios para asignación (posible falta de permisos).");
     const assignGroup = $("#assignGroup");

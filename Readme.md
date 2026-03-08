@@ -43,6 +43,7 @@ La forma más sencilla de ejecutar el proyecto es mediante Docker, lo cual confi
 
 ```bash
 # 1. Levantar el entorno completo (App + Caddy con SSL local)
+
 docker compose -f docker-compose.yml -f docker-compose.caddy.yml --profile local-https up -d --build
 
 # 2. Acceder a la aplicación

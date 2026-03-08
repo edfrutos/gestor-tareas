@@ -38,10 +38,12 @@ function stripUploadsPrefix(u) {
   return u.startsWith("/uploads/") ? u.slice("/uploads/".length) : u;
 }
 
+/** @returns {string|null} Ruta absoluta o null si la URL es inválida o contiene path traversal */
 function fsPathFromUploadsUrl(u) {
   if (!u) return null;
   if (isRemote(u)) return null;
   const rel = stripUploadsPrefix(u);
+  if (!rel) return null;
   return resolveSafe(UPLOAD_DIR, rel);
 }
 
@@ -53,6 +55,7 @@ function derivedThumbUrlFromPhoto(photoUrl) {
 }
 
 async function exists(p) {
+  if (!p) return false;
   try {
     await fs.access(p);
     return true;

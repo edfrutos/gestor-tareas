@@ -123,6 +123,10 @@ function init() {
   if (isTestEnv() || !getBackupDir()) {
     return;
   }
+  // En tests/Jest no programar intervalo (evita que el proceso no termine)
+  if (process.env.JEST_WORKER_ID) {
+    return;
+  }
   runBackup();
   setInterval(runBackup, INTERVAL_MS);
   console.log(`[Backup] Sistema iniciado (intervalo: ${INTERVAL_MS / 3600000}h, retención: ${RETENTION_DAYS}d)`);
