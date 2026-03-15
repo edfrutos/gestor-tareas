@@ -42,6 +42,7 @@
 La forma más sencilla de ejecutar el proyecto es mediante Docker, lo cual configura automáticamente el servidor y el proxy HTTPS.
 
 ```bash
+
 # 1. Levantar el entorno completo (App + Caddy con SSL local)
 
 docker compose -f docker-compose.yml -f docker-compose.caddy.yml --profile local-https up -d --build
