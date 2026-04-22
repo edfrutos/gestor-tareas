@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: gestor-tareas:hardened
     restart: unless-stopped
     environment:
       HOST: 0.0.0.0
@@ -40,7 +41,7 @@ services:
     image: axllent/mailpit
     restart: unless-stopped
     ports:
-      - "8825:8025" # Interfaz Web (Cambiado a 8825 por conflicto)
+      - "8825:8025"
     environment:
       MP_MAX_MESSAGES: 500
       MP_DATABASE: /data/mailpit.db
