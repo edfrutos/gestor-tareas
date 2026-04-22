@@ -68,3 +68,12 @@ node_modules
 .qodo/
 .antigravityrules
 metadata.json
+
+# SSL/TLS Certificates (generated locally with mkcert)
+certs/*.pem
+certs/key
+certs/cert
+
+# Node/Docker runtime
+.node_modules
+.npm
