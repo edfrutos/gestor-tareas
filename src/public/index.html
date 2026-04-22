@@ -1352,9 +1352,44 @@
             <button class="btn small" id="btnUsersNext">»</button>
          </div>
       </div>
+      <div style="padding:14px 20px; border-top:1px solid var(--border2); background:var(--panel2); display:flex; gap:10px;">
+        <button class="btn small primary" id="btnNewUser" style="flex:1; background:rgba(124,92,255,.3); border-color:rgba(124,92,255,.7);">➕ Nuevo Usuario</button>
+        <small style="font-size:11px; color:var(--muted); align-self:center; flex:0 0 auto;">Total: <span id="usersCountFooter">1</span></small>
+      </div>
       <div style="padding:10px 20px; border-top:1px solid var(--border2); background:var(--panel2); font-size:12px; color:var(--muted);">
          Nota: No puedes borrar tu propio usuario.
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Usuario -->
+  <div class="modal" id="newUserModal" style="display:none; z-index:17000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; position:fixed; inset:0;">
+    <div class="modalCard" style="max-width:350px; padding:20px; background:var(--bg); border:1px solid var(--border); border-radius:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0;">Crear Nuevo Usuario</h3>
+        <button class="btn small" id="newUserClose">✕</button>
+      </div>
+      <form id="newUserForm">
+        <label>Usuario</label>
+        <input id="newUsername" type="text" required minlength="3" maxlength="50" placeholder="nombre_usuario" style="margin-bottom:10px;" />
+        
+        <label>Email</label>
+        <input id="newUserEmail" type="email" placeholder="usuario@ejemplo.com" style="margin-bottom:10px;" />
+
+        <label>Contraseña</label>
+        <input id="newUserPassword" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" style="margin-bottom:10px;" />
+
+        <label>Rol</label>
+        <select id="newUserRole" style="width:100%; margin-bottom:15px; padding:10px; border-radius:12px; background:var(--chip); border:1px solid var(--border2);">
+           <option value="user">Usuario (Normal)</option>
+           <option value="admin">Administrador</option>
+        </select>
+
+        <div style="display:flex; gap:10px;">
+          <button class="btn primary" type="submit" style="flex:1;">Crear Usuario</button>
+          <button class="btn" type="button" id="newUserClose2" style="flex:1;">Cancelar</button>
+        </div>
+      </form>
     </div>
   </div>
 

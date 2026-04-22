@@ -48,6 +48,12 @@ export function initUsersModule() {
     };
   }
 
+  // New user button
+  const btnNewUser = $("#btnNewUser");
+  if (btnNewUser) {
+    btnNewUser.onclick = () => openNewUserForm();
+  }
+
   // Init edit modal
   const editModal = $("#editUserModal");
   const editCancel = $("#editUserCancel");
@@ -85,13 +91,82 @@ export function initUsersModule() {
 
         toast("Usuario actualizado", "ok");
         editModal.style.display = "none";
-        openUsersModal(); // Recargar lista
+        openUsersModal();
       } catch (err) {
         toast(err.message, "error");
       } finally {
         setButtonBusy(btn, false);
       }
     };
+  }
+
+  // New user form handler - LATE BINDING (se inicializa cuando el modal se abre)
+  initNewUserFormHandler();
+
+  // New user modal close
+  const newUserModal = $("#newUserModal");
+  const newUserClose = $("#newUserClose");
+  const newUserClose2 = $("#newUserClose2");
+  if (newUserClose && newUserModal) {
+    newUserClose.onclick = () => {
+      newUserModal.style.display = "none";
+    };
+    newUserModal.onclick = (e) => {
+      if (e.target === newUserModal) newUserModal.style.display = "none";
+    };
+  }
+  if (newUserClose2) {
+    newUserClose2.onclick = () => {
+      $("#newUserModal").style.display = "none";
+    };
+  }
+}
+
+function initNewUserFormHandler() {
+  const newUserForm = $("#newUserForm");
+  if (!newUserForm) return; // Si no existe aún, reintentar después
+  
+  newUserForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const username = $("#newUsername").value;
+    const email = $("#newUserEmail").value;
+    const password = $("#newUserPassword").value;
+    const role = $("#newUserRole").value;
+
+    const btn = newUserForm.querySelector("button[type=submit]");
+    setButtonBusy(btn, true, "Creando...");
+
+    try {
+      await fetchJson(`${API_BASE}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password, role })
+      });
+
+      toast("Usuario creado correctamente", "ok");
+      const modal = $("#newUserModal");
+      if (modal) modal.style.display = "none";
+      newUserForm.reset();
+      openUsersModal();
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setButtonBusy(btn, false);
+    }
+  };
+}
+
+function openNewUserForm() {
+  const modal = $("#newUserModal");
+  if (!modal) return;
+  
+  // Re-initialize form handler cada vez que se abre
+  initNewUserFormHandler();
+  
+  modal.style.display = "flex";
+  const usernameInput = $("#newUsername");
+  if (usernameInput) {
+    setTimeout(() => usernameInput.focus(), 50);
   }
 }
 
@@ -108,7 +183,6 @@ export async function openUsersModal() {
     usersList = data.items || [];
     renderUsersTable(usersList);
     
-    // Update pagination UI
     const total = data.total || 0;
     const totalPages = Math.ceil(total / pageSize) || 1;
     
@@ -193,7 +267,7 @@ function openEditUser(u, focusPassword = false) {
   $("#editUserEmail").value = u.email || "";
   $("#editUserRole").value = u.role;
   const passInput = $("#editUserPass");
-  passInput.value = ""; // Limpiar
+  passInput.value = "";
   
   modal.style.display = "flex";
 
@@ -208,7 +282,7 @@ async function deleteUser(id, username) {
   try {
     await fetchJson(`${API_BASE}/users/${id}`, { method: "DELETE" });
     toast("Usuario eliminado", "ok");
-    openUsersModal(); // Recargar
+    openUsersModal();
   } catch (err) {
     toast(err.message, "error");
   }

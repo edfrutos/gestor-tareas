@@ -14,6 +14,50 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ error: { code: "forbidden", message: "Acceso denegado: Se requiere rol de administrador" } });
 }
 
+// POST /v1/users - Crear nuevo usuario (admin)
+router.post("/", requireAuth(), requireAdmin, async (req, res, next) => {
+  try {
+    const schema = z.object({
+      username: z.string().min(3).max(50),
+      email: z.string().email().optional().nullable().or(z.literal("")),
+      password: z.string().min(6),
+      role: z.enum(["admin", "user"]).default("user")
+    });
+    
+    const body = schema.parse(req.body);
+    let { username, email, password, role } = body;
+
+    // Normalizar email vacío a null
+    email = email && email.trim() ? email.trim() : null;
+
+    // Verificar username único
+    const existing = await get("SELECT id FROM users WHERE username = ?", [username]);
+    if (existing) {
+      return res.status(400).json({ error: { code: "conflict", message: "El usuario ya existe" } });
+    }
+
+    // Verificar email único (solo si está presente)
+    if (email) {
+      const existingEmail = await get("SELECT id FROM users WHERE email = ?", [email]);
+      if (existingEmail) {
+        return res.status(400).json({ error: { code: "conflict", message: "Este email ya está registrado" } });
+      }
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    const now = new Date().toISOString();
+    
+    const result = await run(
+      "INSERT INTO users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+      [username, email, hash, role, now]
+    );
+
+    res.status(201).json({ id: result.lastID, username, email, role, created_at: now });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // GET /v1/users/for-assign - Lista mínima para selector de asignación (cualquier usuario autenticado)
 router.get("/for-assign", requireAuth(), async (req, res, next) => {
   try {
