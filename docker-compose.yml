@@ -11,24 +11,27 @@ services:
       HOST: 0.0.0.0
       PORT: "3000"
       NODE_ENV: development
-      # TRUST_PROXY: "1"
-      # FORCE_HTTPS: "0"
-      # HSTS_ENABLED: "0"
       DB_FILE: /app/data/data.db
       UPLOAD_DIR: /app/uploads
       BACKUP_DIR: /app/backups
       BACKUP_RETENTION_DAYS: "1"
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-      PUBLIC_URL: https://localhost:8443
+      FORCE_HTTPS: "true"
+      HSTS_ENABLED: "true"
+      PUBLIC_URL: https://localhost:3443
+      SSL_CERT_PATH: /app/certs/cert.pem
+      SSL_KEY_PATH: /app/certs/key.pem
     ports:
       - "3000:3000"
+      - "3443:3443"
     command: node --watch src/server.js
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./data:/app/data
       - ./uploads:/app/uploads
+      - ./certs:/app/certs:ro
       - /Volumes/ESSAGER/__Backups_Repositorios/gestor-tareas:/app/backups
     depends_on:
       - mailpit

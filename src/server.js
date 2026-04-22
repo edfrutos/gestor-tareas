@@ -1,5 +1,7 @@
 // src/server.js
 const http = require("http");
+const https = require("https");
+const fs = require("fs");
 const app = require("./app");
 const { migrate, openDb, closeDb } = require("./db/sqlite");
 const { logger } = require("./middleware/logger");
@@ -20,13 +22,30 @@ async function main() {
   openDb();
   await migrate();
 
-  const server = http.createServer(app);
+  // Crear servidor HTTP o HTTPS según configuración
+  let server;
+  const useHttps = process.env.SSL_CERT_PATH && process.env.SSL_KEY_PATH;
+
+  if (useHttps) {
+    try {
+      const cert = fs.readFileSync(process.env.SSL_CERT_PATH);
+      const key = fs.readFileSync(process.env.SSL_KEY_PATH);
+      server = https.createServer({ cert, key }, app);
+      logger.info("[server] HTTPS enabled");
+    } catch (err) {
+      logger.warn({ err: err.message }, "[server] HTTPS certificates not found, falling back to HTTP");
+      server = http.createServer(app);
+    }
+  } else {
+    server = http.createServer(app);
+  }
 
   // Initialize Socket.io
   const io = initSocket(server);
 
   server.listen(PORT, HOST, () => {
-    logger.info({ HOST, PORT }, "[server] listening");
+    const protocol = useHttps ? "HTTPS" : "HTTP";
+    logger.info({ HOST, PORT, protocol }, `[server] listening on ${protocol}`);
   });
 
   let shuttingDown = false;
