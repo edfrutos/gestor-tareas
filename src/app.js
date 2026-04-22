@@ -13,8 +13,8 @@ const IS_PROD = process.env.NODE_ENV === "production";
 
 // Hardening toggles (NO activados por defecto)
 const _TRUST_PROXY = process.env.TRUST_PROXY ?? "1";      // detrás de Caddy/NGINX (local OK)
-const _FORCE_HTTPS = process.env.FORCE_HTTPS === "1";     // solo en prod cuando lo decidas
-const HSTS_ENABLED = process.env.HSTS_ENABLED === "1";   // solo en prod cuando lo decidas
+const _FORCE_HTTPS = process.env.FORCE_HTTPS === "true" || process.env.FORCE_HTTPS === "1";     // solo en prod cuando lo decidas
+const HSTS_ENABLED = process.env.HSTS_ENABLED === "true" || process.env.HSTS_ENABLED === "1";   // solo en prod cuando lo decidas
 
 // Host público confiable para redirects (evita Host header spoofing).
 // - PUBLIC_HOST: recomendado (p.ej. "api.ejemplo.com" o "api.ejemplo.com:443")

@@ -10,6 +10,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: "3000"
+      HTTPS_PORT: "3443"
       NODE_ENV: development
       DB_FILE: /app/data/data.db
       UPLOAD_DIR: /app/uploads
