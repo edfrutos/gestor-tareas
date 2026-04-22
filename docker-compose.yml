@@ -25,7 +25,6 @@ services:
       SSL_KEY_PATH: /app/certs/key.pem
     ports:
       - "3000:3000"
-      - "3443:3443"
     command: node --watch src/server.js
     volumes:
       - ./src:/app/src

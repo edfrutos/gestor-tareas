@@ -14,7 +14,6 @@ require("./cron/db-health");
 
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
-const HTTPS_PORT = Number(process.env.HTTPS_PORT || 3443);
 
 const GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS || 3000);
 const FORCE_MS = Number(process.env.SHUTDOWN_FORCE_MS || 6000);
@@ -23,52 +22,31 @@ async function main() {
   openDb();
   await migrate();
 
-  // Crear servidor HTTPS (principal)
-  let mainServer;
-  let ioServer;
+  // Crear servidor HTTP o HTTPS según certificados
+  let server;
   const useHttps = process.env.SSL_CERT_PATH && process.env.SSL_KEY_PATH;
 
   if (useHttps) {
     try {
       const cert = fs.readFileSync(process.env.SSL_CERT_PATH);
       const key = fs.readFileSync(process.env.SSL_KEY_PATH);
-      mainServer = https.createServer({ cert, key }, app);
-      logger.info("[server] HTTPS enabled");
+      server = https.createServer({ cert, key }, app);
+      logger.info("[server] HTTPS enabled with SSL certificates");
     } catch (err) {
-      logger.warn({ err: err.message }, "[server] HTTPS certificates not found, falling back to HTTP");
-      mainServer = http.createServer(app);
+      logger.warn({ err: err.message }, "[server] SSL certificates not found, using HTTP");
+      server = http.createServer(app);
     }
   } else {
-    mainServer = http.createServer(app);
+    server = http.createServer(app);
   }
 
-  // Initialize Socket.io en el servidor principal
-  ioServer = initSocket(mainServer);
+  // Initialize Socket.io
+  const io = initSocket(server);
 
-  // Crear servidor HTTP de redirección (opcional, solo si HTTPS está habilitado)
-  let httpRedirectServer;
-  if (useHttps && PORT !== HTTPS_PORT) {
-    const redirectApp = (req, res) => {
-      const host = req.headers.host.split(':')[0];
-      const redirectUrl = `https://${host}:${HTTPS_PORT}${req.url}`;
-      res.writeHead(301, { 'Location': redirectUrl });
-      res.end();
-    };
-    httpRedirectServer = http.createServer(redirectApp);
-  }
-
-  // Iniciar servidores
-  mainServer.listen(useHttps ? HTTPS_PORT : PORT, HOST, () => {
+  server.listen(PORT, HOST, () => {
     const protocol = useHttps ? "HTTPS" : "HTTP";
-    const url = useHttps ? `https://${HOST}:${HTTPS_PORT}` : `http://${HOST}:${PORT}`;
-    logger.info({ HOST, PORT: useHttps ? HTTPS_PORT : PORT, protocol }, `[server] listening on ${protocol} at ${url}`);
+    logger.info({ HOST, PORT, protocol }, `[server] listening on ${protocol}`);
   });
-
-  if (httpRedirectServer) {
-    httpRedirectServer.listen(PORT, HOST, () => {
-      logger.info({ PORT }, `[server] HTTP redirect listening on port ${PORT} -> HTTPS:${HTTPS_PORT}`);
-    });
-  }
 
   let shuttingDown = false;
 
@@ -79,22 +57,11 @@ async function main() {
     logger.info({ signal }, "[server] shutdown start");
 
     try {
-      if (ioServer) await ioServer.close();
+      if (io) await io.close();
     } catch (_err) { /* noop */ }
 
     // deja de aceptar nuevas conexiones
-    const closeServers = (callback) => {
-      let closed = 0;
-      const checkDone = () => {
-        closed++;
-        if ((httpRedirectServer ? 2 : 1) === closed) callback();
-      };
-
-      mainServer.close(checkDone);
-      if (httpRedirectServer) httpRedirectServer.close(checkDone);
-    };
-
-    closeServers(async () => {
+    server.close(async () => {
       try {
         await closeDb();
         logger.info("[server] db closed");
