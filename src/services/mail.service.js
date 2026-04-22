@@ -4,20 +4,23 @@ const nodemailer = require("nodemailer");
 /**
  * Servicio de envío de correos electrónicos.
  * Configurable mediante variables de entorno:
- * SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
+ * SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE
  */
 
+// Para Brevo: puerto 587 con secure:false (usa STARTTLS)
+// Para otros: puedo ajustar según configuración
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "localhost",
-  port: Number(process.env.SMTP_PORT) || 1025, // Mailhog default
-  secure: process.env.SMTP_SECURE === "true",
+  port: Number(process.env.SMTP_PORT) || 1025,
+  secure: Number(process.env.SMTP_PORT) === 465, // true solo en puerto 465 (Implicit TLS)
+  requireTLS: process.env.SMTP_PORT === "587", // STARTTLS en puerto 587
   auth: process.env.SMTP_USER ? {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   } : undefined,
 });
 
-const FROM_EMAIL = process.env.SMTP_FROM || '"Gestor de Tareas" <no-reply@cola-ciudadana.local>';
+const FROM_EMAIL = process.env.SMTP_FROM || '"Gestor de Tareas" <no-reply@gestor-tareas.local>';
 
 async function sendMail({ to, subject, text, html }) {
   // Si hay SMTP_HOST (ej. Mailpit) configurado, enviar aunque no haya SMTP_USER
@@ -44,7 +47,7 @@ async function sendMail({ to, subject, text, html }) {
     console.log(`[MailService] Correo enviado: ${info.messageId}`);
     return info;
   } catch (err) {
-    console.error("[MailService] Error enviando correo:", err);
+    console.error("[MailService] Error enviando correo:", err.message || err);
     // No lanzamos error para no bloquear el flujo principal de la app
     return null;
   }
@@ -116,7 +119,7 @@ async function notifyPasswordReset(user, token) {
   if (!user.email) return;
 
   // Limpiamos cualquier barra final de la URL base para evitar dobles barras
-  const baseUrl = (process.env.PUBLIC_URL || 'https://cola-ciudadana.local').replace(/\/+$/, "");
+  const baseUrl = (process.env.PUBLIC_URL || 'https://localhost:3000').replace(/\/+$/, "");
   const resetUrl = `${baseUrl}/#reset-password?token=${token}`;
   const subject = `Recuperación de contraseña`;
 
