@@ -1281,9 +1281,15 @@
         <input id="profileEmail" type="email" autocomplete="email" style="margin-bottom:10px;" placeholder="No configurado" />
 
         <label>Contraseña actual (solo para cambiar clave)</label>
-        <input id="currentPass" type="password" autocomplete="current-password" style="margin-bottom:10px;" />
+        <div style="position:relative; margin-bottom:10px;">
+          <input id="currentPass" type="password" autocomplete="current-password" style="padding-right:40px;" />
+          <button type="button" class="toggle-pass-btn" data-target="currentPass" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+        </div>
         <label>Nueva contraseña (min 6)</label>
-        <input id="newPass" type="password" minlength="6" autocomplete="new-password" />
+        <div style="position:relative;">
+          <input id="newPass" type="password" minlength="6" autocomplete="new-password" style="padding-right:40px;" />
+          <button type="button" class="toggle-pass-btn" data-target="newPass" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+        </div>
         <div style="margin-top:20px;">
           <button class="btn primary" type="submit" style="width:100%;">Actualizar Perfil</button>
         </div>
@@ -1315,7 +1321,10 @@
       <form id="resetForm">
         <input type="hidden" id="resetToken" />
         <label>Nueva contraseña (min 6)</label>
-        <input id="resetPass" type="password" required minlength="6" autocomplete="new-password" style="margin-bottom:15px;" />
+        <div style="position:relative; margin-bottom:15px;">
+          <input id="resetPass" type="password" required minlength="6" autocomplete="new-password" style="padding-right:40px;" />
+          <button type="button" class="toggle-pass-btn" data-target="resetPass" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+        </div>
         <button class="btn primary" type="submit" style="width:100%; padding:12px;">Cambiar Contraseña</button>
         <div id="resetStatus" style="margin-top:15px; font-size:13px; text-align:center; min-height:16px;"></div>
       </form>
@@ -1377,7 +1386,10 @@
         <input id="newUserEmail" type="email" placeholder="usuario@ejemplo.com" style="margin-bottom:10px;" />
 
         <label>Contraseña</label>
-        <input id="newUserPassword" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" style="margin-bottom:10px;" />
+        <div style="position:relative; margin-bottom:10px;">
+          <input id="newUserPassword" type="password" required minlength="6" placeholder="Mínimo 6 caracteres" style="padding-right:40px;" />
+          <button type="button" class="toggle-pass-btn" data-target="newUserPassword" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+        </div>
 
         <label>Rol</label>
         <select id="newUserRole" style="width:100%; margin-bottom:15px; padding:10px; border-radius:12px; background:var(--chip); border:1px solid var(--border2);">
@@ -1412,7 +1424,10 @@
         </select>
 
         <label>Nueva Contraseña (Opcional)</label>
-        <input id="editUserPass" type="password" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar" minlength="6" />
+        <div style="position:relative;">
+          <input id="editUserPass" type="password" autocomplete="new-password" placeholder="Dejar en blanco para no cambiar" minlength="6" style="padding-right:40px;" />
+          <button type="button" class="toggle-pass-btn" data-target="editUserPass" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+        </div>
 
         <div style="margin-top:20px; display:flex; gap:10px;">
           <button class="btn primary" type="submit" style="flex:1;">Guardar</button>

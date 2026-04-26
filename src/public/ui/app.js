@@ -272,6 +272,18 @@ async function initAuth() {
   return check();
 }
 
+function initPasswordToggles() {
+  document.querySelectorAll(".toggle-pass-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.textContent = show ? "🔒" : "👁️";
+    };
+  });
+}
+
 function initRecovery() {
   const forgotModal = $("#forgotModal");
   const forgotForm = $("#forgotForm");
@@ -439,6 +451,7 @@ function initOfflineSupport() {
 
     initOfflineSupport();
     const isAuth = await initAuth();
+    initPasswordToggles();
     initRecovery(); // Siempre inicializar para detectar tokens en URL
 
     if (!isAuth) return; // Detener carga si no está autenticado
