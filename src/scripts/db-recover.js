@@ -118,7 +118,9 @@ function run() {
   }
 
   log("4. Sustituyendo BD original...");
-  fs.renameSync(recoveredPath, dbFile);
+  // copyFileSync + unlinkSync en lugar de renameSync para soportar volúmenes cruzados (EXDEV)
+  fs.copyFileSync(recoveredPath, dbFile);
+  fs.unlinkSync(recoveredPath);
 
   log("✅ Recuperación completada. Reinicia la aplicación.");
   log("Respaldo pre-recuperación:", preRecoverBackup);

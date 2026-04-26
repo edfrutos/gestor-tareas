@@ -5,6 +5,9 @@
 .env.local
 .env.*.local
 data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.db.pre-recover-*
 data/*.sqlite
 data/*.sqlite-wal
 data/*.sqlite-shm

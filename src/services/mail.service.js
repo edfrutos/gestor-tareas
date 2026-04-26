@@ -7,8 +7,8 @@ const nodemailer = require("nodemailer");
  * SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, SMTP_SECURE
  */
 
-// Para Brevo: puerto 587 con secure:false (usa STARTTLS)
-// Para otros: puedo ajustar según configuración
+// Gmail App Password: SMTP_HOST=smtp.gmail.com, SMTP_PORT=465, SMTP_USER=tu@gmail.com, SMTP_PASS=app-password-16chars
+// Puerto 465 → secure:true (TLS implícito). Puerto 587 → requireTLS:true (STARTTLS).
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "localhost",
   port: Number(process.env.SMTP_PORT) || 1025,
