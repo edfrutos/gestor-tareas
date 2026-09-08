@@ -457,6 +457,37 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   - Jest: `--forceExit` para evitar cuelgue por operaciones asíncronas (cron, sockets).
 - **Documentación:** `.env.example` con `BACKUP_DIR` y `BACKUP_RETENTION_DAYS`. README actualizado.
 
+### 2026-09-08 | Fase 40: Saldo de Deuda Técnica + Arranque del Cliente macOS ✅ / 🚧
+
+- **Deuda técnica saldada (commit `a67e68b`):**
+  - Eliminado `src/db/migrations.js` (0 bytes, sin uso; la migración vive en `src/db/sqlite.js::migrate`).
+  - **npm** fijado como único gestor de paquetes: `packageManager` + `engines` en `package.json`;
+    `pnpm-lock.yaml` / `yarn.lock` / `bun.lockb` añadidos a `.gitignore`.
+  - **Causa raíz detectada:** `node_modules` estaba instalado con pnpm (de ahí el `pnpm-lock.yaml` suelto),
+    y el binding nativo de `sqlite3` no cargaba (`node-v127-linux-arm64` ausente) → 9 de 10 suites rotas.
+    Reinstalación limpia con `npm ci` → **48/48 tests en 10 suites**.
+  - Versionado `docs/datos necesarios para el .env.md`.
+  - Commiteado el cambio pendiente de `docker-compose.yml` (host `3001` → contenedor `3000`, para no
+    colisionar con el arranque local sin Docker en `3000`) + `Readme.md`.
+  - Pendiente (no abordado aún): `npm audit` reporta 24 vulnerabilidades (1 crítica, 11 altas);
+    requiere subir majors (Express 5, Helmet 8, nodemailer) con cuidado.
+
+- **Nueva línea de trabajo — Cliente nativo macOS (Apple Silicon):**
+  - Objetivo: app **SwiftUI** que consume el API actual por HTTPS. El servidor web + Docker
+    **se mantiene** como fuente de verdad y modo multiusuario ("coexisten").
+  - **Doble canal de publicación desde el inicio:** Mac App Store (App Sandbox + revisión) y
+    Developer ID (DMG notarizado fuera de tienda).
+  - Sin Node ni SQLite embebidos: la app es un cliente REST + Socket.io.
+  - Documentos nuevos:
+    - `docs/API.md` — contrato REST + eventos Socket.io extraído del backend (rutas, auth JWT,
+      esquemas Zod, formato de error, brechas a cubrir en el servidor).
+    - `docs/PLAN_APP_MACOS.md` — arquitectura, módulos, estructura en el repo (`clients/macos/`),
+      entitlements y pipeline de firma/notarización para los dos canales, y 6 hitos.
+  - Brechas de backend identificadas para el cliente (ver `docs/API.md §6`): refresh token,
+    auth en el handshake de Socket.io, formato de error unificado, `GET /v1/version`,
+    eventos realtime de comentarios/notificaciones.
+  - Estado: 🚧 Hito 0 (andamiaje `clients/macos/`) sin empezar.
+
 ---
 
 ## 6. Observaciones Pendientes (Recordatorio)
@@ -473,8 +504,13 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 ## 7. Próximos Pasos (Hoja de Ruta)
 
 1. ~~📂 Capas de Planos~~ (completado en Fase 37).
-2. **📊 Informes por Zona**: Capacidad de generar reportes de incidencias filtrados por las zonas dibujadas en el mapa.
-3. **🎥 Soporte de Vídeo**: Permitir adjuntar clips cortos de vídeo como evidencia en las tareas.
+2. **🖥️ Cliente nativo macOS (Apple Silicon)** — *línea principal actual.* App SwiftUI que consume
+   el API existente; doble canal Mac App Store + Developer ID. Ver `docs/PLAN_APP_MACOS.md`
+   (arquitectura + hitos) y `docs/API.md` (contrato). Estado: Hito 0 sin empezar.
+3. **🔒 Endurecimiento de dependencias** — resolver `npm audit` (1 crítica, 11 altas): Express 5,
+   Helmet 8, nodemailer, con validación de tests.
+4. **📊 Informes por Zona**: Capacidad de generar reportes de incidencias filtrados por las zonas dibujadas en el mapa.
+5. **🎥 Soporte de Vídeo**: Permitir adjuntar clips cortos de vídeo como evidencia en las tareas.
 
 ---
 

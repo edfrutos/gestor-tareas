@@ -1,0 +1,195 @@
+# Plan — Aplicación macOS (Apple Silicon)
+
+> **Objetivo del proyecto:** un cliente nativo de escritorio para macOS que consume el API
+> existente (`docs/API.md`) sobre HTTPS. El servidor web + Docker **se mantiene** como fuente
+> de verdad y modo multiusuario ("coexisten").
+>
+> **Canales de publicación (ambos desde el inicio):**
+> 1. **Mac App Store (MAS)** — certificado *Apple Distribution*, App Sandbox obligatorio, revisión de Apple.
+> 2. **Developer ID** — DMG notarizado para descarga directa, fuera de la tienda.
+>
+> **Forma:** app nativa **SwiftUI** (sin Node ni SQLite embebidos). Es un cliente REST/WebSocket.
+
+---
+
+## 1. Decisiones de arquitectura
+
+| Tema | Decisión | Motivo |
+| --- | --- | --- |
+| UI | **SwiftUI** (macOS 14 Sonoma como mínimo; revisar a 13 si hace falta alcance) | Nativo, compatible con App Store, sin fricción de sandbox |
+| Arquitectura | **MV + servicios** (`@Observable` en Swift 5.9 / Observation framework). Sin backend embebido | La lógica de negocio vive en el servidor |
+| Red | `URLSession` + `async/await`, capa `APIClient` tipada con `Codable` | Estándar, testeable |
+| Tiempo real | `socket.io-client-swift` (SPM) | El backend usa Socket.io v4 |
+| Auth | JWT en **Keychain** (`kSecClassGenericPassword`, `kSecAttrAccessibleAfterFirstUnlock`) | Requisito de seguridad y de review |
+| Imágenes de plano | Descarga vía `URLSession` + caché en disco (`URLCache` o `NSCache` + carpeta *Caches*) | Planos son imágenes grandes; Leaflet no aplica en nativo |
+| Render del plano + chinchetas | `MKMapView` con `MKTileOverlay` propio **o** una vista custom con `ScrollView`+`Magnification`+overlay de anotaciones sobre la imagen | El plano es una imagen, no un mapa geográfico. Empezar con vista custom (zoom/pan + capa de pins en coordenadas `lat/lng` = píxeles) |
+| Markdown (visor de documentos) | `AttributedString(markdown:)` nativo | Sin dependencias |
+| Gráficas (stats) | **Swift Charts** | Nativo, sin dependencias |
+| Distribución de dependencias | **Swift Package Manager** únicamente | Sin CocoaPods/Carthage |
+| Generación del proyecto Xcode | **XcodeGen** (`project.yml` versionado) | El `.xcodeproj` no se versiona; menos conflictos |
+
+### Módulos de la app
+
+```
+GestorTareasApp/
+├── App/                 # @main, escena, routing, estado global de sesión
+├── Core/
+│   ├── Networking/      # APIClient, Endpoint, APIError (decoder tolerante §5 de API.md)
+│   ├── Auth/            # SessionStore, KeychainService, flujo login/logout/expiración
+│   ├── Realtime/        # SocketClient (issue:created/updated/deleted, settings:updated)
+│   └── Persistence/     # caché de imágenes, últimos filtros (UserDefaults)
+├── Models/              # Issue, Map, MapZone, Comment, UserRef, Notification, Settings (Codable)
+├── Features/
+│   ├── Login/
+│   ├── IssueList/       # lista + filtros (status, priority, categoría, asignación, fechas, q)
+│   ├── IssueDetail/     # detalle, comentarios (árbol), historial, ubicación en plano
+│   ├── IssueEditor/     # crear/editar, subida multipart (photo + file), prueba de resolución
+│   ├── PlanView/        # visor de plano con chinchetas + capas + zonas
+│   ├── Stats/           # Swift Charts
+│   ├── Notifications/   # centro de notificaciones
+│   └── Admin/           # usuarios, settings (solo role == admin)
+└── Resources/           # Assets, Localizable (es base), Info.plist, *.entitlements
+```
+
+---
+
+## 2. Estructura en el repo (monorepo)
+
+La app vive en este mismo repositorio para compartir el contrato de API y la documentación:
+
+```
+/                         # backend Node (sin cambios de layout)
+├── src/ …
+├── docs/API.md           # contrato consumido por la app
+├── docs/PLAN_APP_MACOS.md # este documento
+└── clients/
+    └── macos/
+        ├── project.yml            # XcodeGen
+        ├── Makefile               # atajos: generate, build, test, archive-mas, archive-devid, notarize
+        ├── GestorTareasApp/       # código Swift (ver §1)
+        ├── Config/
+        │   ├── Debug.xcconfig
+        │   ├── Release-MAS.xcconfig
+        │   └── Release-DevID.xcconfig
+        ├── Signing/
+        │   ├── GestorTareas-MAS.entitlements
+        │   └── GestorTareas-DevID.entitlements
+        └── scripts/
+            ├── build_mas.sh
+            ├── build_devid.sh
+            └── notarize.sh
+```
+
+Alternativa descartada por ahora: repo separado. Se reconsiderará si el ciclo de release de la app diverge mucho del backend.
+
+---
+
+## 3. Firma, entitlements y los dos canales
+
+### 3.1 Requisitos de cuenta Apple
+
+- Apple Developer Program activo (99 €/año).
+- Certificados en el llavero de la máquina de build:
+  - **`Apple Distribution`** + *provisioning profile* de la App (MAS).
+  - **`Developer ID Application`** (Developer ID / fuera de tienda).
+  - **`Mac Installer Distribution`** (solo si se sube `.pkg` a MAS vía Transporter/altool).
+- App ID registrado (p. ej. `com.edefrutos.gestortareas`) con capacidades: *App Sandbox*, *(opcional) Push*.
+- Para notarización: contraseña específica de app o clave API de App Store Connect (`notarytool --key`).
+
+### 3.2 Entitlements
+
+**Común (ambos canales):** al ser solo cliente HTTPS, el set es mínimo.
+
+| Entitlement | MAS | Developer ID | Motivo |
+| --- | --- | --- | --- |
+| `com.apple.security.app-sandbox` | ✅ obligatorio | ✅ recomendado | Requisito MAS; buena práctica en DevID |
+| `com.apple.security.network.client` | ✅ | ✅ | Llamadas al servidor |
+| `com.apple.security.files.user-selected.read-write` | ✅ | ✅ | Elegir foto/documento a adjuntar y exportar CSV/PDF |
+| `com.apple.security.network.server` | ❌ | ❌ | **No** se necesita: no hay servidor local embebido |
+| Hardened Runtime | (implícito en MAS) | ✅ obligatorio para notarizar | — |
+
+Si más adelante se adjuntan capturas desde cámara/pantalla, añadir los `usage strings` en `Info.plist` (`NSCameraUsageDescription`, etc.).
+
+### 3.3 Pipeline
+
+```
+XcodeGen (project.yml) ─┬─> scheme "Release-MAS"  ─> archive ─> export (App Store Connect)
+                        │                                       └─> Transporter / notarytool (key ASC) ─> revisión Apple
+                        └─> scheme "Release-DevID" ─> archive ─> export (Developer ID) ─> create-dmg
+                                                                 └─> xcrun notarytool submit --wait ─> xcrun stapler staple ─> DMG publicable
+```
+
+Diferencias clave entre los dos archivos `.xcconfig`:
+
+| | Release-MAS | Release-DevID |
+| --- | --- | --- |
+| `CODE_SIGN_IDENTITY` | `Apple Distribution` | `Developer ID Application` |
+| `PROVISIONING_PROFILE_SPECIFIER` | perfil MAS | (ninguno / automático) |
+| `ENABLE_HARDENED_RUNTIME` | — | `YES` |
+| Entitlements | `GestorTareas-MAS.entitlements` | `GestorTareas-DevID.entitlements` |
+| Empaquetado | `.pkg` a App Store Connect | `.dmg` notarizado |
+| `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | compartidos (una sola verdad) | idem |
+
+### 3.4 CI (fase posterior)
+
+GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en cada PR. Los jobs de `archive`/`notarize` requieren secrets (certificados base64, clave ASC) y se activan solo en tags `app-v*`.
+
+---
+
+## 4. Hitos
+
+> Cada hito es una rama `feat/macos-*` y termina con la app compilando + tests verdes.
+
+### Hito 0 — Andamiaje (sin firma)
+- [ ] `clients/macos/` con `project.yml` (XcodeGen), `Makefile`, `.xcconfig` x3, entitlements x2.
+- [ ] App SwiftUI que arranca, lee `baseURL` de un ajuste, y muestra pantalla de login.
+- [ ] `APIClient` + `APIError` (decoder tolerante A/B/Zod de `docs/API.md §5`).
+- [ ] `KeychainService` + `SessionStore` (persistir/recuperar/borrar token).
+- [ ] Test unitario: decodificación de `login`, `issues`, `error`.
+
+### Hito 1 — Lectura
+- [ ] Login real contra `/v1/auth/login`; manejo de `401` y de expiración (→ logout).
+- [ ] `IssueList` con paginación y todos los filtros de `GET /v1/issues`.
+- [ ] `IssueDetail`: campos, `*_url` resueltas contra `baseURL`, historial (`/logs`), comentarios (árbol, solo lectura).
+- [ ] `Stats` con Swift Charts desde `/v1/issues/stats` + `/stats/details`.
+- [ ] Indicador de conexión con `GET /health`.
+
+### Hito 2 — Escritura
+- [ ] Crear tarea: formulario + subida `multipart` (`photo`, `file`), selección de fichero (sandbox).
+- [ ] Editar tarea: estado, prioridad, `due_date`, categoría, `map_id`, asignación (`/v1/users/for-assign`), prueba de resolución.
+- [ ] Publicar comentarios y respuestas (`parent_id`).
+- [ ] Manejo de `403` (no propietario) y `413` (fichero grande).
+
+### Hito 3 — Plano + tiempo real
+- [ ] `PlanView`: descarga de imagen del plano, zoom/pan, capa de chinchetas por `lat/lng`, colores por estado/prioridad.
+- [ ] Capas técnicas (`layers`) con opacidad; zonas (`geojson`) dibujadas encima.
+- [ ] `SocketClient`: aplicar `issue:created/updated/deleted` en vivo sobre lista y plano.
+- [ ] Deep-link `gestortareas://issue/<id>` y `?issue=` (paridad con QR de la web).
+
+### Hito 4 — Admin + notificaciones
+- [ ] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime).
+- [ ] Panel admin (solo `role == admin`): usuarios (CRUD) y settings.
+- [ ] Recuperación de contraseña (abrir flujo web o pantallas nativas `forgot`/`reset`).
+
+### Hito 5 — Distribución
+- [ ] `.xcconfig` MAS y DevID afinados; entitlements validados.
+- [ ] Script `notarize.sh` (notarytool + stapler) y `create-dmg`.
+- [ ] Primera *build* de MAS a App Store Connect (TestFlight) y primer DMG notarizado.
+- [ ] Iconos (`AppIcon` 16→1024), `Localizable` (es), textos de la ficha de App Store, capturas.
+- [ ] CI: `xcodebuild test` en PR.
+
+### Trabajo de backend en paralelo (ver `docs/API.md §6`)
+- [ ] Refresh token / sesión configurable.
+- [ ] Auth en el handshake de Socket.io + salas por usuario.
+- [ ] Formato de error unificado.
+- [ ] `GET /v1/version` para control de compatibilidad de cliente.
+
+---
+
+## 5. Riesgos y notas
+
+- **Review 4.2 (MAS):** el riesgo de "mínima funcionalidad" es bajo porque es una app nativa real (no un `WKWebView` envolviendo la web). Mantenerla así.
+- **Sandbox + adjuntos:** usar siempre `NSOpenPanel`/`fileImporter`; nunca rutas absolutas. Guardar en *Application Support*/*Caches* del contenedor.
+- **HTTP en desarrollo:** si el servidor local va sin TLS, añadir excepción ATS **solo** en `Debug.xcconfig`/`Info.plist` de debug, nunca en release.
+- **Versionado:** `MARKETING_VERSION` de la app es independiente del `package.json` del backend. Documentar la matriz app↔API en este archivo cuando exista `/v1/version`.
+- **Un solo idioma hoy (es).** Estructurar con `Localizable.strings` desde el Hito 0 para no reconvertir literales más tarde.
