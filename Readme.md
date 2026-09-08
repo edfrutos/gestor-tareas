@@ -49,6 +49,7 @@ docker compose -f docker-compose.yml -f docker-compose.caddy.yml --profile local
 # 2. Acceder a la aplicación
 # URL Principal (HTTPS): https://localhost:8443
 # URL Alternativa (HTTP): http://localhost:8080
+# Acceso directo al servicio: http://localhost:3001
 ```
 
 > **Nota:** Para evitar avisos de seguridad en el navegador debido al certificado auto-firmado de Caddy, consulta la sección de [HTTPS Local](#https-en-local-caddy).

@@ -80,3 +80,8 @@ certs/cert
 # Node/Docker runtime
 .node_modules
 .npm
+
+# Gestor de paquetes único: npm (package-lock.json). No versionar otros locks.
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
