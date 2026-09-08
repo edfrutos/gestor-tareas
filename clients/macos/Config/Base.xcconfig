@@ -1,0 +1,20 @@
+// Ajustes compartidos por los tres configs (Debug, Release-MAS, Release-DevID).
+
+PRODUCT_NAME = Gestor de Tareas
+PRODUCT_BUNDLE_IDENTIFIER = com.edefrutos.gestortareas
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+SWIFT_VERSION = 5.9
+MACOSX_DEPLOYMENT_TARGET = 14.0
+
+INFOPLIST_FILE = GestorTareasApp/Resources/Info.plist
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
+
+// Concurrencia: 'targeted' en el Hito 0; subir a 'complete' cuando el núcleo esté estable.
+SWIFT_STRICT_CONCURRENCY = targeted
+
+// >>> Rellena con tu Team ID de Apple Developer (Membership details).
+DEVELOPMENT_TEAM =

@@ -1,0 +1,13 @@
+#include "Base.xcconfig"
+
+// Canal 1: Mac App Store. Certificado "Apple Distribution" + perfil de aprovisionamiento.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Distribution
+CODE_SIGN_ENTITLEMENTS = Signing/GestorTareas-MAS.entitlements
+
+// >>> Nombre EXACTO del provisioning profile de la App para Mac App Store.
+PROVISIONING_PROFILE_SPECIFIER = Gestor de Tareas MAS
+
+ENABLE_HARDENED_RUNTIME = YES
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule

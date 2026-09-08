@@ -140,12 +140,14 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 
 > Cada hito es una rama `feat/macos-*` y termina con la app compilando + tests verdes.
 
-### Hito 0 — Andamiaje (sin firma)
-- [ ] `clients/macos/` con `project.yml` (XcodeGen), `Makefile`, `.xcconfig` x3, entitlements x2.
-- [ ] App SwiftUI que arranca, lee `baseURL` de un ajuste, y muestra pantalla de login.
-- [ ] `APIClient` + `APIError` (decoder tolerante A/B/Zod de `docs/API.md §5`).
-- [ ] `KeychainService` + `SessionStore` (persistir/recuperar/borrar token).
-- [ ] Test unitario: decodificación de `login`, `issues`, `error`.
+### Hito 0 — Andamiaje (sin firma) ✅
+- [x] `clients/macos/` con `project.yml` (XcodeGen), `Makefile`, `.xcconfig` x4 (Base + 3), entitlements x2, `scripts/notarize.sh`.
+- [x] App SwiftUI que arranca, lee `baseURL` de un ajuste (`AppSettings` + `PreferencesView`), y muestra pantalla de login.
+- [x] `APIClient` (async/await) + `APIError` (decoder tolerante A/B/Zod de `docs/API.md §5`).
+- [x] `KeychainService` + `SessionStore` (persistir/recuperar/borrar token; logout automático en 401).
+- [x] `IssueListView` de solo lectura (`GET /v1/issues`) como prueba de extremo a extremo.
+- [x] Target de tests + `DecodingTests` (login, issues, tolerancia a nulos, 3 formatos de error).
+- [ ] **Pendiente en Mac:** `make generate && make test` — verificar 1ª compilación en Xcode real.
 
 ### Hito 1 — Lectura
 - [ ] Login real contra `/v1/auth/login`; manejo de `401` y de expiración (→ logout).

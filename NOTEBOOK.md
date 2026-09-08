@@ -486,7 +486,15 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   - Brechas de backend identificadas para el cliente (ver `docs/API.md §6`): refresh token,
     auth en el handshake de Socket.io, formato de error unificado, `GET /v1/version`,
     eventos realtime de comentarios/notificaciones.
-  - Estado: 🚧 Hito 0 (andamiaje `clients/macos/`) sin empezar.
+  - **Hito 0 completado** (`clients/macos/`): proyecto XcodeGen (`project.yml`), `.xcconfig`
+    Base + Debug + Release-MAS + Release-DevID, entitlements por canal, `Makefile`,
+    `scripts/notarize.sh`. Núcleo Swift: `APIClient` (async/await) + `APIError` (decoder
+    tolerante a los 3 formatos), `KeychainService` + `SessionStore` (logout auto en 401),
+    modelos `Codable`, pantalla de login funcional y `IssueListView` de solo lectura contra
+    `GET /v1/issues`. Target de tests con `DecodingTests`.
+    Pendiente: verificar 1ª compilación en Xcode real (`make generate && make test`) — el
+    andamiaje se generó sin acceso a macOS/Xcode.
+  - Estado: 🚧 Hito 1 (lectura completa: login real, filtros, detalle, stats) sin empezar.
 
 ---
 

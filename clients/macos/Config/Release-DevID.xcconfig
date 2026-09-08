@@ -1,0 +1,13 @@
+#include "Base.xcconfig"
+
+// Canal 2: Developer ID (fuera de la App Store). DMG notarizado.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+CODE_SIGN_ENTITLEMENTS = Signing/GestorTareas-DevID.entitlements
+
+// Hardened Runtime + timestamp: obligatorios para notarytool.
+ENABLE_HARDENED_RUNTIME = YES
+OTHER_CODE_SIGN_FLAGS = --timestamp --options runtime
+
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule

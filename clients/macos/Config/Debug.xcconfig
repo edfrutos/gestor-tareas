@@ -1,0 +1,11 @@
+#include "Base.xcconfig"
+
+// Ejecución local sin certificados de distribución.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = -
+CODE_SIGN_ENTITLEMENTS = Signing/GestorTareas-DevID.entitlements
+
+ENABLE_HARDENED_RUNTIME = NO
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+GCC_PREPROCESSOR_DEFINITIONS = DEBUG=1

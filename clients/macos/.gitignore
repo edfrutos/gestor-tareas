@@ -1,0 +1,16 @@
+# Proyecto Xcode generado por XcodeGen — no se versiona.
+GestorTareas.xcodeproj/
+
+# Artefactos de build
+build/
+DerivedData/
+*.xcarchive
+*.dmg
+*.app
+
+# SPM
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store

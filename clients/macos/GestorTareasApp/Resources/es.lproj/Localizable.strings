@@ -1,0 +1,37 @@
+/* Gestor de Tareas — macOS. Idioma base: español. */
+
+"app.title" = "Gestor de Tareas";
+
+"login.username.placeholder" = "Usuario o email";
+"login.password.placeholder" = "Contraseña";
+"login.submit" = "Entrar";
+"login.configureServer" = "Configurar servidor…";
+
+"session.expired" = "Tu sesión ha caducado. Vuelve a iniciar sesión.";
+"account.signOut" = "Cerrar sesión";
+
+"nav.issues" = "Tareas";
+"nav.notifications" = "Notificaciones";
+"nav.stats" = "Estadísticas";
+
+"issues.reload" = "Recargar";
+"issues.column.title" = "Título";
+"issues.column.category" = "Categoría";
+"issues.column.status" = "Estado";
+"issues.column.priority" = "Prioridad";
+"issues.column.dueDate" = "Vence";
+"issues.loadError" = "No se pudieron cargar las tareas";
+"common.retry" = "Reintentar";
+
+"status.open" = "Abierta";
+"status.inProgress" = "En proceso";
+"status.resolved" = "Resuelta";
+
+"priority.low" = "Baja";
+"priority.medium" = "Media";
+"priority.high" = "Alta";
+"priority.critical" = "Crítica";
+
+"prefs.server.section" = "Servidor";
+"prefs.server.url" = "URL base";
+"prefs.server.hint" = "Ejemplos: https://localhost:8443 (Caddy), http://localhost:3000 (local), http://localhost:3001 (Docker)";

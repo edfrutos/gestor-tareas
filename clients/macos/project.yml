@@ -1,0 +1,73 @@
+name: GestorTareas
+
+options:
+  bundleIdPrefix: com.edefrutos
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "14.0"
+
+configs:
+  Debug: debug
+  Release-MAS: release
+  Release-DevID: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+
+targets:
+  GestorTareas:
+    type: application
+    platform: macOS
+    configFiles:
+      Debug: Config/Debug.xcconfig
+      Release-MAS: Config/Release-MAS.xcconfig
+      Release-DevID: Config/Release-DevID.xcconfig
+    sources:
+      - path: GestorTareasApp
+        excludes:
+          - "Resources/Info.plist"
+    # Socket.io (tiempo real) se añade en el Hito 3:
+    # dependencies:
+    #   - package: SocketIO
+    # packages:
+    #   SocketIO:
+    #     url: https://github.com/socketio/socket.io-client-swift
+    #     from: "16.1.0"
+
+  GestorTareasTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: GestorTareas
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.edefrutos.gestortareas.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  GestorTareas (Debug):
+    build:
+      targets:
+        GestorTareas: all
+        GestorTareasTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GestorTareasTests
+  GestorTareas (Mac App Store):
+    build:
+      targets:
+        GestorTareas: all
+    archive:
+      config: Release-MAS
+  GestorTareas (Developer ID):
+    build:
+      targets:
+        GestorTareas: all
+    archive:
+      config: Release-DevID

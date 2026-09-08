@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mantener el sandbox también fuera de la tienda: mismo comportamiento en ambos canales. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Si en el futuro hiciera falta cargar libs no firmadas por Apple, añadir aquí
+	     com.apple.security.cs.disable-library-validation (NO permitido en MAS). -->
+</dict>
+</plist>
