@@ -6,49 +6,78 @@ struct IssueListView: View {
     @State private var model = IssueListViewModel()
 
     var body: some View {
-        content
-            .navigationTitle("Tareas")
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        load()
-                    } label: {
-                        Label("Recargar", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(model.isLoading)
+        @Bindable var model = model
+
+        return VStack(spacing: 0) {
+            IssueFilterBar(filter: $model.filter,
+                           categories: model.categories,
+                           onCommit: reload)
+            Divider()
+            listBody
+        }
+        .navigationTitle("Tareas")
+        .toolbar {
+            ToolbarItem {
+                Button(action: reload) {
+                    Label("Recargar", systemImage: "arrow.clockwise")
                 }
+                .disabled(model.isLoading)
             }
-            .task { load() }
+        }
+        .task { await model.firstLoad(settings: settings, session: session) }
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var listBody: some View {
         if model.isLoading && model.issues.isEmpty {
-            ProgressView().controlSize(.large)
+            VStack { Spacer(); ProgressView().controlSize(.large); Spacer() }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = model.errorMessage, model.issues.isEmpty {
             ContentUnavailableView {
                 Label("No se pudieron cargar las tareas", systemImage: "exclamationmark.triangle")
             } description: {
                 Text(error)
             } actions: {
-                Button("Reintentar") { load() }
+                Button("Reintentar", action: reload)
             }
         } else if model.issues.isEmpty {
-            ContentUnavailableView("Sin tareas", systemImage: "tray",
-                                   description: Text("No hay tareas visibles para tu cuenta."))
+            ContentUnavailableView("Sin resultados",
+                                   systemImage: "tray",
+                                   description: Text("Ninguna tarea coincide con los filtros."))
         } else {
-            Table(model.issues) {
-                TableColumn("Título", value: \.title)
-                TableColumn("Categoría", value: \.category)
-                TableColumn("Estado") { Text($0.status.label) }
-                TableColumn("Prioridad") { Text($0.priority.label) }
-                TableColumn("Vence") { Text($0.dueDate ?? "—") }
-                TableColumn("Asignada a") { Text($0.assignedToUsername ?? "—") }
+            List {
+                ForEach(model.issues) { issue in
+                    NavigationLink(value: issue.id) {
+                        IssueRowView(issue: issue)
+                    }
+                    .task {
+                        await model.loadMoreIfNeeded(current: issue,
+                                                     settings: settings,
+                                                     session: session)
+                    }
+                }
+
+                if model.isLoadingMore {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                }
             }
+            .overlay(alignment: .bottom) { footer }
         }
     }
 
-    private func load() {
-        Task { await model.load(settings: settings, session: session) }
+    @ViewBuilder
+    private var footer: some View {
+        if model.total > 0 {
+            Text("\(model.issues.count) de \(model.total)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(6)
+                .background(.thinMaterial, in: Capsule())
+                .padding(6)
+        }
+    }
+
+    private func reload() {
+        Task { await model.reload(settings: settings, session: session) }
     }
 }

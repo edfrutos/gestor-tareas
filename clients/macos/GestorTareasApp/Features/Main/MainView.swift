@@ -6,16 +6,16 @@ struct MainView: View {
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
-        case notifications = "Notificaciones"
         case stats = "Estadísticas"
+        case notifications = "Notificaciones"
 
         var id: String { rawValue }
 
         var systemImage: String {
             switch self {
             case .issues: return "list.bullet.clipboard"
-            case .notifications: return "bell"
             case .stats: return "chart.bar"
+            case .notifications: return "bell"
             }
         }
     }
@@ -26,11 +26,19 @@ struct MainView: View {
                 Label(panel.rawValue, systemImage: panel.systemImage)
                     .tag(panel)
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
+            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
         } detail: {
-            detail
+            NavigationStack {
+                panelView
+                    .navigationDestination(for: Int.self) { issueID in
+                        IssueDetailView(issueID: issueID)
+                    }
+            }
         }
         .toolbar {
+            ToolbarItem(placement: .status) {
+                ConnectionIndicator()
+            }
             ToolbarItem(placement: .primaryAction) {
                 accountMenu
             }
@@ -38,18 +46,16 @@ struct MainView: View {
     }
 
     @ViewBuilder
-    private var detail: some View {
+    private var panelView: some View {
         switch selection ?? .issues {
         case .issues:
             IssueListView()
+        case .stats:
+            StatsView()
         case .notifications:
             ContentUnavailableView("Notificaciones",
                                    systemImage: "bell",
                                    description: Text("Disponible en el Hito 4."))
-        case .stats:
-            ContentUnavailableView("Estadísticas",
-                                   systemImage: "chart.bar",
-                                   description: Text("Disponible en el Hito 1."))
         }
     }
 

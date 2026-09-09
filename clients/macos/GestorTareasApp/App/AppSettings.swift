@@ -29,4 +29,11 @@ final class AppSettings {
         }
         return url
     }
+
+    /// Resuelve una ruta relativa del backend (`/uploads/x.jpg`) contra `baseURL`.
+    func mediaURL(_ path: String?) -> URL? {
+        guard let path, !path.isEmpty, let base = baseURL else { return nil }
+        if let absolute = URL(string: path), absolute.scheme != nil { return absolute }
+        return URL(string: path, relativeTo: base)?.absoluteURL
+    }
 }

@@ -5,6 +5,8 @@ final class DecodingTests: XCTestCase {
 
     private let decoder = JSONDecoder()
 
+    // MARK: Auth / issues
+
     func testLoginResponse() throws {
         let json = Data("""
         {
@@ -62,6 +64,76 @@ final class DecodingTests: XCTestCase {
         XCTAssertNil(issue.assignedTo)
     }
 
+    // MARK: Detalle — logs y comentarios
+
+    func testLogsArray() throws {
+        let json = Data("""
+        [
+          { "id": 3, "issue_id": 7, "user_id": 2, "action": "update_status",
+            "old_value": "open", "new_value": "in_progress",
+            "created_at": "2026-09-08T11:00:00.000Z" },
+          { "id": 1, "issue_id": 7, "user_id": null, "action": "create",
+            "old_value": null, "new_value": null,
+            "created_at": "2026-09-08T10:00:00.000Z" }
+        ]
+        """.utf8)
+
+        let logs = try decoder.decode([IssueLog].self, from: json)
+        XCTAssertEqual(logs.count, 2)
+        XCTAssertEqual(logs[0].actionLabel, "Cambio de estado")
+        XCTAssertNil(logs[1].userID)
+    }
+
+    func testCommentTree() throws {
+        let json = Data("""
+        [
+          {
+            "id": 1, "issue_id": 7, "user_id": 2, "username": "ana",
+            "parent_id": null, "text": "Revisado", "created_at": "2026-09-08T10:00:00.000Z",
+            "replies": [
+              {
+                "id": 2, "issue_id": 7, "user_id": 3, "username": "beto",
+                "parent_id": 1, "text": "Gracias", "created_at": "2026-09-08T10:05:00.000Z",
+                "replies": []
+              }
+            ]
+          }
+        ]
+        """.utf8)
+
+        let roots = try decoder.decode([Comment].self, from: json)
+        XCTAssertEqual(roots.count, 1)
+        XCTAssertEqual(roots[0].replies.count, 1)
+        XCTAssertEqual(roots[0].replies[0].displayName, "beto")
+    }
+
+    // MARK: Estadísticas
+
+    func testIssueStats() throws {
+        let filled = try decoder.decode(IssueStats.self,
+                                        from: Data(#"{"open":2,"in_progress":1,"resolved":5,"total":8}"#.utf8))
+        XCTAssertEqual(filled.inProgress, 1)
+        XCTAssertEqual(filled.total, 8)
+
+        let empty = try decoder.decode(IssueStats.self, from: Data("{}".utf8))
+        XCTAssertEqual(empty.total, 0)
+    }
+
+    func testStatsDetails() throws {
+        let json = Data("""
+        {
+          "byStatus": { "open": 2, "resolved": 5 },
+          "byCategory": { "alumbrado": 4, "limpieza": 3 },
+          "byUser": [ { "username": "ana", "count": 6 }, { "username": "beto", "count": 1 } ]
+        }
+        """.utf8)
+
+        let details = try decoder.decode(StatsDetails.self, from: json)
+        XCTAssertEqual(details.byStatus["open"], 2)
+        XCTAssertEqual(details.byCategory["alumbrado"], 4)
+        XCTAssertEqual(details.byUser.first?.username, "ana")
+    }
+
     // MARK: APIError — los tres formatos de `docs/API.md §5`
 
     func testAPIErrorObjectForm() {
@@ -90,5 +162,25 @@ final class DecodingTests: XCTestCase {
         let error = APIError.from(status: 403, data: Data())
         XCTAssertEqual(error.kind, .forbidden)
         XCTAssertFalse(error.message.isEmpty)
+    }
+
+    // MARK: IssueFilter → query items
+
+    func testIssueFilterQueryItems() {
+        var filter = IssueFilter()
+        filter.query = "  farola  "
+        filter.status = .open
+        filter.category = "alumbrado"
+        filter.order = .priority
+        filter.scope = .assignedToMe
+
+        let items = filter.queryItems(page: 2)
+        let dict = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(dict["page"], "2")
+        XCTAssertEqual(dict["q"], "farola")
+        XCTAssertEqual(dict["status"], "open")
+        XCTAssertEqual(dict["category"], "alumbrado")
+        XCTAssertEqual(dict["order"], "priority")
+        XCTAssertEqual(dict["only_assigned_to_me"], "true")
     }
 }

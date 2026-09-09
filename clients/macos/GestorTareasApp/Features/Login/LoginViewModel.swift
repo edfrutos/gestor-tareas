@@ -7,11 +7,6 @@ final class LoginViewModel {
     var isLoading = false
     var errorMessage: String?
 
-    private struct Credentials: Encodable {
-        let username: String
-        let password: String
-    }
-
     func login(username: String,
                password: String,
                settings: AppSettings,
@@ -25,15 +20,9 @@ final class LoginViewModel {
             return
         }
 
-        let client = APIClient(baseURL: settings.baseURL, tokenProvider: session)
-        let request = APIClient.Request.json(
-            "POST", "/v1/auth/login",
-            body: Credentials(username: username, password: password),
-            authorized: false
-        )
-
+        let api = GestorAPI(settings: settings, session: session)
         do {
-            let response: LoginResponse = try await client.send(request)
+            let response = try await api.login(username: username, password: password)
             session.signIn(token: response.token, user: response.user)
         } catch let error as APIError {
             errorMessage = error.message
