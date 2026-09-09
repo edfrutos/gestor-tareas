@@ -15,7 +15,7 @@ set -euo pipefail
 KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-gestor-tareas-notary}"
 ARCHIVE="build/GestorTareas-DevID.xcarchive"
 EXPORT_DIR="build/export-devid"
-APP_NAME="Gestor de Tareas.app"
+APP_NAME="GestorTareas.app"
 DMG_PATH="build/GestorTareas.dmg"
 EXPORT_PLIST="scripts/ExportOptions-DevID.plist"
 

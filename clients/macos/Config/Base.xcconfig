@@ -1,6 +1,10 @@
 // Ajustes compartidos por los tres configs (Debug, Release-MAS, Release-DevID).
 
-PRODUCT_NAME = Gestor de Tareas
+// El nombre de producto DEBE coincidir con el nombre del target (sin espacios):
+// evita el desajuste de TEST_HOST y simplifica firma/archivado.
+// El nombre visible para el usuario ("Gestor de Tareas") vive en CFBundleDisplayName
+// (GestorTareasApp/Resources/Info.plist).
+PRODUCT_NAME = GestorTareas
 PRODUCT_BUNDLE_IDENTIFIER = com.edefrutos.gestortareas
 
 MARKETING_VERSION = 0.1.0

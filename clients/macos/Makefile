@@ -5,6 +5,7 @@ SCHEME_DEBUG = GestorTareas (Debug)
 SCHEME_MAS   = GestorTareas (Mac App Store)
 SCHEME_DEVID = GestorTareas (Developer ID)
 BUILD_DIR    = build
+DESTINATION  = platform=macOS,arch=arm64
 
 .PHONY: help generate open build test archive-mas archive-devid notarize clean
 
@@ -25,10 +26,12 @@ open: generate
 	open $(PROJECT)
 
 build: generate
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME_DEBUG)" -configuration Debug build
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME_DEBUG)" -configuration Debug \
+	  -destination "$(DESTINATION)" build
 
 test: generate
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME_DEBUG)" -configuration Debug test
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME_DEBUG)" -configuration Debug \
+	  -destination "$(DESTINATION)" test
 
 archive-mas: generate
 	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME_MAS)" -configuration Release-MAS \
