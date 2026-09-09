@@ -147,7 +147,7 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 - [x] `KeychainService` + `SessionStore` (persistir/recuperar/borrar token; logout automático en 401).
 - [x] `IssueListView` de solo lectura (`GET /v1/issues`) como prueba de extremo a extremo.
 - [x] Target de tests + `DecodingTests` (login, issues, tolerancia a nulos, 3 formatos de error).
-- [ ] **Pendiente en Mac:** `make generate && make test` — verificar 1ª compilación en Xcode real.
+- [x] **Verificado en Mac** (macOS 14, Apple Silicon, Xcode-beta): `make test` → `** TEST SUCCEEDED **`.
 
 ### Hito 1 — Lectura
 - [ ] Login real contra `/v1/auth/login`; manejo de `401` y de expiración (→ logout).

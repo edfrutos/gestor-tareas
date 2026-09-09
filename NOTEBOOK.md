@@ -492,9 +492,11 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
     tolerante a los 3 formatos), `KeychainService` + `SessionStore` (logout auto en 401),
     modelos `Codable`, pantalla de login funcional y `IssueListView` de solo lectura contra
     `GET /v1/issues`. Target de tests con `DecodingTests`.
-    Pendiente: verificar 1ª compilación en Xcode real (`make generate && make test`) — el
-    andamiaje se generó sin acceso a macOS/Xcode.
-  - Estado: 🚧 Hito 1 (lectura completa: login real, filtros, detalle, stats) sin empezar.
+    **Verificado en Mac** (2026-09-09, macOS 14 / Apple Silicon / Xcode-beta): `make test` →
+    `** TEST SUCCEEDED **`. Único ajuste necesario: `PRODUCT_NAME` sin espacios (`GestorTareas`)
+    para que `xcodebuild` resolviera el `TEST_HOST` (commit `df68a75`).
+  - Estado: 🚧 Hito 1 (lectura completa: login real end-to-end, filtros, detalle con comentarios
+    e historial, stats con Swift Charts) sin empezar.
 
 ---
 
