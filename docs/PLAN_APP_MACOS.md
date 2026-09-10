@@ -149,16 +149,18 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 - [x] Target de tests + `DecodingTests` (login, issues, tolerancia a nulos, 3 formatos de error).
 - [x] **Verificado en Mac** (macOS 14, Apple Silicon, Xcode-beta): `make test` → `** TEST SUCCEEDED **`.
 
-### Hito 1 — Lectura
-- [ ] Login real contra `/v1/auth/login`; manejo de `401` y de expiración (→ logout).
-- [ ] `IssueList` con paginación y todos los filtros de `GET /v1/issues`.
-- [ ] `IssueDetail`: campos, `*_url` resueltas contra `baseURL`, historial (`/logs`), comentarios (árbol, solo lectura).
-- [ ] `Stats` con Swift Charts desde `/v1/issues/stats` + `/stats/details`.
-- [ ] Indicador de conexión con `GET /health`.
+### Hito 1 — Lectura ✅
+- [x] Login real contra `/v1/auth/login`; manejo de `401` y de expiración (→ logout con aviso "sesión caducada", reactivo vía `handleUnauthorized`).
+- [x] `IssueList` con paginación (scroll infinito) y filtros `q`, `status`, `category`, `order` y ámbito (`only_assigned_to_me` / `only_created_by_me`). **Pendiente (movido a Hito 2):** rango de fechas (`from` / `to`), `mapId` y `assigned_to` — necesitan selectores de mapa y de usuario.
+- [x] `IssueDetail`: campos, `*_url` resueltas contra `baseURL` (`AppSettings.mediaURL`), historial (`/logs`), comentarios (árbol, solo lectura).
+- [x] `Stats` con Swift Charts desde `/v1/issues/stats` + `/stats/details`.
+- [x] Indicador de conexión con `GET /health` (sondeo cada 30 s en la toolbar).
+- [x] **Verificado en Mac** (macOS 14, Apple Silicon, Xcode): `make test` verde + captura de la app en ejecución.
 
 ### Hito 2 — Escritura
 - [ ] Crear tarea: formulario + subida `multipart` (`photo`, `file`), selección de fichero (sandbox).
 - [ ] Editar tarea: estado, prioridad, `due_date`, categoría, `map_id`, asignación (`/v1/users/for-assign`), prueba de resolución.
+- [ ] Completar filtros de `IssueList` pendientes del Hito 1: rango de fechas (`from` / `to`), filtro por mapa (`mapId`) y por persona asignada (`assigned_to`).
 - [ ] Publicar comentarios y respuestas (`parent_id`).
 - [ ] Manejo de `403` (no propietario) y `413` (fichero grande).
 
