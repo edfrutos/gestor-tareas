@@ -3,6 +3,7 @@ import SwiftUI
 struct IssueListView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppSettings.self) private var settings
+    @Environment(SocketClient.self) private var socket
     @State private var model = IssueListViewModel()
     @State private var showCreate = false
 
@@ -38,6 +39,11 @@ struct IssueListView: View {
             .environment(settings)
         }
         .task { await model.firstLoad(settings: settings, session: session) }
+        .task(id: socket.lastEvent?.id) {
+            if let event = socket.lastEvent?.payload {
+                model.apply(event)
+            }
+        }
     }
 
     @ViewBuilder

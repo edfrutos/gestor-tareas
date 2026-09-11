@@ -46,6 +46,22 @@ final class IssueDetailViewModel {
         comments = (try? await api.comments(issueID: updated.id)) ?? comments
     }
 
+    /// Aplica un evento de `SocketClient` (Hito 3) si corresponde a esta tarea.
+    func applyRealtime(_ event: IssueRealtimeEvent,
+                       settings: AppSettings,
+                       session: SessionStore) async {
+        guard let issueID else { return }
+        switch event {
+        case let .updated(updated) where updated.id == issueID:
+            await apply(updated: updated, settings: settings, session: session)
+        case let .deleted(id) where id == issueID:
+            issue = nil
+            errorMessage = "Esta tarea se ha eliminado."
+        default:
+            break
+        }
+    }
+
     /// Publica un comentario (o una respuesta si `parentID != nil`) y recarga el árbol.
     func postComment(text: String,
                      parentID: Int?,

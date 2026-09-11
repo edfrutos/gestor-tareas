@@ -43,6 +43,28 @@ final class IssueListViewModel {
         total += 1
     }
 
+    /// Aplica un evento de `SocketClient` (Hito 3). No reconsulta los filtros
+    /// del servidor: si una tarea deja de cumplirlos tras un `issue:updated`
+    /// (p. ej. cambia de estado) seguirá visible hasta la próxima recarga —
+    /// aceptable para no perder de vista lo que se acaba de tocar.
+    func apply(_ event: IssueRealtimeEvent) {
+        switch event {
+        case let .created(issue):
+            insertCreated(issue)
+        case let .updated(issue):
+            if let index = issues.firstIndex(where: { $0.id == issue.id }) {
+                issues[index] = issue
+            }
+        case let .deleted(id):
+            if let index = issues.firstIndex(where: { $0.id == id }) {
+                issues.remove(at: index)
+                total = max(0, total - 1)
+            }
+        case .settingsUpdated:
+            break
+        }
+    }
+
     func reload(settings: AppSettings, session: SessionStore) async {
         page = 1
         isLoading = true

@@ -180,16 +180,74 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > resultados de verdad. Lo que queda pendiente, y requiere el Mac, es la interacción real con la UI
 > compilada (`fileImporter`, bindings del formulario, `AsyncImage`) — este sandbox no tiene Xcode.
 
-### Hito 3 — Plano + tiempo real
-- [ ] `PlanView`: descarga de imagen del plano, zoom/pan, capa de chinchetas por `lat/lng`, colores por estado/prioridad.
-- [ ] Capas técnicas (`layers`) con opacidad; zonas (`geojson`) dibujadas encima.
-- [ ] `SocketClient`: aplicar `issue:created/updated/deleted` en vivo sobre lista y plano.
-- [ ] Deep-link `gestortareas://issue/<id>` y `?issue=` (paridad con QR de la web).
+### Hito 3 — Plano + tiempo real ✅
+- [x] `PlanView`: descarga de la imagen del plano (tamaño real en píxeles vía `ImageIO`, no el de
+  `AsyncImage`), zoom (pellizco/botones) + pan (`ScrollView`), chinchetas por `lat/lng` coloreadas
+  por estado (relleno) y prioridad (borde). Botón "Ver en el plano" en `IssueDetailView` abre el
+  plano de esa tarea en una hoja, con esa chincheta resaltada.
+- [x] Capas técnicas (`layers` de `GET /v1/maps/:id`) superpuestas a opacidad fija 0.7 (como la
+  SPA), activables desde un menú; zonas (`GET /v1/maps/:mapId/zones`) dibujadas como polígono
+  relleno + borde a partir de su `geojson` (solo anillo exterior, sin agujeros).
+- [x] `SocketClient` (SPM `socket.io-client-swift`, sin auth en el handshake — ver `API.md §4`):
+  aplica `issue:created/updated/deleted` en vivo sobre la lista, el detalle y el plano;
+  `settings:updated` se recibe pero no hace nada todavía (no hay panel admin hasta el Hito 4).
+- [x] Deep-link `gestortareas://issue/<id>` y `gestortareas://open?issue=<id>` (mismo parámetro que
+  el QR de la web) vía `CFBundleURLTypes` + `DeepLinkRouter`, funciona con la app cerrada o ya
+  abierta, con o sin sesión iniciada.
+- [x] **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **`
+  (resuelve el paquete SPM `socket.io-client-swift` 16.1.0 sin problemas).
 
-### Hito 4 — Admin + notificaciones
-- [ ] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime).
-- [ ] Panel admin (solo `role == admin`): usuarios (CRUD) y settings.
-- [ ] Recuperación de contraseña (abrir flujo web o pantallas nativas `forgot`/`reset`).
+> **Sistema de coordenadas — la pieza que hay que acertar.** El plano NO usa los píxeles nativos de
+> la imagen: la SPA (`src/public/ui/modules/map.js`, Leaflet `CRS.Simple`) normaliza el eje largo a
+> 1000 unidades y el corto a `1000·corto/largo`, origen abajo-izquierda, eje Y hacia arriba. `lat` es
+> Y, `lng` es X. `PlanCoordinateSpace` (con tests) reproduce esa misma fórmula; si algún día cambia
+> en el backend/SPA, hay que tocar ambos lados a la vez.
+>
+> **Universal Links fuera de alcance.** El QR de la web genera una URL `https://…?issue=<id>`
+> normal; interceptarla de verdad (sin el esquema `gestortareas://`) requeriría alojar un
+> `apple-app-site-association` en el dominio del servidor (Associated Domains), que es trabajo de
+> backend/infra, no de este cliente.
+>
+> **Verificado por curl contra el backend real** en este mismo sandbox (servidor Node aislado,
+> `NODE_ENV=test`, DB temporal): `GET /v1/maps/:id` con `layers`, `GET/POST /v1/maps/:mapId/zones`
+> con el `geojson` exacto que espera `MapZone.polygonRings`, y los tres eventos de Socket.io
+> (`issue:created/updated/deleted`, protocolo EIO4) emitidos con el payload que decodifica
+> `SocketClient`.
+>
+> **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **`, incluyendo la
+> resolución del paquete SPM `socket.io-client-swift` (sin conflictos con `Starscream 4.0.6`, su
+> dependencia fijada).
+
+### Hito 4 — Admin + notificaciones ✅
+- [x] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime):
+  `NotificationsView` + `NotificationsViewModel`, con `id` sintético (el backend no da uno propio
+  para esta lista combinada comment/reply/log) e icono/color por tipo; tocar una fila abre la tarea.
+- [x] Panel admin (`AdminView`, solo `session.isAdmin`, con un segmentado Usuarios/Configuración):
+  - Usuarios (`AdminUsersView` + `AdminUsersViewModel`, paginado igual que `IssueListView`):
+    alta (`AdminUserEditorView`, modo crear/editar igual que `IssueEditorView`), baja con
+    confirmación (el backend rechaza que un admin se borre a sí mismo; el botón ya sale
+    deshabilitado en esa fila), edición de `role`/`email`/`password` enviando solo lo que cambia.
+  - Settings (`AdminSettingsView` + `AdminSettingsViewModel`): las 7 claves de
+    `config.service.js::getAllSettings` (tipos ya mixtos — booleano/número/cadena — que decodifica
+    `AppRuntimeSettings`), `PATCH` solo con el diff (`SettingsPatch`). Cierra lo que el Hito 3 dejó
+    pendiente: `settings:updated` (Socket.io) ahora recarga el panel si otro admin cambia algo.
+- [x] Recuperación de contraseña: pantallas nativas (`ForgotPasswordView` → `POST forgot-password`;
+  `ResetPasswordView` → `POST reset-password`), enlazadas desde `LoginView`. El email de
+  recuperación (`mail.service.js`) apunta a una URL de la SPA web
+  (`<PUBLIC_URL>/#reset-password?token=…`) que este cliente no intercepta (mismo motivo que los
+  Universal Links del Hito 3); en vez de eso, `ResetPasswordView` deja pegar el enlace completo o
+  solo el token y `ResetTokenParsing` (con tests) extrae el valor en cualquiera de los dos casos.
+- [x] **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **` tras
+  corregir `NSTextContentType.emailAddress` (no `.email`, que solo existe en UIKit) en los dos
+  campos de email nuevos (`AdminUserEditorView`, `AdminSettingsView`).
+
+> Los modelos de datos (`AppNotification`, `AdminUser`, `AppRuntimeSettings`, `SettingsPatch`,
+> `ResetTokenParsing`) tienen tests de decodificación en `DecodingTests` a partir de las respuestas
+> reales de `src/routes/notifications.routes.js`, `src/routes/users.routes.js` y
+> `src/services/config.service.js`; a diferencia de los Hitos 2 y 3, el contrato no se reprodujo por
+> `curl` contra un backend real en este Hito (ya estaba fijado en `docs/API.md` y en el propio
+> código del backend), lo que dejó pasar el único fallo real: un nombre de caso de enum específico
+> de macOS que ningún test de decodificación podía atrapar.
 
 ### Hito 5 — Distribución
 - [ ] `.xcconfig` MAS y DevID afinados; entitlements validados.

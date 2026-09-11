@@ -35,3 +35,25 @@ extension Priority {
         }
     }
 }
+
+extension Color {
+    /// `"#RRGGBB"` (el formato que usa `map_zones.color`) → `Color`. Gris si no
+    /// se puede interpretar.
+    init(hex: String) {
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count == 6, let value = UInt32(s, radix: 16) else {
+            self = .gray
+            return
+        }
+        let r = Double((value >> 16) & 0xFF) / 255
+        let g = Double((value >> 8) & 0xFF) / 255
+        let b = Double(value & 0xFF) / 255
+        self = Color(red: r, green: g, blue: b)
+    }
+}
+
+extension MapZone {
+    /// `color` (`"#RRGGBB"`) traducido a `Color`.
+    var displayColor: Color { Color(hex: color) }
+}

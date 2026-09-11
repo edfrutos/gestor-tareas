@@ -24,11 +24,30 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/auth/forgot-password`. Siempre `200`, no revela si el email existe.
+    func forgotPassword(email: String) async throws {
+        struct Body: Encodable { let email: String }
+        _ = try await client.sendVoid(
+            .json("POST", "/v1/auth/forgot-password", body: Body(email: email), authorized: false)
+        )
+    }
+
+    /// `POST /v1/auth/reset-password`. El `token` llega por email (ver
+    /// `ResetTokenParsing`), válido 1 h.
+    func resetPassword(token: String, password: String) async throws {
+        struct Body: Encodable { let token: String; let password: String }
+        _ = try await client.sendVoid(
+            .json("POST", "/v1/auth/reset-password",
+                  body: Body(token: token, password: password), authorized: false)
+        )
+    }
+
     // MARK: Issues
 
-    func issues(filter: IssueFilter, page: Int) async throws -> Paginated<Issue> {
+    func issues(filter: IssueFilter, page: Int, pageSize: Int = 50) async throws -> Paginated<Issue> {
         try await client.send(
-            .init(method: "GET", path: "/v1/issues", query: filter.queryItems(page: page))
+            .init(method: "GET", path: "/v1/issues",
+                  query: filter.queryItems(page: page, pageSize: pageSize))
         )
     }
 
@@ -106,6 +125,93 @@ struct GestorAPI {
             .init(method: "GET", path: "/v1/maps",
                   query: [URLQueryItem(name: "exclude_layers", value: "true")])
         )
+    }
+
+    // MARK: Plano (Hito 3)
+
+    /// `GET /v1/maps/:id` → plano + `layers` (capas técnicas anidadas).
+    func mapDetail(id: Int) async throws -> MapDetail {
+        try await client.send(.init(method: "GET", path: "/v1/maps/\(id)"))
+    }
+
+    /// `GET /v1/maps/:mapId/zones` → zonas dibujadas sobre el plano.
+    func zones(mapID: Int) async throws -> [MapZone] {
+        try await client.send(.init(method: "GET", path: "/v1/maps/\(mapID)/zones"))
+    }
+
+    // MARK: Notificaciones (Hito 4)
+
+    /// `GET /v1/notifications` → actividad (comentarios/respuestas/cambios) en
+    /// tareas creadas o asignadas al usuario, máx. 50, ya ordenada por fecha.
+    func notifications() async throws -> [AppNotification] {
+        let list: NotificationList = try await client.send(
+            .init(method: "GET", path: "/v1/notifications")
+        )
+        return list.items
+    }
+
+    // MARK: Admin — usuarios (Hito 4, requiere role == admin)
+
+    func adminUsers(page: Int, pageSize: Int = 20) async throws -> Paginated<AdminUser> {
+        try await client.send(
+            .init(method: "GET", path: "/v1/users",
+                  query: [
+                    URLQueryItem(name: "page", value: String(page)),
+                    URLQueryItem(name: "pageSize", value: String(pageSize)),
+                  ])
+        )
+    }
+
+    /// `POST /v1/users`. Devuelve el usuario creado.
+    func createUser(username: String, email: String?, password: String, role: String) async throws -> AdminUser {
+        struct Body: Encodable {
+            let username: String
+            let email: String?
+            let password: String
+            let role: String
+        }
+        return try await client.send(
+            .json("POST", "/v1/users",
+                  body: Body(username: username, email: email, password: password, role: role))
+        )
+    }
+
+    /// `PATCH /v1/users/:id`. Cada parámetro `nil` no se toca; `email` admite
+    /// `""` para borrarlo (distinto de no tocarlo, ver `AdminUserEditorViewModel`).
+    func updateUser(id: Int, role: String? = nil, email: String? = nil, password: String? = nil) async throws {
+        struct Body: Encodable {
+            let role: String?
+            let email: String?
+            let password: String?
+
+            enum CodingKeys: String, CodingKey { case role, email, password }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encodeIfPresent(role, forKey: .role)
+                try c.encodeIfPresent(email, forKey: .email)
+                try c.encodeIfPresent(password, forKey: .password)
+            }
+        }
+        _ = try await client.sendVoid(
+            .json("PATCH", "/v1/users/\(id)", body: Body(role: role, email: email, password: password))
+        )
+    }
+
+    /// `DELETE /v1/users/:id`. `400` si es el propio usuario autenticado.
+    func deleteUser(id: Int) async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/users/\(id)"))
+    }
+
+    // MARK: Admin — settings en caliente (Hito 4, requiere role == admin)
+
+    func settings() async throws -> AppRuntimeSettings {
+        try await client.send(.init(method: "GET", path: "/v1/settings"))
+    }
+
+    /// `PATCH /v1/settings`. Emite `settings:updated` (Socket.io) al aplicarse.
+    /// Devuelve el conjunto completo ya actualizado.
+    func updateSettings(_ patch: SettingsPatch) async throws -> AppRuntimeSettings {
+        try await client.send(.json("PATCH", "/v1/settings", body: patch))
     }
 
     // MARK: Estadísticas

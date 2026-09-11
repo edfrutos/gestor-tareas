@@ -7,6 +7,8 @@ struct LoginView: View {
     @State private var model = LoginViewModel()
     @State private var username = ""
     @State private var password = ""
+    @State private var showForgotPassword = false
+    @State private var showResetPassword = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -55,6 +57,14 @@ struct LoginView: View {
             .keyboardShortcut(.defaultAction)
             .disabled(model.isLoading || username.isEmpty || password.isEmpty)
 
+            HStack(spacing: 14) {
+                Button("¿Olvidaste tu contraseña?") { showForgotPassword = true }
+                Text("·").foregroundStyle(.tertiary)
+                Button("Ya tengo un código") { showResetPassword = true }
+            }
+            .buttonStyle(.link)
+            .font(.callout)
+
             Divider().padding(.vertical, 4)
 
             SettingsLink {
@@ -63,6 +73,12 @@ struct LoginView: View {
         }
         .padding(40)
         .frame(width: 400)
+        .sheet(isPresented: $showForgotPassword) {
+            ForgotPasswordView().environment(session).environment(settings)
+        }
+        .sheet(isPresented: $showResetPassword) {
+            ResetPasswordView().environment(session).environment(settings)
+        }
     }
 
     private func attempt() {

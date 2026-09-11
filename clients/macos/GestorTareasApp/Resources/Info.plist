@@ -33,5 +33,21 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- Deep-link nativo (Hito 3): gestortareas://issue/<id> y
+	     gestortareas://open?issue=<id> (paridad con el ?issue= del QR web).
+	     No es un Universal Link: interceptar las URLs https:// reales del QR
+	     requeriría alojar un apple-app-site-association en el dominio del
+	     servidor (Associated Domains), fuera del alcance de este cliente. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.edefrutos.gestortareas</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>gestortareas</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

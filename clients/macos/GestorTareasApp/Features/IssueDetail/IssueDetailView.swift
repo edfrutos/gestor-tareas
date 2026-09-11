@@ -5,8 +5,10 @@ struct IssueDetailView: View {
 
     @Environment(SessionStore.self) private var session
     @Environment(AppSettings.self) private var settings
+    @Environment(SocketClient.self) private var socket
     @State private var model = IssueDetailViewModel()
     @State private var showEditor = false
+    @State private var showPlan = false
     @State private var replyingTo: Int?
 
     var body: some View {
@@ -48,8 +50,27 @@ struct IssueDetailView: View {
                 .environment(settings)
             }
         }
+        .sheet(isPresented: $showPlan) {
+            if let issue = model.issue {
+                NavigationStack {
+                    PlanView(initialMapID: issue.mapID, highlightIssueID: issue.id)
+                        .navigationDestination(for: Int.self) { id in
+                            IssueDetailView(issueID: id)
+                        }
+                }
+                .environment(session)
+                .environment(settings)
+                .environment(socket)
+                .frame(minWidth: 720, minHeight: 560)
+            }
+        }
         .task(id: issueID) {
             await model.load(id: issueID, settings: settings, session: session)
+        }
+        .task(id: socket.lastEvent?.id) {
+            if let event = socket.lastEvent?.payload {
+                await model.applyRealtime(event, settings: settings, session: session)
+            }
         }
     }
 
@@ -127,9 +148,10 @@ struct IssueDetailView: View {
                 Text(String(format: "x: %.1f · y: %.1f", lat, lng))
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
-                Text("El visor del plano llega en el Hito 3.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                if issue.mapID != nil {
+                    Button("Ver en el plano") { showPlan = true }
+                        .buttonStyle(.link)
+                }
             }
         }
     }

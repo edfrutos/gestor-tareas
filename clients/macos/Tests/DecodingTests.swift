@@ -342,4 +342,222 @@ final class DecodingTests: XCTestCase {
         XCTAssertFalse(text.contains(#"name="category""#))
         XCTAssertFalse(text.contains(#"name="due_date""#))
     }
+
+    // MARK: Hito 3 — PlanCoordinateSpace (paridad con Leaflet CRS.Simple de la web)
+
+    func testPlanCoordinateSpaceNormalizesLongAxisTo1000() {
+        let landscape = PlanCoordinateSpace(imageWidth: 2000, imageHeight: 1000)
+        XCTAssertEqual(landscape.virtualWidth, 1000)
+        XCTAssertEqual(landscape.virtualHeight, 500)
+
+        let portrait = PlanCoordinateSpace(imageWidth: 500, imageHeight: 1000)
+        XCTAssertEqual(portrait.virtualWidth, 500)
+        XCTAssertEqual(portrait.virtualHeight, 1000)
+
+        let degenerate = PlanCoordinateSpace(imageWidth: 0, imageHeight: 0)
+        XCTAssertEqual(degenerate.virtualWidth, 1000)
+        XCTAssertEqual(degenerate.virtualHeight, 1000)
+    }
+
+    func testPlanCoordinateSpaceFractionMatchesLeafletOrientation() {
+        // lat crece hacia arriba (Leaflet); fy=0 en SwiftUI es "arriba" de la
+        // imagen, así que lat máximo debe dar fy≈0, no fy≈1.
+        let space = PlanCoordinateSpace(imageWidth: 1000, imageHeight: 500)
+
+        let center = space.fraction(lat: 250, lng: 500)
+        XCTAssertEqual(center.x, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(center.y, 0.5, accuracy: 0.0001)
+
+        let topLeft = space.fraction(lat: 500, lng: 0)
+        XCTAssertEqual(topLeft.x, 0, accuracy: 0.0001)
+        XCTAssertEqual(topLeft.y, 0, accuracy: 0.0001)
+
+        let bottomRight = space.fraction(lat: 0, lng: 1000)
+        XCTAssertEqual(bottomRight.x, 1, accuracy: 0.0001)
+        XCTAssertEqual(bottomRight.y, 1, accuracy: 0.0001)
+
+        // Ida y vuelta.
+        let roundTrip = space.coordinate(atFraction: center)
+        XCTAssertEqual(roundTrip.lat, 250, accuracy: 0.0001)
+        XCTAssertEqual(roundTrip.lng, 500, accuracy: 0.0001)
+    }
+
+    // MARK: Hito 3 — Plano con capas y zonas
+
+    func testMapDetailDecodingWithLayers() throws {
+        let json = Data("""
+        {
+          "id": 1, "name": "Plano Principal", "file_url": "/ui/plano.jpg",
+          "thumb_url": null, "parent_id": null,
+          "layers": [ { "id": 2, "name": "Electricidad", "file_url": "/uploads/map_2.jpg" } ]
+        }
+        """.utf8)
+        let detail = try decoder.decode(MapDetail.self, from: json)
+        XCTAssertEqual(detail.layers.count, 1)
+        XCTAssertEqual(detail.layers[0].name, "Electricidad")
+
+        let withoutLayers = try decoder.decode(MapDetail.self,
+            from: Data(#"{"id":3,"name":"Nave 2","file_url":"/uploads/x.jpg","parent_id":null}"#.utf8))
+        XCTAssertTrue(withoutLayers.layers.isEmpty)
+    }
+
+    func testMapZoneDecodingAndPolygonRings() throws {
+        // Geojson real, verificado contra POST /v1/maps/:id/zones.
+        let json = Data("""
+        {
+          "id": 1, "map_id": 3, "name": "Almacén", "type": "rectangle",
+          "geojson": "{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[100,100],[400,100],[400,300],[100,300],[100,100]]]}}",
+          "color": "#7c5cff", "created_by": 2, "created_at": "2026-09-11T08:38:50.967Z"
+        }
+        """.utf8)
+        let zone = try decoder.decode(MapZone.self, from: json)
+        XCTAssertEqual(zone.mapID, 3)
+
+        let space = PlanCoordinateSpace(imageWidth: 1000, imageHeight: 1000)
+        let rings = zone.polygonRings(in: space)
+        XCTAssertEqual(rings.count, 1)
+        XCTAssertEqual(rings[0].count, 5)
+        XCTAssertEqual(rings[0][0].x, 0.1, accuracy: 0.0001)   // lng=100 → 100/1000
+        XCTAssertEqual(rings[0][0].y, 0.9, accuracy: 0.0001)   // lat=100 → 1-100/1000
+    }
+
+    func testMapZoneIgnoresNonPolygonGeometry() throws {
+        let zone = MapZone(id: 1, mapID: 1, name: "Punto", type: "marker",
+                           geojson: #"{"type":"Feature","geometry":{"type":"Point","coordinates":[1,2]}}"#,
+                           color: "#000000", createdBy: 1, createdAt: "")
+        XCTAssertTrue(zone.polygonRings(in: PlanCoordinateSpace(imageWidth: 1000, imageHeight: 1000)).isEmpty)
+    }
+
+    // MARK: Hito 3 — deep link
+
+    func testDeepLinkRouterParsesPathForm() {
+        XCTAssertEqual(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/42")!), 42)
+    }
+
+    func testDeepLinkRouterParsesQueryForm() {
+        XCTAssertEqual(DeepLinkRouter.issueID(from: URL(string: "gestortareas://open?issue=7")!), 7)
+    }
+
+    func testDeepLinkRouterRejectsOtherSchemes() {
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "https://example.com/issue/42")!))
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/")!))
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/abc")!))
+    }
+
+    // MARK: Hito 3 — payloads de Socket.io (issue:created/updated/deleted)
+
+    func testSocketClientDecodesIssuePayload() throws {
+        let payload: [String: Any] = [
+            "id": 3, "title": "Evento realtime", "category": "otros",
+            "description": "Prueba socket", "status": "open", "created_at": "2026-09-11T08:00:00.000Z",
+        ]
+        let issue: Issue? = SocketClient.decode(payload)
+        XCTAssertEqual(issue?.id, 3)
+        XCTAssertEqual(issue?.title, "Evento realtime")
+    }
+
+    func testSocketClientDeletedIDAcceptsIntOrString() {
+        XCTAssertEqual(SocketClient.deletedID(from: ["id": 3]), 3)
+        XCTAssertEqual(SocketClient.deletedID(from: ["id": "3"]), 3)
+        XCTAssertNil(SocketClient.deletedID(from: ["id": "not-a-number"]))
+        XCTAssertNil(SocketClient.deletedID(from: NSNull()))
+    }
+
+    // MARK: Hito 4 — notificaciones
+
+    func testNotificationListDecodesCommentReplyAndLogVariants() throws {
+        // Forma real de src/routes/notifications.routes.js: comment/reply y log
+        // mezclados, sin "id" propio.
+        let json = Data("""
+        {
+          "items": [
+            { "type": "comment", "issue_id": 7, "issue_title": "Farola rota",
+              "commenter_username": "ana", "text_preview": "Ya lo he revisado",
+              "created_at": "2026-09-11T10:00:00.000Z" },
+            { "type": "reply", "issue_id": 7, "issue_title": "Farola rota",
+              "commenter_username": "beto", "text_preview": "Gracias",
+              "created_at": "2026-09-11T10:05:00.000Z" },
+            { "type": "log", "action": "update_status", "old_value": "open",
+              "new_value": "in_progress", "issue_id": 7, "issue_title": "Farola rota",
+              "created_at": "2026-09-11T09:00:00.000Z" }
+          ]
+        }
+        """.utf8)
+
+        let list = try decoder.decode(NotificationList.self, from: json)
+        XCTAssertEqual(list.items.count, 3)
+        XCTAssertEqual(list.items[0].type, .comment)
+        XCTAssertEqual(list.items[1].type, .reply)
+        XCTAssertEqual(list.items[2].type, .log)
+        XCTAssertEqual(list.items[2].actionLabel, "Cambio de estado")
+        // ids sintéticos distintos entre sí (no colisionan aunque compartan issue_id).
+        let ids = Set(list.items.map(\.id))
+        XCTAssertEqual(ids.count, 3)
+    }
+
+    // MARK: Hito 4 — admin: usuarios
+
+    func testAdminUserDecoding() throws {
+        let json = Data("""
+        [
+          { "id": 1, "username": "admin", "email": "a@b.com", "role": "admin", "created_at": "2026-01-01T00:00:00.000Z" },
+          { "id": 2, "username": "tecnico1", "email": null, "role": "user", "created_at": "2026-02-01T00:00:00.000Z" }
+        ]
+        """.utf8)
+        let users = try decoder.decode([AdminUser].self, from: json)
+        XCTAssertTrue(users[0].isAdmin)
+        XCTAssertFalse(users[1].isAdmin)
+        XCTAssertNil(users[1].email)
+    }
+
+    // MARK: Hito 4 — admin: settings en caliente
+
+    func testAppRuntimeSettingsDecodingWithMixedTypesAndNulls() throws {
+        // Igual que devuelve GET /v1/settings: booleanos, números y cadenas ya
+        // tipados por config.service.js::parseValue, o null si no hay valor.
+        let json = Data("""
+        {
+          "MAX_UPLOAD_BYTES": 8388608, "RATE_LIMIT_ENABLED": true,
+          "RATE_LIMIT_WINDOW_MS": 60000, "RATE_LIMIT_MAX": 100,
+          "ADMIN_EMAIL": "admin@example.com", "PUBLIC_URL": null, "MAILPIT_URL": null
+        }
+        """.utf8)
+        let settings = try decoder.decode(AppRuntimeSettings.self, from: json)
+        XCTAssertEqual(settings.maxUploadBytes, 8_388_608)
+        XCTAssertEqual(settings.rateLimitEnabled, true)
+        XCTAssertEqual(settings.adminEmail, "admin@example.com")
+        XCTAssertNil(settings.publicURL)
+        XCTAssertNil(settings.mailpitURL)
+    }
+
+    func testSettingsPatchOnlyEncodesChangedKeys() throws {
+        var patch = SettingsPatch()
+        patch.rateLimitEnabled = false
+        patch.adminEmail = "new@example.com"
+
+        let data = try JSONEncoder().encode(patch)
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(obj.count, 2)
+        XCTAssertEqual(obj["ADMIN_EMAIL"] as? String, "new@example.com")
+        XCTAssertEqual(obj["RATE_LIMIT_ENABLED"] as? Bool, false)
+        XCTAssertNil(obj["MAX_UPLOAD_BYTES"])
+    }
+
+    // MARK: Hito 4 — recuperación de contraseña
+
+    func testResetTokenParsingExtractsFromEmailedLink() {
+        // Enlace real de notifyPasswordReset: "<PUBLIC_URL>/#reset-password?token=<hex>".
+        let link = "https://example.com/#reset-password?token=abc123def456&other=1"
+        XCTAssertEqual(ResetTokenParsing.token(from: link), "abc123def456")
+    }
+
+    func testResetTokenParsingAcceptsBareHexToken() {
+        let hex = String(repeating: "a1", count: 32)   // 64 hex, como crypto.randomBytes(32)
+        XCTAssertEqual(ResetTokenParsing.token(from: "  \(hex)  "), hex)
+    }
+
+    func testResetTokenParsingRejectsGarbage() {
+        XCTAssertNil(ResetTokenParsing.token(from: ""))
+        XCTAssertNil(ResetTokenParsing.token(from: "no es un token"))
+    }
 }
