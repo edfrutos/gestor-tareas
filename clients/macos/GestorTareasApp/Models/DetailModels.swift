@@ -20,7 +20,11 @@ struct IssueLog: Codable, Identifiable {
         case createdAt = "created_at"
     }
 
-    var actionLabel: String {
+    var actionLabel: String { Self.label(forAction: action) }
+
+    /// Compartida con `AppNotification` (Hito 4): mismos `action` de
+    /// `issue_logs`, mismo texto.
+    static func label(forAction action: String) -> String {
         switch action {
         case "create": return "Creación"
         case "update_status", "status": return "Cambio de estado"

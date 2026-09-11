@@ -462,4 +462,102 @@ final class DecodingTests: XCTestCase {
         XCTAssertNil(SocketClient.deletedID(from: ["id": "not-a-number"]))
         XCTAssertNil(SocketClient.deletedID(from: NSNull()))
     }
+
+    // MARK: Hito 4 — notificaciones
+
+    func testNotificationListDecodesCommentReplyAndLogVariants() throws {
+        // Forma real de src/routes/notifications.routes.js: comment/reply y log
+        // mezclados, sin "id" propio.
+        let json = Data("""
+        {
+          "items": [
+            { "type": "comment", "issue_id": 7, "issue_title": "Farola rota",
+              "commenter_username": "ana", "text_preview": "Ya lo he revisado",
+              "created_at": "2026-09-11T10:00:00.000Z" },
+            { "type": "reply", "issue_id": 7, "issue_title": "Farola rota",
+              "commenter_username": "beto", "text_preview": "Gracias",
+              "created_at": "2026-09-11T10:05:00.000Z" },
+            { "type": "log", "action": "update_status", "old_value": "open",
+              "new_value": "in_progress", "issue_id": 7, "issue_title": "Farola rota",
+              "created_at": "2026-09-11T09:00:00.000Z" }
+          ]
+        }
+        """.utf8)
+
+        let list = try decoder.decode(NotificationList.self, from: json)
+        XCTAssertEqual(list.items.count, 3)
+        XCTAssertEqual(list.items[0].type, .comment)
+        XCTAssertEqual(list.items[1].type, .reply)
+        XCTAssertEqual(list.items[2].type, .log)
+        XCTAssertEqual(list.items[2].actionLabel, "Cambio de estado")
+        // ids sintéticos distintos entre sí (no colisionan aunque compartan issue_id).
+        let ids = Set(list.items.map(\.id))
+        XCTAssertEqual(ids.count, 3)
+    }
+
+    // MARK: Hito 4 — admin: usuarios
+
+    func testAdminUserDecoding() throws {
+        let json = Data("""
+        [
+          { "id": 1, "username": "admin", "email": "a@b.com", "role": "admin", "created_at": "2026-01-01T00:00:00.000Z" },
+          { "id": 2, "username": "tecnico1", "email": null, "role": "user", "created_at": "2026-02-01T00:00:00.000Z" }
+        ]
+        """.utf8)
+        let users = try decoder.decode([AdminUser].self, from: json)
+        XCTAssertTrue(users[0].isAdmin)
+        XCTAssertFalse(users[1].isAdmin)
+        XCTAssertNil(users[1].email)
+    }
+
+    // MARK: Hito 4 — admin: settings en caliente
+
+    func testAppRuntimeSettingsDecodingWithMixedTypesAndNulls() throws {
+        // Igual que devuelve GET /v1/settings: booleanos, números y cadenas ya
+        // tipados por config.service.js::parseValue, o null si no hay valor.
+        let json = Data("""
+        {
+          "MAX_UPLOAD_BYTES": 8388608, "RATE_LIMIT_ENABLED": true,
+          "RATE_LIMIT_WINDOW_MS": 60000, "RATE_LIMIT_MAX": 100,
+          "ADMIN_EMAIL": "admin@example.com", "PUBLIC_URL": null, "MAILPIT_URL": null
+        }
+        """.utf8)
+        let settings = try decoder.decode(AppRuntimeSettings.self, from: json)
+        XCTAssertEqual(settings.maxUploadBytes, 8_388_608)
+        XCTAssertEqual(settings.rateLimitEnabled, true)
+        XCTAssertEqual(settings.adminEmail, "admin@example.com")
+        XCTAssertNil(settings.publicURL)
+        XCTAssertNil(settings.mailpitURL)
+    }
+
+    func testSettingsPatchOnlyEncodesChangedKeys() throws {
+        var patch = SettingsPatch()
+        patch.rateLimitEnabled = false
+        patch.adminEmail = "new@example.com"
+
+        let data = try JSONEncoder().encode(patch)
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(obj.count, 2)
+        XCTAssertEqual(obj["ADMIN_EMAIL"] as? String, "new@example.com")
+        XCTAssertEqual(obj["RATE_LIMIT_ENABLED"] as? Bool, false)
+        XCTAssertNil(obj["MAX_UPLOAD_BYTES"])
+    }
+
+    // MARK: Hito 4 — recuperación de contraseña
+
+    func testResetTokenParsingExtractsFromEmailedLink() {
+        // Enlace real de notifyPasswordReset: "<PUBLIC_URL>/#reset-password?token=<hex>".
+        let link = "https://example.com/#reset-password?token=abc123def456&other=1"
+        XCTAssertEqual(ResetTokenParsing.token(from: link), "abc123def456")
+    }
+
+    func testResetTokenParsingAcceptsBareHexToken() {
+        let hex = String(repeating: "a1", count: 32)   // 64 hex, como crypto.randomBytes(32)
+        XCTAssertEqual(ResetTokenParsing.token(from: "  \(hex)  "), hex)
+    }
+
+    func testResetTokenParsingRejectsGarbage() {
+        XCTAssertNil(ResetTokenParsing.token(from: ""))
+        XCTAssertNil(ResetTokenParsing.token(from: "no es un token"))
+    }
 }

@@ -14,6 +14,7 @@ struct MainView: View {
         case plan = "Plano"
         case stats = "Estadísticas"
         case notifications = "Notificaciones"
+        case admin = "Administración"
 
         var id: String { rawValue }
 
@@ -23,13 +24,19 @@ struct MainView: View {
             case .plan: return "map"
             case .stats: return "chart.bar"
             case .notifications: return "bell"
+            case .admin: return "gearshape.2"
             }
         }
     }
 
+    /// `.admin` solo se ofrece con `role == admin` (Hito 4).
+    private var visiblePanels: [Panel] {
+        session.isAdmin ? Panel.allCases : Panel.allCases.filter { $0 != .admin }
+    }
+
     var body: some View {
         NavigationSplitView {
-            List(Panel.allCases, selection: $selection) { panel in
+            List(visiblePanels, selection: $selection) { panel in
                 Label(panel.rawValue, systemImage: panel.systemImage)
                     .tag(panel)
             }
@@ -71,9 +78,9 @@ struct MainView: View {
         case .stats:
             StatsView()
         case .notifications:
-            ContentUnavailableView("Notificaciones",
-                                   systemImage: "bell",
-                                   description: Text("Disponible en el Hito 4."))
+            NotificationsView()
+        case .admin:
+            AdminView()
         }
     }
 
