@@ -169,9 +169,16 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > `addComment`, `usersForAssign`, `maps`), modelo `MapRef`, `APIError.code`. Tests de decodificación/
 > multipart añadidos en `DecodingTests`.
 >
-> **Pendiente de una pasada manual con servidor real** (crear/editar tarea con foto y documento
-> adjuntos, responder un comentario, forzar un 403 editando una tarea ajena): lo verificado hasta
-> ahora es la compilación y los tests unitarios, no el flujo de extremo a extremo contra el backend.
+> **Contrato verificado contra el backend real** (servidor Node aislado — `NODE_ENV=test`, DB y
+> `uploads` en un directorio temporal, sin tocar los datos del proyecto — con `curl` reproduciendo
+> byte a byte el `multipart/form-data` que construye `IssueDraft`): crear con `lat/lng` en coma
+> decimal + `photo`/`file`, `PATCH` solo-los-campos-que-cambian, prueba de resolución
+> (`resolution_photo`/`resolution_doc`), comentario y respuesta (`parent_id` numérico), los dos
+> `403` (ajeno a la tarea, y asignado intentando reasignar), rechazo de subida por tamaño y por
+> extensión (confirmado: **`400 { code: "upload_error" }`, nunca `413`**, tal como asume
+> `APIError.isUploadRejected`), y los filtros nuevos (`from`/`to`/`mapId`/`assigned_to`) acotando
+> resultados de verdad. Lo que queda pendiente, y requiere el Mac, es la interacción real con la UI
+> compilada (`fileImporter`, bindings del formulario, `AsyncImage`) — este sandbox no tiene Xcode.
 
 ### Hito 3 — Plano + tiempo real
 - [ ] `PlanView`: descarga de imagen del plano, zoom/pan, capa de chinchetas por `lat/lng`, colores por estado/prioridad.
