@@ -218,11 +218,11 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > resolución del paquete SPM `socket.io-client-swift` (sin conflictos con `Starscream 4.0.6`, su
 > dependencia fijada).
 
-### Hito 4 — Admin + notificaciones 🚧 (pendiente de compilar/probar en Mac)
-- [~] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime):
+### Hito 4 — Admin + notificaciones ✅
+- [x] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime):
   `NotificationsView` + `NotificationsViewModel`, con `id` sintético (el backend no da uno propio
   para esta lista combinada comment/reply/log) e icono/color por tipo; tocar una fila abre la tarea.
-- [~] Panel admin (`AdminView`, solo `session.isAdmin`, con un segmentado Usuarios/Configuración):
+- [x] Panel admin (`AdminView`, solo `session.isAdmin`, con un segmentado Usuarios/Configuración):
   - Usuarios (`AdminUsersView` + `AdminUsersViewModel`, paginado igual que `IssueListView`):
     alta (`AdminUserEditorView`, modo crear/editar igual que `IssueEditorView`), baja con
     confirmación (el backend rechaza que un admin se borre a sí mismo; el botón ya sale
@@ -231,21 +231,23 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
     `config.service.js::getAllSettings` (tipos ya mixtos — booleano/número/cadena — que decodifica
     `AppRuntimeSettings`), `PATCH` solo con el diff (`SettingsPatch`). Cierra lo que el Hito 3 dejó
     pendiente: `settings:updated` (Socket.io) ahora recarga el panel si otro admin cambia algo.
-- [~] Recuperación de contraseña: pantallas nativas (`ForgotPasswordView` → `POST forgot-password`;
+- [x] Recuperación de contraseña: pantallas nativas (`ForgotPasswordView` → `POST forgot-password`;
   `ResetPasswordView` → `POST reset-password`), enlazadas desde `LoginView`. El email de
   recuperación (`mail.service.js`) apunta a una URL de la SPA web
   (`<PUBLIC_URL>/#reset-password?token=…`) que este cliente no intercepta (mismo motivo que los
   Universal Links del Hito 3); en vez de eso, `ResetPasswordView` deja pegar el enlace completo o
   solo el token y `ResetTokenParsing` (con tests) extrae el valor en cualquiera de los dos casos.
+- [x] **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **` tras
+  corregir `NSTextContentType.emailAddress` (no `.email`, que solo existe en UIKit) en los dos
+  campos de email nuevos (`AdminUserEditorView`, `AdminSettingsView`).
 
-> **No verificado, y requiere Xcode en el Mac:** compilación y comportamiento real de las tres
-> pantallas nuevas (listas, formularios, sondeo de notificaciones, sondeo tras `PATCH /v1/settings`).
 > Los modelos de datos (`AppNotification`, `AdminUser`, `AppRuntimeSettings`, `SettingsPatch`,
 > `ResetTokenParsing`) tienen tests de decodificación en `DecodingTests` a partir de las respuestas
 > reales de `src/routes/notifications.routes.js`, `src/routes/users.routes.js` y
-> `src/services/config.service.js`, pero no se han ejecutado contra un backend real por curl en este
-> Hito (a diferencia de los Hitos 2 y 3) — el contrato ya estaba fijado en `docs/API.md` y en el
-> propio código fuente del backend.
+> `src/services/config.service.js`; a diferencia de los Hitos 2 y 3, el contrato no se reprodujo por
+> `curl` contra un backend real en este Hito (ya estaba fijado en `docs/API.md` y en el propio
+> código del backend), lo que dejó pasar el único fallo real: un nombre de caso de enum específico
+> de macOS que ningún test de decodificación podía atrapar.
 
 ### Hito 5 — Distribución
 - [ ] `.xcconfig` MAS y DevID afinados; entitlements validados.
