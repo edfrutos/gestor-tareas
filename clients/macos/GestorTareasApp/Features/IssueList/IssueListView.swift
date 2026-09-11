@@ -4,6 +4,7 @@ struct IssueListView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppSettings.self) private var settings
     @State private var model = IssueListViewModel()
+    @State private var showCreate = false
 
     var body: some View {
         @Bindable var model = model
@@ -11,18 +12,30 @@ struct IssueListView: View {
         return VStack(spacing: 0) {
             IssueFilterBar(filter: $model.filter,
                            categories: model.categories,
+                           assignees: model.assignees,
+                           maps: model.maps,
                            onCommit: reload)
             Divider()
             listBody
         }
         .navigationTitle("Tareas")
         .toolbar {
-            ToolbarItem {
+            ToolbarItemGroup {
+                Button { showCreate = true } label: {
+                    Label("Nueva tarea", systemImage: "plus")
+                }
                 Button(action: reload) {
                     Label("Recargar", systemImage: "arrow.clockwise")
                 }
                 .disabled(model.isLoading)
             }
+        }
+        .sheet(isPresented: $showCreate) {
+            IssueEditorView(mode: .create) { created in
+                model.insertCreated(created)
+            }
+            .environment(session)
+            .environment(settings)
         }
         .task { await model.firstLoad(settings: settings, session: session) }
     }

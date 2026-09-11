@@ -48,6 +48,66 @@ struct GestorAPI {
         try await client.send(.init(method: "GET", path: "/v1/issues/categories"))
     }
 
+    // MARK: Escritura de tareas (Hito 2)
+
+    /// `POST /v1/issues` (multipart). Devuelve la tarea creada.
+    func createIssue(_ draft: IssueDraft) async throws -> Issue {
+        try await client.send(
+            .multipart("POST", "/v1/issues", form: draft.makeCreateForm())
+        )
+    }
+
+    /// `PATCH /v1/issues/:id` (multipart) con un formulario ya reducido a los
+    /// campos que cambian (ver `IssueDraft.makeUpdateForm`). Devuelve la tarea
+    /// actualizada.
+    func updateIssue(id: Int, form: MultipartForm) async throws -> Issue {
+        try await client.send(
+            .multipart("PATCH", "/v1/issues/\(id)", form: form)
+        )
+    }
+
+    // MARK: Comentarios (Hito 2)
+
+    /// `POST /v1/issues/:id/comments` (JSON). `parentID` para responder a un hilo.
+    /// Devuelve el comentario recién creado (`replies: []`).
+    func addComment(issueID: Int, text: String, parentID: Int?) async throws -> Comment {
+        struct Body: Encodable {
+            let text: String
+            let parentID: Int?
+            enum CodingKeys: String, CodingKey {
+                case text
+                case parentID = "parent_id"
+            }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encode(text, forKey: .text)
+                try c.encodeIfPresent(parentID, forKey: .parentID)
+            }
+        }
+        return try await client.send(
+            .json("POST", "/v1/issues/\(issueID)/comments",
+                  body: Body(text: text, parentID: parentID))
+        )
+    }
+
+    // MARK: Datos de referencia (selectores del editor y de los filtros)
+
+    /// `GET /v1/users/for-assign` → `{ items: [{ id, username }] }`.
+    func usersForAssign() async throws -> [UserRef] {
+        let page: Paginated<UserRef> = try await client.send(
+            .init(method: "GET", path: "/v1/users/for-assign")
+        )
+        return page.items
+    }
+
+    /// `GET /v1/maps?exclude_layers=true` → array plano de planos de primer nivel.
+    func maps() async throws -> [MapRef] {
+        try await client.send(
+            .init(method: "GET", path: "/v1/maps",
+                  query: [URLQueryItem(name: "exclude_layers", value: "true")])
+        )
+    }
+
     // MARK: Estadísticas
 
     func stats() async throws -> IssueStats {

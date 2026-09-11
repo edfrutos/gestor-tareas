@@ -157,12 +157,21 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 - [x] Indicador de conexión con `GET /health` (sondeo cada 30 s en la toolbar).
 - [x] **Verificado en Mac** (macOS 14, Apple Silicon, Xcode): `make test` verde + captura de la app en ejecución.
 
-### Hito 2 — Escritura
-- [ ] Crear tarea: formulario + subida `multipart` (`photo`, `file`), selección de fichero (sandbox).
-- [ ] Editar tarea: estado, prioridad, `due_date`, categoría, `map_id`, asignación (`/v1/users/for-assign`), prueba de resolución.
-- [ ] Completar filtros de `IssueList` pendientes del Hito 1: rango de fechas (`from` / `to`), filtro por mapa (`mapId`) y por persona asignada (`assigned_to`).
-- [ ] Publicar comentarios y respuestas (`parent_id`).
-- [ ] Manejo de `403` (no propietario) y `413` (fichero grande).
+### Hito 2 — Escritura ✅
+- [x] Crear tarea: `IssueEditorView` + `IssueDraft` → subida `multipart` (`photo`, `file`) con `fileImporter` (sandbox, lectura de bytes con ámbito de seguridad). Coordenadas `lat/lng` por campo numérico (selector visual → Hito 3).
+- [x] Editar tarea: estado, prioridad, `due_date`, categoría, `map_id`, asignación (`/v1/users/for-assign`), prueba de resolución (`resolution_photo` / `resolution_doc`). Solo se envían los campos que cambian.
+- [x] Completar filtros de `IssueList` pendientes del Hito 1: rango de fechas (`from` / `to`), filtro por mapa (`mapId` vía `/v1/maps`) y por persona asignada (`assigned_to`) — en el popover "Más filtros".
+- [x] Publicar comentarios y respuestas (`parent_id`): compositor en `IssueDetailView` + acción "Responder" por nodo del árbol.
+- [x] Manejo de `403` (no propietario/asignado) y de rechazo de subida — el backend de tareas devuelve `400 { code: "upload_error" }` para el fichero grande, no `413`; `APIError.isUploadRejected` cubre ambos.
+- [x] **Verificado en Mac** (macOS 14, Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **`.
+
+> Infra nueva: `MultipartForm`, `APIClient.Request.multipart`, `GestorAPI` (`createIssue`, `updateIssue`,
+> `addComment`, `usersForAssign`, `maps`), modelo `MapRef`, `APIError.code`. Tests de decodificación/
+> multipart añadidos en `DecodingTests`.
+>
+> **Pendiente de una pasada manual con servidor real** (crear/editar tarea con foto y documento
+> adjuntos, responder un comentario, forzar un 403 editando una tarea ajena): lo verificado hasta
+> ahora es la compilación y los tests unitarios, no el flujo de extremo a extremo contra el backend.
 
 ### Hito 3 — Plano + tiempo real
 - [ ] `PlanView`: descarga de imagen del plano, zoom/pan, capa de chinchetas por `lat/lng`, colores por estado/prioridad.

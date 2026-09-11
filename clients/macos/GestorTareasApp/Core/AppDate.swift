@@ -31,4 +31,26 @@ enum AppDate {
         guard let string, !string.isEmpty else { return "—" }
         return string
     }
+
+    /// Formateador de fechas `YYYY-MM-DD` (calendario, sin hora) que espera el
+    /// backend en `due_date`, `from` y `to`. Zona UTC y locale POSIX para que el
+    /// día no se desplace por la configuración regional.
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    /// `Date` → `"YYYY-MM-DD"`.
+    static func iso8601Day(_ date: Date) -> String {
+        dayFormatter.string(from: date)
+    }
+
+    /// `"YYYY-MM-DD"` → `Date` (medianoche UTC), o `nil` si no encaja.
+    static func parseDay(_ string: String?) -> Date? {
+        guard let string, !string.isEmpty else { return nil }
+        return dayFormatter.date(from: string)
+    }
 }
