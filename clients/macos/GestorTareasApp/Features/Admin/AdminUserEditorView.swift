@@ -39,7 +39,7 @@ struct AdminUserEditorView: View {
                             .foregroundStyle(.secondary)
                     }
                     TextField("Email", text: $model.draft.email)
-                        .textContentType(.email)
+                        .textContentType(.emailAddress)
                     Picker("Rol", selection: $model.draft.role) {
                         Text("Usuario").tag("user")
                         Text("Administrador").tag("admin")

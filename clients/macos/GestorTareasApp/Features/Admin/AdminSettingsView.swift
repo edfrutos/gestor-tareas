@@ -70,7 +70,7 @@ struct AdminSettingsView: View {
                     }
                     Section("Servidor") {
                         TextField("Email del administrador", text: $model.adminEmail)
-                            .textContentType(.email)
+                            .textContentType(.emailAddress)
                         TextField("URL pública", text: $model.publicURL)
                         TextField("URL de Mailpit", text: $model.mailpitURL)
                     }
