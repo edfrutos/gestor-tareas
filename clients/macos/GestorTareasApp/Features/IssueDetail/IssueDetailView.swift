@@ -6,6 +6,8 @@ struct IssueDetailView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppSettings.self) private var settings
     @State private var model = IssueDetailViewModel()
+    @State private var showEditor = false
+    @State private var replyingTo: Int?
 
     var body: some View {
         Group {
@@ -25,11 +27,25 @@ struct IssueDetailView: View {
         }
         .navigationTitle(model.issue?.title ?? "Tarea \(issueID)")
         .toolbar {
-            ToolbarItem {
+            ToolbarItemGroup {
+                if model.issue != nil {
+                    Button { showEditor = true } label: {
+                        Label("Editar", systemImage: "square.and.pencil")
+                    }
+                }
                 Button(action: load) {
                     Label("Recargar", systemImage: "arrow.clockwise")
                 }
                 .disabled(model.isLoading)
+            }
+        }
+        .sheet(isPresented: $showEditor) {
+            if let issue = model.issue {
+                IssueEditorView(mode: .edit(issue)) { updated in
+                    Task { await model.apply(updated: updated, settings: settings, session: session) }
+                }
+                .environment(session)
+                .environment(settings)
             }
         }
         .task(id: issueID) {
@@ -149,13 +165,32 @@ struct IssueDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("Comentarios")
             if model.comments.isEmpty {
-                Text("Sin comentarios.").font(.callout).foregroundStyle(.secondary)
+                Text("Sin comentarios. Sé el primero en comentar.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             } else {
-                CommentTree(comments: model.comments)
+                CommentTree(comments: model.comments,
+                            replyingTo: replyingTo,
+                            isPosting: model.isPostingComment,
+                            onStartReply: { replyingTo = $0.id },
+                            onCancelReply: { replyingTo = nil },
+                            onSubmitReply: { parentID, text in
+                                submitComment(text: text, parentID: parentID)
+                            })
             }
-            Text("Responder y comentar llega en el Hito 2.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+
+            if let commentError = model.commentError {
+                Label(commentError, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            CommentComposer(placeholder: "Escribe un comentario…",
+                            submitLabel: "Comentar",
+                            isBusy: model.isPostingComment && replyingTo == nil) { text in
+                submitComment(text: text, parentID: nil)
+            }
+            .padding(.top, 4)
         }
     }
 
@@ -222,5 +257,15 @@ struct IssueDetailView: View {
 
     private func load() {
         Task { await model.load(id: issueID, settings: settings, session: session) }
+    }
+
+    private func submitComment(text: String, parentID: Int?) {
+        Task {
+            let ok = await model.postComment(text: text,
+                                             parentID: parentID,
+                                             settings: settings,
+                                             session: session)
+            if ok { replyingTo = nil }
+        }
     }
 }

@@ -7,6 +7,8 @@ final class IssueListViewModel {
     var issues: [Issue] = []
     var filter = IssueFilter()
     var categories: [String] = []
+    var assignees: [UserRef] = []
+    var maps: [MapRef] = []
     var total = 0
     var isLoading = false
     var isLoadingMore = false
@@ -18,13 +20,27 @@ final class IssueListViewModel {
     var canLoadMore: Bool { issues.count < total }
 
     func firstLoad(settings: AppSettings, session: SessionStore) async {
+        let api = GestorAPI(settings: settings, session: session)
         if categories.isEmpty {
-            let api = GestorAPI(settings: settings, session: session)
             categories = (try? await api.categories()) ?? []
+        }
+        if assignees.isEmpty {
+            assignees = (try? await api.usersForAssign()) ?? []
+        }
+        if maps.isEmpty {
+            maps = ((try? await api.maps()) ?? []).filter { $0.parentID == nil }
         }
         if issues.isEmpty {
             await reload(settings: settings, session: session)
         }
+    }
+
+    /// Inserta al principio una tarea recién creada desde el editor (feedback
+    /// inmediato; una recarga posterior reconcilia con los filtros del servidor).
+    func insertCreated(_ issue: Issue) {
+        guard !issues.contains(where: { $0.id == issue.id }) else { return }
+        issues.insert(issue, at: 0)
+        total += 1
     }
 
     func reload(settings: AppSettings, session: SessionStore) async {

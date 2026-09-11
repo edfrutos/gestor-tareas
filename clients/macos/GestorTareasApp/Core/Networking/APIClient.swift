@@ -37,6 +37,20 @@ final class APIClient {
                            contentType: data == nil ? nil : "application/json",
                            authorized: authorized)
         }
+
+        /// Atajo para peticiones `multipart/form-data` (`POST`/`PATCH /v1/issues`).
+        static func multipart(_ method: String,
+                              _ path: String,
+                              form: MultipartForm,
+                              authorized: Bool = true) -> Request {
+            var form = form
+            let (data, contentType) = form.finalize()
+            return Request(method: method,
+                           path: path,
+                           body: data,
+                           contentType: contentType,
+                           authorized: authorized)
+        }
     }
 
     private let session: URLSession

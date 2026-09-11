@@ -22,6 +22,33 @@ struct UserRef: Codable, Identifiable, Hashable {
     let username: String
 }
 
+/// Referencia mínima de plano (`GET /v1/maps?exclude_layers=true`). El visor
+/// completo (imagen, capas, zonas) llega en el Hito 3; aquí solo se usa para los
+/// selectores de "plano" del editor y del filtro de la lista.
+struct MapRef: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let parentID: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case parentID = "parent_id"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Plano \(id)"
+        parentID = try c.decodeIfPresent(Int.self, forKey: .parentID)
+    }
+
+    init(id: Int, name: String, parentID: Int? = nil) {
+        self.id = id
+        self.name = name
+        self.parentID = parentID
+    }
+}
+
 // MARK: - Enumeraciones de negocio
 
 enum IssueStatus: String, Codable, CaseIterable, Identifiable {
