@@ -180,20 +180,22 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > resultados de verdad. Lo que queda pendiente, y requiere el Mac, es la interacción real con la UI
 > compilada (`fileImporter`, bindings del formulario, `AsyncImage`) — este sandbox no tiene Xcode.
 
-### Hito 3 — Plano + tiempo real  🚧 (rama `feat/macos-hito3`, pendiente de compilar/probar en Mac)
-- [~] `PlanView`: descarga de la imagen del plano (tamaño real en píxeles vía `ImageIO`, no el de
+### Hito 3 — Plano + tiempo real ✅
+- [x] `PlanView`: descarga de la imagen del plano (tamaño real en píxeles vía `ImageIO`, no el de
   `AsyncImage`), zoom (pellizco/botones) + pan (`ScrollView`), chinchetas por `lat/lng` coloreadas
   por estado (relleno) y prioridad (borde). Botón "Ver en el plano" en `IssueDetailView` abre el
   plano de esa tarea en una hoja, con esa chincheta resaltada.
-- [~] Capas técnicas (`layers` de `GET /v1/maps/:id`) superpuestas a opacidad fija 0.7 (como la
+- [x] Capas técnicas (`layers` de `GET /v1/maps/:id`) superpuestas a opacidad fija 0.7 (como la
   SPA), activables desde un menú; zonas (`GET /v1/maps/:mapId/zones`) dibujadas como polígono
   relleno + borde a partir de su `geojson` (solo anillo exterior, sin agujeros).
-- [~] `SocketClient` (SPM `socket.io-client-swift`, sin auth en el handshake — ver `API.md §4`):
+- [x] `SocketClient` (SPM `socket.io-client-swift`, sin auth en el handshake — ver `API.md §4`):
   aplica `issue:created/updated/deleted` en vivo sobre la lista, el detalle y el plano;
   `settings:updated` se recibe pero no hace nada todavía (no hay panel admin hasta el Hito 4).
-- [~] Deep-link `gestortareas://issue/<id>` y `gestortareas://open?issue=<id>` (mismo parámetro que
+- [x] Deep-link `gestortareas://issue/<id>` y `gestortareas://open?issue=<id>` (mismo parámetro que
   el QR de la web) vía `CFBundleURLTypes` + `DeepLinkRouter`, funciona con la app cerrada o ya
   abierta, con o sin sesión iniciada.
+- [x] **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **`
+  (resuelve el paquete SPM `socket.io-client-swift` 16.1.0 sin problemas).
 
 > **Sistema de coordenadas — la pieza que hay que acertar.** El plano NO usa los píxeles nativos de
 > la imagen: la SPA (`src/public/ui/modules/map.js`, Leaflet `CRS.Simple`) normaliza el eje largo a
@@ -210,9 +212,11 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > `NODE_ENV=test`, DB temporal): `GET /v1/maps/:id` con `layers`, `GET/POST /v1/maps/:mapId/zones`
 > con el `geojson` exacto que espera `MapZone.polygonRings`, y los tres eventos de Socket.io
 > (`issue:created/updated/deleted`, protocolo EIO4) emitidos con el payload que decodifica
-> `SocketClient`. **No verificado, y requiere Xcode en el Mac:** que el paquete SPM
-> `socket.io-client-swift` resuelva sin problemas, y la interacción real con el lienzo (gestos de
-> zoom/pan, posición visual de chinchetas y zonas, apertura de `gestortareas://` URLs).
+> `SocketClient`.
+>
+> **Verificado en Mac** (Apple Silicon, Xcode): `make test` → `** TEST SUCCEEDED **`, incluyendo la
+> resolución del paquete SPM `socket.io-client-swift` (sin conflictos con `Starscream 4.0.6`, su
+> dependencia fijada).
 
 ### Hito 4 — Admin + notificaciones
 - [ ] Centro de notificaciones (`/v1/notifications`, polling 30 s hasta que exista evento realtime).
