@@ -249,12 +249,26 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > código del backend), lo que dejó pasar el único fallo real: un nombre de caso de enum específico
 > de macOS que ningún test de decodificación podía atrapar.
 
-### Hito 5 — Distribución
-- [ ] `.xcconfig` MAS y DevID afinados; entitlements validados.
-- [ ] Script `notarize.sh` (notarytool + stapler) y `create-dmg`.
-- [ ] Primera *build* de MAS a App Store Connect (TestFlight) y primer DMG notarizado.
-- [ ] Iconos (`AppIcon` 16→1024), `Localizable` (es), textos de la ficha de App Store, capturas.
-- [ ] CI: `xcodebuild test` en PR.
+### Hito 5 — Distribución 🚧
+- [~] `.xcconfig` MAS y DevID (ya venían del Hito 0: identidades de firma, entitlements,
+  `ENABLE_HARDENED_RUNTIME`). Añadido `scripts/ExportOptions-MAS.plist` + `scripts/export_mas.sh`
+  + `make export-mas` (faltaba el equivalente de exportación de `notarize.sh` para el canal MAS).
+  **Pendiente de verdad, requiere cuenta Apple Developer activa:** rellenar `DEVELOPMENT_TEAM`
+  (`Config/Base.xcconfig`) y los nombres exactos de provisioning profile
+  (`Config/Release-MAS.xcconfig`, `scripts/ExportOptions-MAS.plist`, `scripts/ExportOptions-DevID.plist`)
+  con los valores reales, y validar que firman/archivan de verdad en Xcode.
+- [x] Script `notarize.sh` (notarytool + stapler) y DMG (`hdiutil`, ya venía del Hito 0) +
+  `export_mas.sh` (nuevo, ver arriba) para el canal MAS.
+- [ ] Primera *build* de MAS a App Store Connect (TestFlight) y primer DMG notarizado —
+  requiere Apple Developer Program activo, imposible de completar sin la cuenta del usuario.
+- [ ] Iconos (`AppIcon` 16→1024): `Assets.xcassets/AppIcon.appiconset` sigue vacío, sin imágenes.
+  `Localizable` (es): `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero **ningún**
+  `Text(...)` de los Hitos 1-4 las usa de verdad — todo el texto de la UI está en literales
+  españoles directos. Migrar a claves de localización es un refactor grande, pendiente de decidir
+  si merece la pena para un único idioma. Textos de ficha de App Store y capturas: pendientes.
+- [x] CI: `.github/workflows/macos-client-ci.yml` — `xcodegen generate` + `make test` en
+  `macos-14`, solo cuando cambia algo en `clients/macos/**`. No necesita secrets: `Debug.xcconfig`
+  firma en modo `Automatic`/ad-hoc (`CODE_SIGN_IDENTITY = -`), sin Team ID.
 
 ### Trabajo de backend en paralelo (ver `docs/API.md §6`)
 - [ ] Refresh token / sesión configurable.
