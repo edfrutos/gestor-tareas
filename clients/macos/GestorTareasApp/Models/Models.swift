@@ -22,9 +22,9 @@ struct UserRef: Codable, Identifiable, Hashable {
     let username: String
 }
 
-/// Referencia mínima de plano (`GET /v1/maps?exclude_layers=true`). El visor
-/// completo (imagen, capas, zonas) llega en el Hito 3; aquí solo se usa para los
-/// selectores de "plano" del editor y del filtro de la lista.
+/// Referencia mínima de plano (`GET /v1/maps?exclude_layers=true`), para los
+/// selectores de "plano" del editor y del filtro de la lista. El visor
+/// completo (imagen, capas, zonas) usa `MapDetail`/`MapZone` — ver `PlanView`.
 struct MapRef: Codable, Identifiable, Hashable {
     let id: Int
     let name: String

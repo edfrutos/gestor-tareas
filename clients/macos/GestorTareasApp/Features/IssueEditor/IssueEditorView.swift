@@ -176,7 +176,8 @@ struct IssueEditorView: View {
                 }
             }
         }
-        Text("El selector visual del plano llega en el Hito 3.")
+        Text("El plano ahora se puede consultar (pestaña \"Plano\" o \"Ver en el plano\" en el "
+             + "detalle), pero aquí sigue siendo un número: aún no se puede elegir haciendo clic.")
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -187,8 +188,8 @@ struct IssueEditorView: View {
                 TextField("X", text: draft.x)
                 TextField("Y", text: draft.y)
             }
-            Text("Coordenadas técnicas sobre el plano (obligatorias al crear). "
-                 + "Podrás ajustarlas visualmente en el Hito 3.")
+            Text("Coordenadas técnicas sobre el plano (obligatorias al crear). Elegirlas "
+                 + "haciendo clic en el plano queda pendiente; de momento se escriben a mano.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -342,4 +342,124 @@ final class DecodingTests: XCTestCase {
         XCTAssertFalse(text.contains(#"name="category""#))
         XCTAssertFalse(text.contains(#"name="due_date""#))
     }
+
+    // MARK: Hito 3 — PlanCoordinateSpace (paridad con Leaflet CRS.Simple de la web)
+
+    func testPlanCoordinateSpaceNormalizesLongAxisTo1000() {
+        let landscape = PlanCoordinateSpace(imageWidth: 2000, imageHeight: 1000)
+        XCTAssertEqual(landscape.virtualWidth, 1000)
+        XCTAssertEqual(landscape.virtualHeight, 500)
+
+        let portrait = PlanCoordinateSpace(imageWidth: 500, imageHeight: 1000)
+        XCTAssertEqual(portrait.virtualWidth, 500)
+        XCTAssertEqual(portrait.virtualHeight, 1000)
+
+        let degenerate = PlanCoordinateSpace(imageWidth: 0, imageHeight: 0)
+        XCTAssertEqual(degenerate.virtualWidth, 1000)
+        XCTAssertEqual(degenerate.virtualHeight, 1000)
+    }
+
+    func testPlanCoordinateSpaceFractionMatchesLeafletOrientation() {
+        // lat crece hacia arriba (Leaflet); fy=0 en SwiftUI es "arriba" de la
+        // imagen, así que lat máximo debe dar fy≈0, no fy≈1.
+        let space = PlanCoordinateSpace(imageWidth: 1000, imageHeight: 500)
+
+        let center = space.fraction(lat: 250, lng: 500)
+        XCTAssertEqual(center.x, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(center.y, 0.5, accuracy: 0.0001)
+
+        let topLeft = space.fraction(lat: 500, lng: 0)
+        XCTAssertEqual(topLeft.x, 0, accuracy: 0.0001)
+        XCTAssertEqual(topLeft.y, 0, accuracy: 0.0001)
+
+        let bottomRight = space.fraction(lat: 0, lng: 1000)
+        XCTAssertEqual(bottomRight.x, 1, accuracy: 0.0001)
+        XCTAssertEqual(bottomRight.y, 1, accuracy: 0.0001)
+
+        // Ida y vuelta.
+        let roundTrip = space.coordinate(atFraction: center)
+        XCTAssertEqual(roundTrip.lat, 250, accuracy: 0.0001)
+        XCTAssertEqual(roundTrip.lng, 500, accuracy: 0.0001)
+    }
+
+    // MARK: Hito 3 — Plano con capas y zonas
+
+    func testMapDetailDecodingWithLayers() throws {
+        let json = Data("""
+        {
+          "id": 1, "name": "Plano Principal", "file_url": "/ui/plano.jpg",
+          "thumb_url": null, "parent_id": null,
+          "layers": [ { "id": 2, "name": "Electricidad", "file_url": "/uploads/map_2.jpg" } ]
+        }
+        """.utf8)
+        let detail = try decoder.decode(MapDetail.self, from: json)
+        XCTAssertEqual(detail.layers.count, 1)
+        XCTAssertEqual(detail.layers[0].name, "Electricidad")
+
+        let withoutLayers = try decoder.decode(MapDetail.self,
+            from: Data(#"{"id":3,"name":"Nave 2","file_url":"/uploads/x.jpg","parent_id":null}"#.utf8))
+        XCTAssertTrue(withoutLayers.layers.isEmpty)
+    }
+
+    func testMapZoneDecodingAndPolygonRings() throws {
+        // Geojson real, verificado contra POST /v1/maps/:id/zones.
+        let json = Data("""
+        {
+          "id": 1, "map_id": 3, "name": "Almacén", "type": "rectangle",
+          "geojson": "{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[100,100],[400,100],[400,300],[100,300],[100,100]]]}}",
+          "color": "#7c5cff", "created_by": 2, "created_at": "2026-09-11T08:38:50.967Z"
+        }
+        """.utf8)
+        let zone = try decoder.decode(MapZone.self, from: json)
+        XCTAssertEqual(zone.mapID, 3)
+
+        let space = PlanCoordinateSpace(imageWidth: 1000, imageHeight: 1000)
+        let rings = zone.polygonRings(in: space)
+        XCTAssertEqual(rings.count, 1)
+        XCTAssertEqual(rings[0].count, 5)
+        XCTAssertEqual(rings[0][0].x, 0.1, accuracy: 0.0001)   // lng=100 → 100/1000
+        XCTAssertEqual(rings[0][0].y, 0.9, accuracy: 0.0001)   // lat=100 → 1-100/1000
+    }
+
+    func testMapZoneIgnoresNonPolygonGeometry() throws {
+        let zone = MapZone(id: 1, mapID: 1, name: "Punto", type: "marker",
+                           geojson: #"{"type":"Feature","geometry":{"type":"Point","coordinates":[1,2]}}"#,
+                           color: "#000000", createdBy: 1, createdAt: "")
+        XCTAssertTrue(zone.polygonRings(in: PlanCoordinateSpace(imageWidth: 1000, imageHeight: 1000)).isEmpty)
+    }
+
+    // MARK: Hito 3 — deep link
+
+    func testDeepLinkRouterParsesPathForm() {
+        XCTAssertEqual(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/42")!), 42)
+    }
+
+    func testDeepLinkRouterParsesQueryForm() {
+        XCTAssertEqual(DeepLinkRouter.issueID(from: URL(string: "gestortareas://open?issue=7")!), 7)
+    }
+
+    func testDeepLinkRouterRejectsOtherSchemes() {
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "https://example.com/issue/42")!))
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/")!))
+        XCTAssertNil(DeepLinkRouter.issueID(from: URL(string: "gestortareas://issue/abc")!))
+    }
+
+    // MARK: Hito 3 — payloads de Socket.io (issue:created/updated/deleted)
+
+    func testSocketClientDecodesIssuePayload() throws {
+        let payload: [String: Any] = [
+            "id": 3, "title": "Evento realtime", "category": "otros",
+            "description": "Prueba socket", "status": "open", "created_at": "2026-09-11T08:00:00.000Z",
+        ]
+        let issue: Issue? = SocketClient.decode(payload)
+        XCTAssertEqual(issue?.id, 3)
+        XCTAssertEqual(issue?.title, "Evento realtime")
+    }
+
+    func testSocketClientDeletedIDAcceptsIntOrString() {
+        XCTAssertEqual(SocketClient.deletedID(from: ["id": 3]), 3)
+        XCTAssertEqual(SocketClient.deletedID(from: ["id": "3"]), 3)
+        XCTAssertNil(SocketClient.deletedID(from: ["id": "not-a-number"]))
+        XCTAssertNil(SocketClient.deletedID(from: NSNull()))
+    }
 }

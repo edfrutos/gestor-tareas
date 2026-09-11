@@ -2,10 +2,16 @@ import SwiftUI
 
 struct MainView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(AppSettings.self) private var settings
+    @Environment(SocketClient.self) private var socket
+    @Environment(DeepLinkRouter.self) private var router
+
     @State private var selection: Panel? = .issues
+    @State private var path = NavigationPath()
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
+        case plan = "Plano"
         case stats = "Estadísticas"
         case notifications = "Notificaciones"
 
@@ -14,6 +20,7 @@ struct MainView: View {
         var systemImage: String {
             switch self {
             case .issues: return "list.bullet.clipboard"
+            case .plan: return "map"
             case .stats: return "chart.bar"
             case .notifications: return "bell"
             }
@@ -28,7 +35,7 @@ struct MainView: View {
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
         } detail: {
-            NavigationStack {
+            NavigationStack(path: $path) {
                 panelView
                     .navigationDestination(for: Int.self) { issueID in
                         IssueDetailView(issueID: issueID)
@@ -43,6 +50,15 @@ struct MainView: View {
                 accountMenu
             }
         }
+        // Tiempo real (Hito 3): se conecta mientras haya sesión (MainView solo
+        // existe cuando `session.state == .signedIn`, ver RootView) y se
+        // reconecta si cambia la URL del servidor en Preferencias.
+        .task(id: settings.serverURLString) {
+            socket.connect(baseURL: settings.baseURL)
+        }
+        .onDisappear { socket.disconnect() }
+        .task { openPendingDeepLink() }
+        .onChange(of: router.pendingIssueID) { openPendingDeepLink() }
     }
 
     @ViewBuilder
@@ -50,6 +66,8 @@ struct MainView: View {
         switch selection ?? .issues {
         case .issues:
             IssueListView()
+        case .plan:
+            PlanView()
         case .stats:
             StatsView()
         case .notifications:
@@ -73,5 +91,14 @@ struct MainView: View {
         } label: {
             Label(session.currentUser?.username ?? "Cuenta", systemImage: "person.circle")
         }
+    }
+
+    /// Abre la tarea pendiente de un deep-link (`gestortareas://issue/<id>`),
+    /// llegado antes o después de iniciar sesión.
+    private func openPendingDeepLink() {
+        guard let id = router.pendingIssueID else { return }
+        selection = .issues
+        path.append(id)
+        router.pendingIssueID = nil
     }
 }

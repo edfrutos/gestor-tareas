@@ -22,6 +22,8 @@ make test        # tests unitarios (Debug)
 ```
 
 El `.xcodeproj` **no se versiona**: se regenera con `make generate` a partir de `project.yml`.
+Desde el Hito 3, `project.yml` declara una dependencia SPM (`socket.io-client-swift`): la primera
+vez que abras el proyecto, Xcode necesita red para resolverla.
 
 Al arrancar, la app pide la **URL del servidor** (menú *Gestor de Tareas → Ajustes…*):
 
@@ -42,14 +44,15 @@ Config/                     xcconfig: Base + Debug + Release-MAS + Release-DevID
 Signing/                    Entitlements por canal (MAS y Developer ID)
 scripts/                    notarize.sh + ExportOptions
 GestorTareasApp/
-├── App/                    @main, RootView, AppSettings
+├── App/                    @main, RootView, AppSettings, DeepLinkRouter
 ├── Core/
-│   ├── Networking/         APIClient (async/await) + APIError (decoder tolerante)
-│   └── Auth/               KeychainService + SessionStore
-├── Models/                 Issue, SessionUser, Paginated, enums…
-├── Features/               Login, Main, IssueList, Preferences
-└── Resources/              Info.plist, Assets.xcassets, es.lproj
-Tests/                      DecodingTests (login, issues, formatos de error)
+│   ├── Networking/         APIClient (async/await, JSON + multipart) + APIError (decoder tolerante)
+│   ├── Auth/               KeychainService + SessionStore
+│   └── Realtime/           SocketClient (Socket.io: issue:created/updated/deleted)
+├── Models/                 Issue, MapDetail/MapZone, SessionUser, Paginated, enums…
+├── Features/               Login, Main, IssueList, IssueDetail, IssueEditor, PlanView, Stats, Preferences
+└── Resources/              Info.plist (incl. esquema gestortareas://), Assets.xcassets, es.lproj
+Tests/                      DecodingTests (login, issues, multipart, plano/zonas, deep-link, socket)
 ```
 
 ## Los dos canales de publicación
@@ -68,8 +71,10 @@ Antes de archivar hay que rellenar:
 
 ## Estado
 
-**Hito 0 completo** (andamiaje + núcleo de red/auth + login + lista de tareas de solo lectura).
-Siguientes hitos en `../../docs/PLAN_APP_MACOS.md §4`.
+**Hitos 0-2 verificados en Mac** (andamiaje, lectura completa, escritura: crear/editar tareas,
+comentarios, filtros avanzados). **Hito 3** (plano con zoom/pan, capas, zonas, tiempo real y
+deep-link) escrito pero aún sin compilar en Xcode. Siguientes hitos en
+`../../docs/PLAN_APP_MACOS.md §4`.
 
-> Generado sin acceso a Xcode: revisa la primera compilación en tu Mac y corrige cualquier
-> ajuste de API de SwiftUI que tu versión de Xcode requiera.
+> Gran parte de este cliente se ha escrito sin acceso a Xcode: revisa la primera compilación de
+> cada hito en tu Mac y corrige cualquier ajuste de API de SwiftUI que tu versión de Xcode requiera.

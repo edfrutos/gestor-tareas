@@ -26,9 +26,10 @@ struct GestorAPI {
 
     // MARK: Issues
 
-    func issues(filter: IssueFilter, page: Int) async throws -> Paginated<Issue> {
+    func issues(filter: IssueFilter, page: Int, pageSize: Int = 50) async throws -> Paginated<Issue> {
         try await client.send(
-            .init(method: "GET", path: "/v1/issues", query: filter.queryItems(page: page))
+            .init(method: "GET", path: "/v1/issues",
+                  query: filter.queryItems(page: page, pageSize: pageSize))
         )
     }
 
@@ -106,6 +107,18 @@ struct GestorAPI {
             .init(method: "GET", path: "/v1/maps",
                   query: [URLQueryItem(name: "exclude_layers", value: "true")])
         )
+    }
+
+    // MARK: Plano (Hito 3)
+
+    /// `GET /v1/maps/:id` → plano + `layers` (capas técnicas anidadas).
+    func mapDetail(id: Int) async throws -> MapDetail {
+        try await client.send(.init(method: "GET", path: "/v1/maps/\(id)"))
+    }
+
+    /// `GET /v1/maps/:mapId/zones` → zonas dibujadas sobre el plano.
+    func zones(mapID: Int) async throws -> [MapZone] {
+        try await client.send(.init(method: "GET", path: "/v1/maps/\(mapID)/zones"))
     }
 
     // MARK: Estadísticas
