@@ -53,9 +53,9 @@ The GitHub Actions workflow will:
 1. ✅ Build Docker image (multi-platform: amd64, arm64)
 2. ✅ Run tests (npm test)
 3. ✅ Scan vulnerabilities (Docker Scout)
-4. ✅ Push to Docker Hub: `edfrutos/gestor-tareas:latest`
+4. ✅ Push to Docker Hub: `edefrutos/gestor-tareas:latest`
 
-Images available at: https://hub.docker.com/r/edfrutos/gestor-tareas
+Images available at: https://hub.docker.com/r/edefrutos/gestor-tareas
 
 ---
 

@@ -32,7 +32,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: edfrutos/gestor-tareas
+        images: ${{ secrets.DOCKERHUB_USERNAME }}/gestor-tareas
         tags: |
           type=ref,event=branch
           type=semver,pattern={{version}}
@@ -54,7 +54,7 @@ jobs:
     - name: Run Docker Scout vulnerability scan
       if: github.event_name != 'pull_request'
       run: |
-        docker scout cves edfrutos/gestor-tareas:latest --format json > scout-report.json || true
+        docker scout cves ${{ secrets.DOCKERHUB_USERNAME }}/gestor-tareas:latest --format json > scout-report.json || true
         cat scout-report.json
 
     - name: Upload Scout report
