@@ -249,7 +249,7 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > código del backend), lo que dejó pasar el único fallo real: un nombre de caso de enum específico
 > de macOS que ningún test de decodificación podía atrapar.
 
-### Hito 5 — Distribución 🚧
+### Hito 5 — Distribución ✅
 - [x] `.xcconfig` MAS y DevID (ya venían del Hito 0: identidades de firma, entitlements,
   `ENABLE_HARDENED_RUNTIME`). Añadido `scripts/ExportOptions-MAS.plist` + `scripts/export_mas.sh`
   + `make export-mas` (faltaba el equivalente de exportación de `notarize.sh` para el canal MAS).
@@ -262,8 +262,13 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 - [x] Script `notarize.sh` (notarytool + stapler) y DMG (`hdiutil`, ya venía del Hito 0) +
   `export_mas.sh` (nuevo, ver arriba) para el canal MAS.
 - [x] Primera *build* de MAS a App Store Connect (TestFlight) — `Distribute App` (Upload) completado
-  el 2026-09-12 desde Xcode Organizer. Pendiente: esperar el procesamiento en App Store Connect y
-  añadirla a un grupo de pruebas internas en TestFlight.
+  el 2026-09-12 desde Xcode Organizer. Compliance de cifrado resuelto ("Ninguno de los algoritmos
+  mencionados" — la app solo usa HTTPS estándar del SO, sin criptografía propia), build `0.1.0 (1)`
+  en grupo de pruebas internas con distribución automática activada.
+- [x] **Verificado en Mac vía TestFlight** (no solo `xcodebuild test`, la build real firmada +
+  sandboxed): login contra el backend real, conexión Socket.io en vivo ("En línea"), lista de
+  tareas cargada, icono nuevo visible en el Dock. Sin problemas de red pese al `App Sandbox`
+  (conexión a `localhost` funciona con `network.client`).
 - [x] Primer DMG notarizado del canal DevID — completado el 2026-09-12: archive → `Distribute App`
   → *Direct Distribution* → Upload (Xcode notarizó automáticamente) → Export del `.app` ya grapado
   → `hdiutil` para el `.dmg`. `xcrun stapler validate` sobre el `.app` exportado: `The validate
@@ -273,13 +278,16 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
   aportado por el usuario (`gestor-tareas.png`, recortado y reescalado a los 10 tamaños que exige
   macOS). Estilo "tarjeta con sombra" válido para macOS pero poco legible en 16/32px — revisar si
   merece una versión simplificada para esas medidas.
-- [ ] `Localizable` (es): `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero
-  **ningún** `Text(...)` de los Hitos 1-4 las usa de verdad — todo el texto de la UI está en
-  literales españoles directos. Migrar a claves de localización es un refactor grande, pendiente de
-  decidir si merece la pena para un único idioma. Textos de ficha de App Store y capturas: pendientes.
 - [x] CI: `.github/workflows/macos-client-ci.yml` — `xcodegen generate` + `make test` en
   `macos-14`, solo cuando cambia algo en `clients/macos/**`. No necesita secrets: `Debug.xcconfig`
   firma en modo `Automatic`/ad-hoc (`CODE_SIGN_IDENTITY = -`), sin Team ID.
+
+> **Pendiente para publicación pública (no bloquea pruebas internas):** `Localizable` (es) —
+> `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero **ningún** `Text(...)` de los
+> Hitos 1-4 las usa de verdad; todo el texto de la UI está en literales españoles directos. Migrar
+> a claves de localización es un refactor grande, pendiente de decidir si merece la pena para un
+> único idioma. Textos de ficha de App Store y capturas de pantalla: también pendientes, solo
+> hacen falta para el envío a revisión pública, no para TestFlight interno.
 
 ### Trabajo de backend en paralelo (ver `docs/API.md §6`)
 - [ ] Refresh token / sesión configurable.
