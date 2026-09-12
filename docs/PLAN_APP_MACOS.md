@@ -258,21 +258,25 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
   tienen los valores reales de la cuenta Apple Developer, y el archive MAS pasa **Validate App** en
   Xcode Organizer sin errores. Bloqueo encontrado por el camino: la Mac de pruebas corre macOS 27
   beta y solo permite instalar Xcode 27 beta (Apple rechaza subidas hechas con beta); se resolvió
-  usando el **Release Candidate** de Xcode 27, que sí acepta. **Pendiente:** archive DevID (aún no
-  probado en Xcode real).
+  usando el **Release Candidate** de Xcode 27, que sí acepta.
 - [x] Script `notarize.sh` (notarytool + stapler) y DMG (`hdiutil`, ya venía del Hito 0) +
   `export_mas.sh` (nuevo, ver arriba) para el canal MAS.
-- [ ] Primera *build* de MAS a App Store Connect (TestFlight) — el app record ya existe en App
-  Store Connect y el archive ha pasado Validate App; falta el `Distribute App` real (subida). Primer
-  DMG notarizado del canal DevID: pendiente.
+- [x] Primera *build* de MAS a App Store Connect (TestFlight) — `Distribute App` (Upload) completado
+  el 2026-09-12 desde Xcode Organizer. Pendiente: esperar el procesamiento en App Store Connect y
+  añadirla a un grupo de pruebas internas en TestFlight.
+- [x] Primer DMG notarizado del canal DevID — completado el 2026-09-12: archive → `Distribute App`
+  → *Direct Distribution* → Upload (Xcode notarizó automáticamente) → Export del `.app` ya grapado
+  → `hdiutil` para el `.dmg`. `xcrun stapler validate` sobre el `.app` exportado: `The validate
+  action worked!`. Nota: el `.dmg` en sí no lleva ticket propio (solo se notarizó el `.app`, no el
+  DMG como artefacto) — es irrelevante para Gatekeeper porque el `.app` interno ya lo lleva grapado.
 - [x] Iconos (`AppIcon` 16→1024): `Assets.xcassets/AppIcon.appiconset` generado a partir del logo
   aportado por el usuario (`gestor-tareas.png`, recortado y reescalado a los 10 tamaños que exige
   macOS). Estilo "tarjeta con sombra" válido para macOS pero poco legible en 16/32px — revisar si
   merece una versión simplificada para esas medidas.
-  `Localizable` (es): `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero **ningún**
-  `Text(...)` de los Hitos 1-4 las usa de verdad — todo el texto de la UI está en literales
-  españoles directos. Migrar a claves de localización es un refactor grande, pendiente de decidir
-  si merece la pena para un único idioma. Textos de ficha de App Store y capturas: pendientes.
+- [ ] `Localizable` (es): `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero
+  **ningún** `Text(...)` de los Hitos 1-4 las usa de verdad — todo el texto de la UI está en
+  literales españoles directos. Migrar a claves de localización es un refactor grande, pendiente de
+  decidir si merece la pena para un único idioma. Textos de ficha de App Store y capturas: pendientes.
 - [x] CI: `.github/workflows/macos-client-ci.yml` — `xcodegen generate` + `make test` en
   `macos-14`, solo cuando cambia algo en `clients/macos/**`. No necesita secrets: `Debug.xcconfig`
   firma en modo `Automatic`/ad-hoc (`CODE_SIGN_IDENTITY = -`), sin Team ID.
