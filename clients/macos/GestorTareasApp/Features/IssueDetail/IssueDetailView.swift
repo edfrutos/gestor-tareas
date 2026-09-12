@@ -25,6 +25,12 @@ struct IssueDetailView: View {
                 }
             } else if let issue = model.issue {
                 content(for: issue)
+            } else {
+                // Estado transitorio antes de que `.task(id:)` arranque (o si se
+                // cancela sin llegar a fijar isLoading/errorMessage): sin este
+                // reintento la vista se queda en blanco de forma indefinida.
+                ProgressView().controlSize(.large)
+                    .onAppear { load() }
             }
         }
         .navigationTitle(model.issue?.title ?? "Tarea \(issueID)")
