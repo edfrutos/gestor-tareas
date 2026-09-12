@@ -4,19 +4,16 @@
 <dict>
 	<key>method</key>
 	<string>app-store-connect</string>
-	<key>signingStyle</key>
-	<string>manual</string>
-	<!-- >>> Rellena con tu Team ID (Apple Developer → Membership details). -->
-	<key>teamID</key>
-	<string></string>
-	<key>signingCertificate</key>
-	<string>Apple Distribution</string>
 	<key>provisioningProfiles</key>
 	<dict>
-		<!-- >>> Nombre EXACTO del provisioning profile MAS (mismo que
-		     Config/Release-MAS.xcconfig::PROVISIONING_PROFILE_SPECIFIER). -->
 		<key>com.edefrutos.gestortareas</key>
-		<string>Gestor de Tareas MAS</string>
+		<string>GestorTareas</string>
 	</dict>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>V29BTBRY6G</string>
 </dict>
 </plist>

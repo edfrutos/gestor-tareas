@@ -253,10 +253,10 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 - [~] `.xcconfig` MAS y DevID (ya venían del Hito 0: identidades de firma, entitlements,
   `ENABLE_HARDENED_RUNTIME`). Añadido `scripts/ExportOptions-MAS.plist` + `scripts/export_mas.sh`
   + `make export-mas` (faltaba el equivalente de exportación de `notarize.sh` para el canal MAS).
-  **Pendiente de verdad, requiere cuenta Apple Developer activa:** rellenar `DEVELOPMENT_TEAM`
-  (`Config/Base.xcconfig`) y los nombres exactos de provisioning profile
+  `DEVELOPMENT_TEAM` (`Config/Base.xcconfig`) y los nombres exactos de provisioning profile
   (`Config/Release-MAS.xcconfig`, `scripts/ExportOptions-MAS.plist`, `scripts/ExportOptions-DevID.plist`)
-  con los valores reales, y validar que firman/archivan de verdad en Xcode.
+  ya tienen los valores reales de la cuenta Apple Developer. **Pendiente:** validar que firman/archivan
+  de verdad en Xcode (archive MAS y archive DevID sin errores de firma).
 - [x] Script `notarize.sh` (notarytool + stapler) y DMG (`hdiutil`, ya venía del Hito 0) +
   `export_mas.sh` (nuevo, ver arriba) para el canal MAS.
 - [ ] Primera *build* de MAS a App Store Connect (TestFlight) y primer DMG notarizado —

@@ -6,7 +6,7 @@ CODE_SIGN_IDENTITY = Apple Distribution
 CODE_SIGN_ENTITLEMENTS = Signing/GestorTareas-MAS.entitlements
 
 // >>> Nombre EXACTO del provisioning profile de la App para Mac App Store.
-PROVISIONING_PROFILE_SPECIFIER = Gestor de Tareas MAS
+PROVISIONING_PROFILE_SPECIFIER = GestorTareas
 
 ENABLE_HARDENED_RUNTIME = YES
 SWIFT_OPTIMIZATION_LEVEL = -O
