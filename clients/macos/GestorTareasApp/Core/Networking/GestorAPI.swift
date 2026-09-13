@@ -42,6 +42,36 @@ struct GestorAPI {
         )
     }
 
+    /// `GET /v1/auth/me`: datos frescos del usuario autenticado.
+    func me() async throws -> SessionUser {
+        struct Response: Decodable { let user: SessionUser }
+        let response: Response = try await client.send(.init(method: "GET", path: "/v1/auth/me"))
+        return response.user
+    }
+
+    /// `PATCH /v1/auth/me`: el propio usuario cambia su email y/o contraseña
+    /// (distinto de `updateUser`, que es para que un admin edite a otros).
+    /// `nil` en cualquier campo significa "no tocar"; el backend solo
+    /// devuelve `{ ok: true }`, por eso `me()` se llama después para refrescar.
+    func updateMe(email: String?, currentPassword: String?, newPassword: String?) async throws {
+        struct Body: Encodable {
+            let email: String?
+            let currentPassword: String?
+            let newPassword: String?
+            enum CodingKeys: String, CodingKey { case email, currentPassword, newPassword }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encodeIfPresent(email, forKey: .email)
+                try c.encodeIfPresent(currentPassword, forKey: .currentPassword)
+                try c.encodeIfPresent(newPassword, forKey: .newPassword)
+            }
+        }
+        _ = try await client.sendVoid(
+            .json("PATCH", "/v1/auth/me",
+                  body: Body(email: email, currentPassword: currentPassword, newPassword: newPassword))
+        )
+    }
+
     // MARK: Issues
 
     func issues(filter: IssueFilter, page: Int, pageSize: Int = 50) async throws -> Paginated<Issue> {

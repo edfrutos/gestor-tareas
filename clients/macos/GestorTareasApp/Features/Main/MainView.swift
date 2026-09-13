@@ -8,6 +8,7 @@ struct MainView: View {
 
     @State private var selection: Panel? = .issues
     @State private var path = NavigationPath()
+    @State private var showProfile = false
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
@@ -66,6 +67,13 @@ struct MainView: View {
         .onDisappear { socket.disconnect() }
         .task { openPendingDeepLink() }
         .onChange(of: router.pendingIssueID) { openPendingDeepLink() }
+        .sheet(isPresented: $showProfile) {
+            if let user = session.currentUser {
+                ProfileView(user: user)
+                    .environment(session)
+                    .environment(settings)
+            }
+        }
     }
 
     @ViewBuilder
@@ -91,6 +99,8 @@ struct MainView: View {
                 if let email = user.email { Text(email) }
                 if user.isAdmin { Text("Administrador") }
             }
+            Divider()
+            Button("Editar perfil…") { showProfile = true }
             Divider()
             Button("Cerrar sesión", role: .destructive) {
                 session.signOut()

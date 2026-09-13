@@ -46,6 +46,15 @@ final class SessionStore: TokenProviding {
         state = .signedOut
     }
 
+    /// Refresca los datos del usuario en sesión (tras editar "Mi perfil"),
+    /// sin tocar el JWT — solo cambia email/username/rol, no la autenticación.
+    func updateCurrentUser(_ user: SessionUser) {
+        if let data = try? JSONEncoder().encode(user) {
+            UserDefaults.standard.set(data, forKey: userKey)
+        }
+        state = .signedIn(user)
+    }
+
     // MARK: Derivados
 
     var currentUser: SessionUser? {
