@@ -171,6 +171,16 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/maps` (multipart, campo "map"). Sube un plano nuevo a la
+    /// biblioteca compartida — queda disponible para cualquier tarea nueva
+    /// igual que los ya existentes (misma tabla, mismo `GET /v1/maps`).
+    func createMap(name: String, image: Attachment) async throws -> MapRef {
+        var form = MultipartForm()
+        form.addField("name", name)
+        form.addFile(.map, filename: image.filename, mimeType: image.mimeType, data: image.data)
+        return try await client.send(.multipart("POST", "/v1/maps", form: form))
+    }
+
     // MARK: Plano (Hito 3)
 
     /// `GET /v1/maps/:id` → plano + `layers` (capas técnicas anidadas).

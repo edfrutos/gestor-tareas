@@ -1,5 +1,4 @@
 import AppKit
-import ImageIO
 import Observation
 
 @MainActor
@@ -61,7 +60,7 @@ final class PlanViewModel {
                 errorMessage = "No se pudo resolver la URL del plano."
                 return
             }
-            let (image, pixelSize) = try await Self.loadImage(from: url)
+            let (image, pixelSize) = try await RemoteImage.load(from: url)
             planImage = image
             coordinateSpace = PlanCoordinateSpace(imageSize: pixelSize)
         } catch let error as APIError {
@@ -105,25 +104,5 @@ final class PlanViewModel {
         case .settingsUpdated:
             break
         }
-    }
-
-    // MARK: Carga de imagen (necesitamos el tamaño real en píxeles, no el de
-    // `AsyncImage`, para reproducir `PlanCoordinateSpace` igual que la web)
-
-    private static func loadImage(from url: URL) async throws -> (image: NSImage, pixelSize: CGSize) {
-        let (data, response) = try await URLSession.shared.data(from: url)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            throw APIError.from(status: http.statusCode, data: data)
-        }
-        guard let image = NSImage(data: data) else {
-            throw APIError.transport(message: "No se pudo decodificar la imagen del plano.")
-        }
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
-              let height = properties[kCGImagePropertyPixelHeight] as? NSNumber else {
-            return (image, image.size)
-        }
-        return (image, CGSize(width: CGFloat(width.doubleValue), height: CGFloat(height.doubleValue)))
     }
 }
