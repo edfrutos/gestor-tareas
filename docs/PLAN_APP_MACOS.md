@@ -320,12 +320,17 @@ ninguna pantalla de "Mi perfil" (solo cerrar sesión).
   ya los campos. Verificado manualmente con un servidor efímero (DB/uploads temporales): subida,
   thumb, reemplazo con borrado del anterior, `DELETE`, tipo no permitido → 400, sin token → 401.
 - [x] **Web**: modal "Mi Perfil" con foto (vista previa circular, "Cambiar foto…"/"Quitar foto") +
-  miniatura junto al nombre en la cabecera. **No verificado en un navegador real** (Playwright/
-  Chromium bloqueado por política de red del sandbox de desarrollo) — solo por lectura de código y
-  sintaxis; pendiente un smoke test manual.
+  miniatura junto al nombre en la cabecera. Verificado en navegador real por el usuario: subida y
+  vista previa correctas.
 - [x] **macOS**: pantalla "Mi perfil" (menú de cuenta → "Editar perfil…") con email/contraseña
   (fase 1, ya consumía `/v1/auth/me`) + foto (fase 2, `fileImporter` como en `IssueEditorView`,
-  miniatura en el propio menú de cuenta). Sin verificar en Xcode/TestFlight todavía.
+  miniatura en el propio menú de cuenta). Verificado en Xcode/TestFlight por el usuario, y
+  confirmada la sincronización cruzada: una foto subida desde la web aparece también en macOS.
+- [x] **Nota de infraestructura de desarrollo**: el `--watch` de Node dentro del contenedor Docker
+  (`docker-compose.yml`, bind-mount de `./src`) no siempre detecta cambios de fichero hechos desde
+  el host en Docker Desktop/Mac — hace falta `docker compose restart gestor-tareas` (o
+  `--force-recreate`) tras cambios de backend para que se recojan de verdad, y refresco forzado del
+  navegador para los estáticos servidos vía `express.static`.
 
 ### Trabajo de backend en paralelo (ver `docs/API.md §6`)
 - [ ] Refresh token / sesión configurable.
