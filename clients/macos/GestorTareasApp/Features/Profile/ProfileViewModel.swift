@@ -15,8 +15,58 @@ final class ProfileViewModel {
     var errorMessage: String?
     var didSave = false
 
+    /// URL relativa (`/uploads/thumbs/...`) de la foto de perfil, o `nil`.
+    var avatarThumbURL: String?
+    var isUploadingAvatar = false
+    var avatarError: String?
+
     init(user: SessionUser) {
         email = user.email ?? ""
+        avatarThumbURL = user.avatarThumbURL
+    }
+
+    /// Sube (o reemplaza) la foto de perfil y refresca `SessionStore`.
+    func uploadAvatar(_ attachment: Attachment, settings: AppSettings, session: SessionStore) async {
+        avatarError = nil
+        isUploadingAvatar = true
+        defer { isUploadingAvatar = false }
+
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            let response = try await api.uploadAvatar(attachment)
+            avatarThumbURL = response.avatarThumbURL
+            if var user = session.currentUser {
+                user.avatarURL = response.avatarURL
+                user.avatarThumbURL = response.avatarThumbURL
+                session.updateCurrentUser(user)
+            }
+        } catch let error as APIError {
+            avatarError = friendlyMessage(for: error)
+        } catch {
+            avatarError = error.localizedDescription
+        }
+    }
+
+    /// Quita la foto de perfil actual y refresca `SessionStore`.
+    func removeAvatar(settings: AppSettings, session: SessionStore) async {
+        avatarError = nil
+        isUploadingAvatar = true
+        defer { isUploadingAvatar = false }
+
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            try await api.deleteAvatar()
+            avatarThumbURL = nil
+            if var user = session.currentUser {
+                user.avatarURL = nil
+                user.avatarThumbURL = nil
+                session.updateCurrentUser(user)
+            }
+        } catch let error as APIError {
+            avatarError = friendlyMessage(for: error)
+        } catch {
+            avatarError = error.localizedDescription
+        }
     }
 
     func submit(settings: AppSettings, session: SessionStore) async {

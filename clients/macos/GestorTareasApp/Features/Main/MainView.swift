@@ -106,7 +106,28 @@ struct MainView: View {
                 session.signOut()
             }
         } label: {
-            Label(session.currentUser?.username ?? "Cuenta", systemImage: "person.circle")
+            HStack(spacing: 6) {
+                accountAvatar
+                Text(session.currentUser?.username ?? "Cuenta")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var accountAvatar: some View {
+        if let url = settings.mediaURL(session.currentUser?.avatarThumbURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Image(systemName: "person.circle")
+                }
+            }
+            .frame(width: 18, height: 18)
+            .clipShape(Circle())
+        } else {
+            Image(systemName: "person.circle")
         }
     }
 

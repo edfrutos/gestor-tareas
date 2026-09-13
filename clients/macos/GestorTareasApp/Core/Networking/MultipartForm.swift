@@ -18,6 +18,8 @@ struct MultipartForm {
         case document = "file"
         case resolutionPhoto = "resolution_photo"
         case resolutionDocument = "resolution_doc"
+        /// `POST /v1/auth/me/avatar` (`src/routes/auth.routes.js`).
+        case avatar
     }
 
     private let boundary = "Boundary-\(UUID().uuidString)"

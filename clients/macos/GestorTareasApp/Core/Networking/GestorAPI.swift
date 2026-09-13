@@ -72,6 +72,20 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/auth/me/avatar` (multipart). Sube/reemplaza la foto de perfil;
+    /// el backend borra la anterior. Devuelve las URLs ya actualizadas.
+    func uploadAvatar(_ attachment: Attachment) async throws -> AvatarResponse {
+        var form = MultipartForm()
+        form.addFile(.avatar, filename: attachment.filename,
+                    mimeType: attachment.mimeType, data: attachment.data)
+        return try await client.send(.multipart("POST", "/v1/auth/me/avatar", form: form))
+    }
+
+    /// `DELETE /v1/auth/me/avatar`. Quita la foto de perfil actual.
+    func deleteAvatar() async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/auth/me/avatar"))
+    }
+
     // MARK: Issues
 
     func issues(filter: IssueFilter, page: Int, pageSize: Int = 50) async throws -> Paginated<Issue> {
