@@ -808,7 +808,9 @@
 
       <div class="controls">
         <span id="userInfo" style="display:none; font-size:13px; color:var(--muted); margin-right:10px;">
-          👤 <strong id="userName" style="color:var(--text);"></strong>
+          <img id="userAvatar" style="display:none; width:22px; height:22px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:4px;" alt="" />
+          <span id="userAvatarFallback">👤</span>
+          <strong id="userName" style="color:var(--text);"></strong>
         </span>
         <button class="btn small" id="btnNotifications" title="Ver actividad en mis tareas (comentarios, respuestas, cambios)" style="margin-right:6px;">📬 Mis notificaciones</button>
         <button class="btn small" id="btnStats" title="Ver Estadísticas" style="margin-right:6px;">📊 Estadísticas</button>
@@ -1273,6 +1275,17 @@
         <button class="btn small" id="profileClose">✕</button>
       </div>
       <button type="button" class="btn small" id="profileBtnNotifications" style="width:100%; margin-bottom:15px; display:flex; align-items:center; justify-content:center; gap:8px;">📬 Ver actividad en mis tareas</button>
+
+      <div style="display:flex; align-items:center; gap:14px; margin-bottom:15px;">
+        <img id="profileAvatarPreview" style="display:none; width:64px; height:64px; border-radius:50%; object-fit:cover; border:1px solid var(--border);" alt="" />
+        <span id="profileAvatarFallback" style="width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; background:var(--border2);">👤</span>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input type="file" id="profileAvatarInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" />
+          <button type="button" class="btn small" id="profileAvatarChange">Cambiar foto…</button>
+          <button type="button" class="btn small" id="profileAvatarRemove" style="display:none;">Quitar foto</button>
+        </div>
+      </div>
+
       <form id="changePassForm">
         <!-- Campo oculto para que el gestor de contraseñas sepa a qué usuario pertenece -->
         <input type="text" name="username" id="profileStaticUser" style="display:none;" autocomplete="username" />

@@ -2,10 +2,10 @@ import { wireForms, loadCategories } from "./modules/forms.js";
 import { loadIssues } from "./modules/list.v2.js";
 import { getConfig, fetchJson } from "./modules/api.js";
 import { ensureMap, initMapModule } from "./modules/map.js";
-import { setStatus, $ } from "./modules/utils.js";
+import { setStatus, $, resolveSameOriginUrl } from "./modules/utils.js";
 import { LS_THEME, API_BASE } from "./modules/config.js";
 import { startStatsPolling, initStatsModule } from "./modules/stats.js";
-import { isAuthenticated, getUser, login, logout, register, updateProfile } from "./modules/auth.js";
+import { isAuthenticated, getUser, login, logout, register, updateProfile, uploadAvatar, deleteAvatar } from "./modules/auth.js";
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
 import { initSocketModule } from "./modules/socket.js";
@@ -66,12 +66,45 @@ async function initAuth() {
   const btnLogout = $("#btnLogout");
   const userInfo = $("#userInfo");
   const userName = $("#userName");
-  
+  const userAvatar = $("#userAvatar");
+  const userAvatarFallback = $("#userAvatarFallback");
+
   // Profile Logic
   const profileModal = $("#profileModal");
   const profileClose = $("#profileClose");
   const changePassForm = $("#changePassForm");
-  
+  const profileAvatarPreview = $("#profileAvatarPreview");
+  const profileAvatarFallback = $("#profileAvatarFallback");
+  const profileAvatarInput = $("#profileAvatarInput");
+  const profileAvatarChange = $("#profileAvatarChange");
+  const profileAvatarRemove = $("#profileAvatarRemove");
+
+  /** Refleja el avatar del usuario en la cabecera (icono junto al nombre). */
+  function renderHeaderAvatar(user) {
+    const thumb = resolveSameOriginUrl(user?.avatar_thumb_url);
+    if (thumb) {
+      if (userAvatar) { userAvatar.src = thumb; userAvatar.style.display = "inline-block"; }
+      if (userAvatarFallback) userAvatarFallback.style.display = "none";
+    } else {
+      if (userAvatar) userAvatar.style.display = "none";
+      if (userAvatarFallback) userAvatarFallback.style.display = "inline";
+    }
+  }
+
+  /** Refleja el avatar del usuario dentro del modal "Mi Perfil". */
+  function renderProfileAvatar(user) {
+    const thumb = resolveSameOriginUrl(user?.avatar_thumb_url);
+    if (thumb) {
+      if (profileAvatarPreview) { profileAvatarPreview.src = thumb; profileAvatarPreview.style.display = "block"; }
+      if (profileAvatarFallback) profileAvatarFallback.style.display = "none";
+      if (profileAvatarRemove) profileAvatarRemove.style.display = "inline-block";
+    } else {
+      if (profileAvatarPreview) profileAvatarPreview.style.display = "none";
+      if (profileAvatarFallback) profileAvatarFallback.style.display = "flex";
+      if (profileAvatarRemove) profileAvatarRemove.style.display = "none";
+    }
+  }
+
   if(userInfo) {
     userInfo.style.cursor = "pointer";
     userInfo.onclick = () => {
@@ -82,6 +115,48 @@ async function initAuth() {
         const np = $("#newPass"); if(np) np.value = "";
         const pe = $("#profileEmail"); if(pe) pe.value = user?.email || "";
         const st = $("#profileStatus"); if(st) st.textContent = "";
+        renderProfileAvatar(user);
+      }
+    };
+  }
+
+  if (profileAvatarChange) {
+    profileAvatarChange.onclick = () => profileAvatarInput?.click();
+  }
+
+  if (profileAvatarInput) {
+    profileAvatarInput.onchange = async () => {
+      const file = profileAvatarInput.files?.[0];
+      if (!file) return;
+      const st = $("#profileStatus");
+      try {
+        if (st) { st.textContent = "Subiendo foto..."; st.style.color = "var(--text)"; }
+        const { avatar_url, avatar_thumb_url } = await uploadAvatar(file);
+        const user = { ...(getUser() || {}), avatar_url, avatar_thumb_url };
+        localStorage.setItem("cc_user", JSON.stringify(user));
+        renderProfileAvatar(user);
+        renderHeaderAvatar(user);
+        if (st) { st.textContent = "Foto actualizada ✅"; st.style.color = "var(--ok)"; }
+      } catch (err) {
+        if (st) { st.textContent = err.message || "Error al subir la foto"; st.style.color = "var(--bad)"; }
+      } finally {
+        profileAvatarInput.value = "";
+      }
+    };
+  }
+
+  if (profileAvatarRemove) {
+    profileAvatarRemove.onclick = async () => {
+      const st = $("#profileStatus");
+      try {
+        await deleteAvatar();
+        const user = { ...(getUser() || {}), avatar_url: null, avatar_thumb_url: null };
+        localStorage.setItem("cc_user", JSON.stringify(user));
+        renderProfileAvatar(user);
+        renderHeaderAvatar(user);
+        if (st) { st.textContent = "Foto eliminada"; st.style.color = "var(--ok)"; }
+      } catch (err) {
+        if (st) { st.textContent = err.message || "Error al quitar la foto"; st.style.color = "var(--bad)"; }
       }
     };
   }
@@ -121,6 +196,7 @@ async function initAuth() {
         const { user } = await fetchJson(`${API_BASE}/auth/me`);
         localStorage.setItem("cc_user", JSON.stringify(user));
         if(userName) userName.textContent = user.username;
+        renderHeaderAvatar(user);
 
         st.textContent = "Perfil actualizado ✅";
         st.style.color = "var(--ok)";
@@ -217,6 +293,7 @@ async function initAuth() {
       if(userInfo) userInfo.style.display = "inline";
       if(btnLogout) btnLogout.style.display = "inline-block";
       if(userName) userName.textContent = user?.username || "Usuario";
+      renderHeaderAvatar(user);
       return true;
     } else {
       modal.style.display = "flex";
