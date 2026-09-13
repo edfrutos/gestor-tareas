@@ -275,9 +275,12 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
   action worked!`. Nota: el `.dmg` en sí no lleva ticket propio (solo se notarizó el `.app`, no el
   DMG como artefacto) — es irrelevante para Gatekeeper porque el `.app` interno ya lo lleva grapado.
 - [x] Iconos (`AppIcon` 16→1024): `Assets.xcassets/AppIcon.appiconset` generado a partir del logo
-  aportado por el usuario (`gestor-tareas.png`, recortado y reescalado a los 10 tamaños que exige
-  macOS). Estilo "tarjeta con sombra" válido para macOS pero poco legible en 16/32px — revisar si
-  merece una versión simplificada para esas medidas.
+  aportado por el usuario, con el fondo blanco eliminado de verdad (`gestor-tareas-sin-fondo.png`,
+  extraído con la función nativa de macOS "Extraer sujeto"/"Copiar sujeto" — el recorte automático
+  por distancia de color no servía porque el título "GestorTareas" está en blanco, el mismo color
+  que el fondo, y cualquier umbral de color vaciaba las letras o dejaba un halo). Estilo "tarjeta
+  con sombra" válido para macOS pero poco legible en 16/32px — revisar si merece una versión
+  simplificada para esas medidas.
 - [x] CI: `.github/workflows/macos-client-ci.yml` — `xcodegen generate` + `make test` en
   `macos-14`, solo cuando cambia algo en `clients/macos/**`. No necesita secrets: `Debug.xcconfig`
   firma en modo `Automatic`/ad-hoc (`CODE_SIGN_IDENTITY = -`), sin Team ID.
