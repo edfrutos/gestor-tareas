@@ -26,6 +26,10 @@ struct PlanView: View {
             Divider()
             content
         }
+        .background(Theme.panel)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.cardBorder, lineWidth: 1))
+        .padding(12)
         .navigationTitle("Plano")
         .task {
             model.highlightedIssueID = highlightIssueID
@@ -74,9 +78,11 @@ struct PlanView: View {
             if model.isLoadingPlan {
                 ProgressView().controlSize(.small)
             }
-            Text("\(model.issues.count) tarea(s) en este plano")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("\(model.issues.count) tarea(s)")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Theme.chip, in: Capsule())
         }
         .padding(10)
     }
@@ -170,7 +176,10 @@ private struct PlanCanvas: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .padding(10)
+        .padding(8)
+        .background(Theme.panel, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
+        .padding(14)
     }
 
     /// Capas técnicas: otras imágenes superpuestas a la misma escala que el
