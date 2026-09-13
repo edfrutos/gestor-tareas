@@ -39,3 +39,18 @@ extension Color {
         })
     }
 }
+
+private struct CardStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(16)
+            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.cardBorder, lineWidth: 1))
+    }
+}
+
+extension View {
+    /// Panel de "tarjeta" (fondo + borde redondeado) para agrupar una sección
+    /// de contenido propio — mismo tratamiento que las filas de la lista.
+    func cardStyle() -> some View { modifier(CardStyle()) }
+}

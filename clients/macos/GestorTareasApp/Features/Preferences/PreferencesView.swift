@@ -7,6 +7,15 @@ struct PreferencesView: View {
         @Bindable var settings = settings
 
         Form {
+            Section("Apariencia") {
+                Picker("Tema", selection: $settings.appearanceMode) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section("Servidor") {
                 TextField("URL base",
                           text: $settings.serverURLString,

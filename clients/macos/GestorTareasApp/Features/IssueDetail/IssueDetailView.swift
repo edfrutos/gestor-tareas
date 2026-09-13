@@ -141,6 +141,7 @@ struct IssueDetailView: View {
                 row("Plano", issue.mapID.map { "#\($0)" } ?? "—")
             }
         }
+        .cardStyle()
     }
 
     @ViewBuilder
@@ -161,6 +162,7 @@ struct IssueDetailView: View {
                     mediaRow(resolution)
                 }
             }
+            .cardStyle()
         }
     }
 
@@ -177,6 +179,7 @@ struct IssueDetailView: View {
                         .buttonStyle(.link)
                 }
             }
+            .cardStyle()
         }
     }
 
@@ -204,6 +207,7 @@ struct IssueDetailView: View {
                 }
             }
         }
+        .cardStyle()
     }
 
     @ViewBuilder
@@ -238,6 +242,7 @@ struct IssueDetailView: View {
             }
             .padding(.top, 4)
         }
+        .cardStyle()
     }
 
     // MARK: Utilidades de vista
