@@ -46,9 +46,9 @@ struct AdminUserEditorView: View {
                     }
                 }
                 Section(mode.isEditing ? "Cambiar contraseña" : "Contraseña") {
-                    SecureField(mode.isEditing ? "Dejar en blanco para no cambiarla" : "Contraseña",
-                               text: $model.draft.password)
-                        .textContentType(.newPassword)
+                    PasswordField(title: mode.isEditing ? "Dejar en blanco para no cambiarla" : "Contraseña",
+                                 text: $model.draft.password,
+                                 textContentType: .newPassword)
                 }
             }
             .formStyle(.grouped)

@@ -26,8 +26,7 @@ struct LoginView: View {
             VStack(spacing: 10) {
                 TextField("Usuario o email", text: $username)
                     .textContentType(.username)
-                SecureField("Contraseña", text: $password)
-                    .textContentType(.password)
+                PasswordField(title: "Contraseña", text: $password, textContentType: .password)
                     .onSubmit(attempt)
             }
             .textFieldStyle(.roundedBorder)

@@ -44,11 +44,12 @@ struct ProfileView: View {
                         .textContentType(.emailAddress)
                 }
                 Section("Cambiar contraseña") {
-                    SecureField("Contraseña actual", text: $model.currentPassword)
-                        .textContentType(.password)
-                    SecureField("Nueva contraseña (dejar en blanco para no cambiarla)",
-                               text: $model.newPassword)
-                        .textContentType(.newPassword)
+                    PasswordField(title: "Contraseña actual",
+                                 text: $model.currentPassword,
+                                 textContentType: .password)
+                    PasswordField(title: "Nueva contraseña (dejar en blanco para no cambiarla)",
+                                 text: $model.newPassword,
+                                 textContentType: .newPassword)
                 }
             }
             .formStyle(.grouped)
