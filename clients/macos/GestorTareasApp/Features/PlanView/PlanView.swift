@@ -73,6 +73,20 @@ struct PlanView: View {
                 .fixedSize()
             }
 
+            if model.mapDetail != nil {
+                Button {
+                    model.isDrawingZone.toggle()
+                } label: {
+                    Label(model.isDrawingZone ? "Cancelar dibujo" : "Dibujar zona",
+                          systemImage: model.isDrawingZone ? "xmark.circle" : "pencil")
+                }
+                .tint(model.isDrawingZone ? Theme.bad : Theme.accent)
+                .help("Arrastra sobre el plano para crear una zona rectangular.")
+                if model.isSavingZone {
+                    ProgressView().controlSize(.small)
+                }
+            }
+
             Spacer()
 
             if model.isLoadingPlan {
@@ -130,8 +144,16 @@ private struct PlanCanvas: View {
     let image: NSImage
 
     @Environment(AppSettings.self) private var settings
+    @Environment(SessionStore.self) private var session
     @State private var scale: CGFloat = 1
     @State private var gestureScale: CGFloat = 1
+
+    // MARK: Dibujar zona (rectángulo)
+    @State private var drawStartFraction: CGPoint?
+    @State private var drawCurrentFraction: CGPoint?
+    @State private var pendingZoneFractions: (start: CGPoint, end: CGPoint)?
+    @State private var showZoneNamePrompt = false
+    @State private var zoneNameInput = ""
 
     private var effectiveScale: CGFloat { scale * gestureScale }
 
@@ -149,8 +171,31 @@ private struct PlanCanvas: View {
                     layersOverlay
                     zonesOverlay
                     pinsOverlay(size: displaySize)
+                    drawPreview(size: displaySize)
                 }
                 .frame(width: displaySize.width, height: displaySize.height)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 4, coordinateSpace: .local)
+                        .onChanged { value in
+                            guard model.isDrawingZone else { return }
+                            if drawStartFraction == nil {
+                                drawStartFraction = fraction(for: value.startLocation, in: displaySize)
+                            }
+                            drawCurrentFraction = fraction(for: value.location, in: displaySize)
+                        }
+                        .onEnded { value in
+                            guard model.isDrawingZone else { return }
+                            let end = fraction(for: value.location, in: displaySize)
+                            if let start = drawStartFraction {
+                                pendingZoneFractions = (start, end)
+                                zoneNameInput = "Nueva zona"
+                                showZoneNamePrompt = true
+                            }
+                            drawStartFraction = nil
+                            drawCurrentFraction = nil
+                        }
+                )
             }
             .simultaneousGesture(
                 MagnificationGesture()
@@ -162,6 +207,56 @@ private struct PlanCanvas: View {
             )
         }
         .overlay(alignment: .bottomTrailing) { zoomControls }
+        .alert("Nombre de la zona", isPresented: $showZoneNamePrompt) {
+            TextField("Nombre", text: $zoneNameInput)
+            Button("Cancelar", role: .cancel) { pendingZoneFractions = nil }
+            Button("Crear") { confirmZoneCreate() }
+        } message: {
+            Text("Se guarda en este plano, visible para cualquiera que lo consulte.")
+        }
+        .alert("No se pudo guardar la zona", isPresented: Binding(
+            get: { model.zoneError != nil },
+            set: { if !$0 { model.zoneError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.zoneError ?? "")
+        }
+    }
+
+    private func fraction(for point: CGPoint, in size: CGSize) -> CGPoint {
+        guard size.width > 0, size.height > 0 else { return .zero }
+        return CGPoint(x: min(max(point.x / size.width, 0), 1),
+                       y: min(max(point.y / size.height, 0), 1))
+    }
+
+    private func confirmZoneCreate() {
+        guard let pending = pendingZoneFractions else { return }
+        let name = zoneNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            await model.createRectangleZone(name: name.isEmpty ? "Nueva zona" : name,
+                                            fractionStart: pending.start,
+                                            fractionEnd: pending.end,
+                                            settings: settings,
+                                            session: session)
+            pendingZoneFractions = nil
+        }
+    }
+
+    @ViewBuilder
+    private func drawPreview(size: CGSize) -> some View {
+        if let start = drawStartFraction, let current = drawCurrentFraction {
+            let x0 = min(start.x, current.x) * size.width
+            let x1 = max(start.x, current.x) * size.width
+            let y0 = min(start.y, current.y) * size.height
+            let y1 = max(start.y, current.y) * size.height
+            Rectangle()
+                .fill(Theme.accent.opacity(0.2))
+                .overlay(Rectangle().stroke(Theme.accent, lineWidth: 2))
+                .frame(width: x1 - x0, height: y1 - y0)
+                .position(x: (x0 + x1) / 2, y: (y0 + y1) / 2)
+                .allowsHitTesting(false)
+        }
     }
 
     private var zoomControls: some View {
@@ -213,7 +308,13 @@ private struct PlanCanvas: View {
                     .fill(zone.displayColor.opacity(0.22))
                     .overlay(ZonePolygon(points: exterior).stroke(zone.displayColor, lineWidth: 2))
                     .help(zone.name)
-                    .allowsHitTesting(false)
+                    .contentShape(ZonePolygon(points: exterior))
+                    .contextMenu {
+                        Text(zone.name)
+                        Button("Eliminar zona", role: .destructive) {
+                            Task { await model.deleteZone(zone, settings: settings, session: session) }
+                        }
+                    }
             }
         }
     }

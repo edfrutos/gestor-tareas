@@ -86,13 +86,15 @@ struct MapZone: Codable, Identifiable {
     }
 }
 
-/// Subconjunto mínimo de GeoJSON que necesitamos decodificar: un `Feature` con
-/// geometría `Polygon` (`coordinates: [ [ [lng,lat], ... ] ]`, un array por anillo).
-struct GeoJSONFeature: Decodable {
-    struct Geometry: Decodable {
-        let type: String
+/// Subconjunto mínimo de GeoJSON que necesitamos leer/escribir: un `Feature`
+/// con geometría `Polygon` (`coordinates: [ [ [lng,lat], ... ] ]`, un array
+/// por anillo). `Codable` en los dos sentidos: se decodifica al pintar zonas
+/// ya existentes y se codifica al crear una nueva (`PlanViewModel.createRectangleZone`).
+struct GeoJSONFeature: Codable {
+    struct Geometry: Codable {
+        var type = "Polygon"
         let coordinates: [[[Double]]]
     }
-    let type: String
+    var type = "Feature"
     let geometry: Geometry
 }

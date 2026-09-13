@@ -21,6 +21,11 @@ final class PlanViewModel {
     var isLoadingPlan = false
     var errorMessage: String?
 
+    /// Modo "dibujar zona" (rectángulo) activo en `PlanCanvas`.
+    var isDrawingZone = false
+    var isSavingZone = false
+    var zoneError: String?
+
     private static let issuesPageSize = 100
 
     // MARK: Selección de plano
@@ -75,6 +80,71 @@ final class PlanViewModel {
             visibleLayerIDs.remove(id)
         } else {
             visibleLayerIDs.insert(id)
+        }
+    }
+
+    // MARK: Zonas (dibujar/borrar)
+
+    /// Crea una zona rectangular a partir de dos esquinas en fracción `(0...1,
+    /// 0...1)` del plano (`PlanCanvas` las da en su propio espacio de pantalla).
+    /// Solo el admin o el dueño del plano puede hacerlo — el backend lo exige,
+    /// aquí solo se traduce el 403 a un mensaje legible.
+    func createRectangleZone(name: String,
+                             fractionStart: CGPoint,
+                             fractionEnd: CGPoint,
+                             settings: AppSettings,
+                             session: SessionStore) async {
+        guard let mapID = selectedMapID else { return }
+        zoneError = nil
+        isSavingZone = true
+        defer { isSavingZone = false }
+
+        let corner1 = coordinateSpace.coordinate(atFraction: fractionStart)
+        let corner2 = coordinateSpace.coordinate(atFraction: fractionEnd)
+        let minLat = min(corner1.lat, corner2.lat)
+        let maxLat = max(corner1.lat, corner2.lat)
+        let minLng = min(corner1.lng, corner2.lng)
+        let maxLng = max(corner1.lng, corner2.lng)
+        // Anillo cerrado (primer punto == último), como produce Leaflet.draw.
+        let ring: [[Double]] = [
+            [minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat], [minLng, minLat],
+        ]
+        let feature = GeoJSONFeature(geometry: .init(coordinates: [ring]))
+
+        guard let data = try? JSONEncoder().encode(feature),
+              let geojson = String(data: data, encoding: .utf8) else {
+            zoneError = "No se pudo generar la geometría de la zona."
+            return
+        }
+
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            let zone = try await api.createZone(mapID: mapID, name: name,
+                                                type: "rectangle", geojson: geojson,
+                                                color: "#7c5cff")
+            zones.append(zone)
+        } catch let error as APIError {
+            zoneError = error.kind == .forbidden
+                ? "No puedes crear zonas en este plano: no eres su autor ni administrador."
+                : error.message
+        } catch {
+            zoneError = error.localizedDescription
+        }
+    }
+
+    func deleteZone(_ zone: MapZone, settings: AppSettings, session: SessionStore) async {
+        guard let mapID = selectedMapID else { return }
+        zoneError = nil
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            try await api.deleteZone(mapID: mapID, zoneID: zone.id)
+            zones.removeAll { $0.id == zone.id }
+        } catch let error as APIError {
+            zoneError = error.kind == .forbidden
+                ? "No puedes borrar esta zona: no eres su autora ni administrador."
+                : error.message
+        } catch {
+            zoneError = error.localizedDescription
         }
     }
 

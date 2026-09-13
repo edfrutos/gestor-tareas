@@ -193,6 +193,21 @@ struct GestorAPI {
         try await client.send(.init(method: "GET", path: "/v1/maps/\(mapID)/zones"))
     }
 
+    /// `POST /v1/maps/:mapId/zones`. Solo el admin o el dueño del plano puede
+    /// crear zonas (`403` en caso contrario). Devuelve la zona ya creada.
+    func createZone(mapID: Int, name: String, type: String, geojson: String, color: String) async throws -> MapZone {
+        struct Body: Encodable { let name, type, geojson, color: String }
+        return try await client.send(
+            .json("POST", "/v1/maps/\(mapID)/zones",
+                  body: Body(name: name, type: type, geojson: geojson, color: color))
+        )
+    }
+
+    /// `DELETE /v1/maps/:mapId/zones/:id`. Mismo RBAC que crear (admin o dueño).
+    func deleteZone(mapID: Int, zoneID: Int) async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/maps/\(mapID)/zones/\(zoneID)"))
+    }
+
     // MARK: Notificaciones (Hito 4)
 
     /// `GET /v1/notifications` → actividad (comentarios/respuestas/cambios) en
