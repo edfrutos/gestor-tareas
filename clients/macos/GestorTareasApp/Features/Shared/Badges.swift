@@ -16,22 +16,26 @@ struct TagPill: View {
 }
 
 extension IssueStatus {
+    /// Sin equivalente exacto en la web (ahí el estado va sin colorear); usa
+    /// los mismos tres tonos semánticos que sí define la web (`--accent`,
+    /// `--warn`, `--ok`) para que combine con el resto de la paleta.
     var color: Color {
         switch self {
-        case .open: return .blue
-        case .inProgress: return .orange
-        case .resolved: return .green
+        case .open: return Theme.accent
+        case .inProgress: return Theme.warn
+        case .resolved: return Theme.ok
         }
     }
 }
 
 extension Priority {
+    /// Calcado de `priorityLabel()` en `list.v2.js:87-92` (web).
     var color: Color {
         switch self {
-        case .low: return .secondary
-        case .medium: return .blue
-        case .high: return .orange
-        case .critical: return .red
+        case .low: return Theme.ok
+        case .medium: return Color(hex: "#f1c40f")
+        case .high: return Color(hex: "#e67e22")
+        case .critical: return Theme.bad
         }
     }
 }
