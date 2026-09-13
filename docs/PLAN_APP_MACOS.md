@@ -289,6 +289,44 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > único idioma. Textos de ficha de App Store y capturas de pantalla: también pendientes, solo
 > hacen falta para el envío a revisión pública, no para TestFlight interno.
 
+### Post-Hito 5 — hallazgos de la primera prueba real en TestFlight (2026-09-12/13)
+
+Con la app ya instalada vía TestFlight (no solo `xcodebuild test`), aparecieron varios problemas
+que ningún test/CI había cubierto:
+
+- [x] **Bug: detalle de tarea en blanco indefinidamente.** `IssueDetailView` tenía un `Group` con
+  `if/else if` no exhaustivo — el estado inicial del ViewModel (antes de que `.task(id:)` arranque)
+  no encajaba en ninguna rama. Corregido con un `else` que reintenta la carga.
+- [x] **Bug: el modal "Ver en el plano" no se podía cerrar.** Era el único `.sheet` de la app sin
+  botón de cierre. Añadido.
+- [x] **Mejora: evidencias (fotos/documentos) abrían el navegador del sistema sin formato.**
+  Sustituido por descarga a temporal + Quick Look nativo (`.quickLookPreview`), igual que
+  Finder/Mail. Las fotos previsualizan ahora el original, no solo el thumb.
+- [x] **AppIcon con demasiado margen blanco.** Recorte más ajustado (~1.5% en vez de ~6%).
+- [ ] **Diseño visual pendiente de revisión de fondo:** la app usa SwiftUI por defecto (claro, sin
+  tema), mientras que la web tiene tema oscuro y un lenguaje visual propio (insignias, plano con
+  imagen de fondo). Decisión tomada: mantener la arquitectura 100% nativa (evita el riesgo de
+  rechazo 4.2 "mínima funcionalidad" de Apple si se usara un `WKWebView`) e invertir en reproducir
+  ese lenguaje visual en SwiftUI en vez de embeber la web. Sin abordar todavía.
+
+### Post-Hito 5 — funcionalidad de perfil de usuario con foto (2026-09-13)
+
+No estaba cubierta por ningún hito: ni siquiera la web tenía foto de perfil, y macOS no tenía
+ninguna pantalla de "Mi perfil" (solo cerrar sesión).
+
+- [x] **Backend**: `avatar_url`/`avatar_thumb_url` en `users` (migración) + `POST`/`DELETE
+  /v1/auth/me/avatar` (multipart, mismo patrón que las fotos de `issues.routes.js`: multer + sharp,
+  thumb 256×256 webp, límites/tipos vía `MAX_UPLOAD_BYTES`). `GET /v1/auth/me` y `login` devuelven
+  ya los campos. Verificado manualmente con un servidor efímero (DB/uploads temporales): subida,
+  thumb, reemplazo con borrado del anterior, `DELETE`, tipo no permitido → 400, sin token → 401.
+- [x] **Web**: modal "Mi Perfil" con foto (vista previa circular, "Cambiar foto…"/"Quitar foto") +
+  miniatura junto al nombre en la cabecera. **No verificado en un navegador real** (Playwright/
+  Chromium bloqueado por política de red del sandbox de desarrollo) — solo por lectura de código y
+  sintaxis; pendiente un smoke test manual.
+- [x] **macOS**: pantalla "Mi perfil" (menú de cuenta → "Editar perfil…") con email/contraseña
+  (fase 1, ya consumía `/v1/auth/me`) + foto (fase 2, `fileImporter` como en `IssueEditorView`,
+  miniatura en el propio menú de cuenta). Sin verificar en Xcode/TestFlight todavía.
+
 ### Trabajo de backend en paralelo (ver `docs/API.md §6`)
 - [ ] Refresh token / sesión configurable.
 - [ ] Auth en el handshake de Socket.io + salas por usuario.
