@@ -208,10 +208,11 @@ struct IssueEditorView: View {
         Section("Ubicación en el plano") {
             MapCoordinatePicker(mapID: draft.wrappedValue.mapID, x: draft.x, y: draft.y)
             HStack {
-                TextField("X", text: draft.x)
-                TextField("Y", text: draft.y)
+                TextField("X", text: draft.x, prompt: Text("Toca el plano…"))
+                TextField("Y", text: draft.y, prompt: Text("Toca el plano…"))
             }
-            Text("Toca sobre el plano para fijar la ubicación, o escribe las coordenadas a mano.")
+            Text("Toca sobre el plano para fijar la ubicación, o escribe las coordenadas a mano. "
+                 + "Obligatorio: sin una posición real, la tarea no se puede crear.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
