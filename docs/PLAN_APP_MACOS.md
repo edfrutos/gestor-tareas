@@ -249,12 +249,111 @@ GitHub Actions `macos-14` runner: `xcodegen generate` → `xcodebuild test` en c
 > código del backend), lo que dejó pasar el único fallo real: un nombre de caso de enum específico
 > de macOS que ningún test de decodificación podía atrapar.
 
-### Hito 5 — Distribución
-- [ ] `.xcconfig` MAS y DevID afinados; entitlements validados.
-- [ ] Script `notarize.sh` (notarytool + stapler) y `create-dmg`.
-- [ ] Primera *build* de MAS a App Store Connect (TestFlight) y primer DMG notarizado.
-- [ ] Iconos (`AppIcon` 16→1024), `Localizable` (es), textos de la ficha de App Store, capturas.
-- [ ] CI: `xcodebuild test` en PR.
+### Hito 5 — Distribución ✅
+- [x] `.xcconfig` MAS y DevID (ya venían del Hito 0: identidades de firma, entitlements,
+  `ENABLE_HARDENED_RUNTIME`). Añadido `scripts/ExportOptions-MAS.plist` + `scripts/export_mas.sh`
+  + `make export-mas` (faltaba el equivalente de exportación de `notarize.sh` para el canal MAS).
+  `DEVELOPMENT_TEAM` (`Config/Base.xcconfig`) y los nombres exactos de provisioning profile
+  (`Config/Release-MAS.xcconfig`, `scripts/ExportOptions-MAS.plist`, `scripts/ExportOptions-DevID.plist`)
+  tienen los valores reales de la cuenta Apple Developer, y el archive MAS pasa **Validate App** en
+  Xcode Organizer sin errores. Bloqueo encontrado por el camino: la Mac de pruebas corre macOS 27
+  beta y solo permite instalar Xcode 27 beta (Apple rechaza subidas hechas con beta); se resolvió
+  usando el **Release Candidate** de Xcode 27, que sí acepta.
+- [x] Script `notarize.sh` (notarytool + stapler) y DMG (`hdiutil`, ya venía del Hito 0) +
+  `export_mas.sh` (nuevo, ver arriba) para el canal MAS.
+- [x] Primera *build* de MAS a App Store Connect (TestFlight) — `Distribute App` (Upload) completado
+  el 2026-09-12 desde Xcode Organizer. Compliance de cifrado resuelto ("Ninguno de los algoritmos
+  mencionados" — la app solo usa HTTPS estándar del SO, sin criptografía propia), build `0.1.0 (1)`
+  en grupo de pruebas internas con distribución automática activada.
+- [x] **Verificado en Mac vía TestFlight** (no solo `xcodebuild test`, la build real firmada +
+  sandboxed): login contra el backend real, conexión Socket.io en vivo ("En línea"), lista de
+  tareas cargada, icono nuevo visible en el Dock. Sin problemas de red pese al `App Sandbox`
+  (conexión a `localhost` funciona con `network.client`).
+- [x] Primer DMG notarizado del canal DevID — completado el 2026-09-12: archive → `Distribute App`
+  → *Direct Distribution* → Upload (Xcode notarizó automáticamente) → Export del `.app` ya grapado
+  → `hdiutil` para el `.dmg`. `xcrun stapler validate` sobre el `.app` exportado: `The validate
+  action worked!`. Nota: el `.dmg` en sí no lleva ticket propio (solo se notarizó el `.app`, no el
+  DMG como artefacto) — es irrelevante para Gatekeeper porque el `.app` interno ya lo lleva grapado.
+- [x] Iconos (`AppIcon` 16→1024): `Assets.xcassets/AppIcon.appiconset` generado a partir del logo
+  aportado por el usuario, con el fondo blanco eliminado de verdad (`gestor-tareas-sin-fondo.png`,
+  extraído con la función nativa de macOS "Extraer sujeto"/"Copiar sujeto" — el recorte automático
+  por distancia de color no servía porque el título "GestorTareas" está en blanco, el mismo color
+  que el fondo, y cualquier umbral de color vaciaba las letras o dejaba un halo). Estilo "tarjeta
+  con sombra" válido para macOS pero poco legible en 16/32px — revisar si merece una versión
+  simplificada para esas medidas.
+- [x] CI: `.github/workflows/macos-client-ci.yml` — `xcodegen generate` + `make test` en
+  `macos-14`, solo cuando cambia algo en `clients/macos/**`. No necesita secrets: `Debug.xcconfig`
+  firma en modo `Automatic`/ad-hoc (`CODE_SIGN_IDENTITY = -`), sin Team ID.
+
+> **Pendiente para publicación pública (no bloquea pruebas internas):** `Localizable` (es) —
+> `es.lproj/Localizable.strings` tiene ~30 claves del Hito 0/1, pero **ningún** `Text(...)` de los
+> Hitos 1-4 las usa de verdad; todo el texto de la UI está en literales españoles directos. Migrar
+> a claves de localización es un refactor grande, pendiente de decidir si merece la pena para un
+> único idioma. Textos de ficha de App Store y capturas de pantalla: también pendientes, solo
+> hacen falta para el envío a revisión pública, no para TestFlight interno.
+
+### Post-Hito 5 — hallazgos de la primera prueba real en TestFlight (2026-09-12/13)
+
+Con la app ya instalada vía TestFlight (no solo `xcodebuild test`), aparecieron varios problemas
+que ningún test/CI había cubierto:
+
+- [x] **Bug: detalle de tarea en blanco indefinidamente.** `IssueDetailView` tenía un `Group` con
+  `if/else if` no exhaustivo — el estado inicial del ViewModel (antes de que `.task(id:)` arranque)
+  no encajaba en ninguna rama. Corregido con un `else` que reintenta la carga.
+- [x] **Bug: el modal "Ver en el plano" no se podía cerrar.** Era el único `.sheet` de la app sin
+  botón de cierre. Añadido.
+- [x] **Mejora: evidencias (fotos/documentos) abrían el navegador del sistema sin formato.**
+  Sustituido por descarga a temporal + Quick Look nativo (`.quickLookPreview`), igual que
+  Finder/Mail. Las fotos previsualizan ahora el original, no solo el thumb.
+- [x] **AppIcon con demasiado margen blanco.** Recorte más ajustado (~1.5% en vez de ~6%).
+- [ ] **Diseño visual pendiente de revisión de fondo:** la app usa SwiftUI por defecto (claro, sin
+  tema), mientras que la web tiene tema oscuro y un lenguaje visual propio (insignias, plano con
+  imagen de fondo). Decisión tomada: mantener la arquitectura 100% nativa (evita el riesgo de
+  rechazo 4.2 "mínima funcionalidad" de Apple si se usara un `WKWebView`) e invertir en reproducir
+  ese lenguaje visual en SwiftUI en vez de embeber la web. Sin abordar todavía.
+
+### Post-Hito 5 — funcionalidad de perfil de usuario con foto (2026-09-13)
+
+No estaba cubierta por ningún hito: ni siquiera la web tenía foto de perfil, y macOS no tenía
+ninguna pantalla de "Mi perfil" (solo cerrar sesión).
+
+- [x] **Backend**: `avatar_url`/`avatar_thumb_url` en `users` (migración) + `POST`/`DELETE
+  /v1/auth/me/avatar` (multipart, mismo patrón que las fotos de `issues.routes.js`: multer + sharp,
+  thumb 256×256 webp, límites/tipos vía `MAX_UPLOAD_BYTES`). `GET /v1/auth/me` y `login` devuelven
+  ya los campos. Verificado manualmente con un servidor efímero (DB/uploads temporales): subida,
+  thumb, reemplazo con borrado del anterior, `DELETE`, tipo no permitido → 400, sin token → 401.
+- [x] **Web**: modal "Mi Perfil" con foto (vista previa circular, "Cambiar foto…"/"Quitar foto") +
+  miniatura junto al nombre en la cabecera. Verificado en navegador real por el usuario: subida y
+  vista previa correctas.
+- [x] **macOS**: pantalla "Mi perfil" (menú de cuenta → "Editar perfil…") con email/contraseña
+  (fase 1, ya consumía `/v1/auth/me`) + foto (fase 2, `fileImporter` como en `IssueEditorView`,
+  miniatura en el propio menú de cuenta). Verificado en Xcode/TestFlight por el usuario, y
+  confirmada la sincronización cruzada: una foto subida desde la web aparece también en macOS.
+- [x] **Nota de infraestructura de desarrollo**: el `--watch` de Node dentro del contenedor Docker
+  (`docker-compose.yml`, bind-mount de `./src`) no siempre detecta cambios de fichero hechos desde
+  el host en Docker Desktop/Mac — hace falta `docker compose restart gestor-tareas` (o
+  `--force-recreate`) tras cambios de backend para que se recojan de verdad, y refresco forzado del
+  navegador para los estáticos servidos vía `express.static`.
+
+### Post-Hito 5 — auditoría de paridad con la web (2026-09-14)
+
+Comparado línea a línea contra `src/public/ui/modules/map.js` a petición del usuario ("todo lo
+implementado en la app web que aquí no está o no funciona"), específicamente en lo relativo al
+plano:
+
+- [x] **Dibujar/borrar zonas sobre el plano** — gap real, ya cerrado (ver commit `5deeb22`):
+  rectángulos únicamente por ahora (sin arrastrar vértices ni polígonos a mano alzada como la web),
+  con menú contextual para borrar. `PATCH` (editar geometría de una zona ya creada) queda sin usar.
+- [ ] **Biblioteca de planos** — la web tiene un gestor completo (botón "🗺️ Planos": crear, listar,
+  archivar, borrar). macOS solo tiene "Subir plano nuevo…" suelto dentro del editor de tareas
+  (Hito post-5 anterior) — no hay forma de ver/archivar/borrar planos ya subidos.
+- [ ] **Clic en la pestaña "Plano" (sin tener "Nueva tarea" abierta) para arrancar una tarea ahí** —
+  la web tiene el plano y el formulario de creación siempre visibles juntos en una sola pantalla;
+  macOS ya resuelve el mismo resultado final (fijar dónde ocurre la tarea tocando el plano) pero
+  solo dentro del propio editor de "Nueva tarea" (`MapCoordinatePicker`, hito post-5 anterior) — no
+  hay atajo para arrancar la creación tocando directamente la pestaña "Plano".
+- **Descartado, no hace falta replicarlo:** el icono de "mi ubicación" que se ve en capturas de la
+  web no tiene lógica real detrás — `initGeoModule()` en `map.js` está vacío, es un placeholder.
 
 ### Trabajo de backend en paralelo (ver `docs/API.md §6`)
 - [ ] Refresh token / sesión configurable.

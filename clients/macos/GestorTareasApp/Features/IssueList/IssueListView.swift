@@ -69,6 +69,9 @@ struct IssueListView: View {
                     NavigationLink(value: issue.id) {
                         IssueRowView(issue: issue)
                     }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12))
                     .task {
                         await model.loadMoreIfNeeded(current: issue,
                                                      settings: settings,
@@ -78,8 +81,11 @@ struct IssueListView: View {
 
                 if model.isLoadingMore {
                     HStack { Spacer(); ProgressView(); Spacer() }
+                        .listRowSeparator(.hidden)
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .overlay(alignment: .bottom) { footer }
         }
     }

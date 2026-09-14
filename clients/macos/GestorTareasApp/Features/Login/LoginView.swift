@@ -26,8 +26,7 @@ struct LoginView: View {
             VStack(spacing: 10) {
                 TextField("Usuario o email", text: $username)
                     .textContentType(.username)
-                SecureField("Contraseña", text: $password)
-                    .textContentType(.password)
+                PasswordField(title: "Contraseña", text: $password, textContentType: .password)
                     .onSubmit(attempt)
             }
             .textFieldStyle(.roundedBorder)
@@ -65,11 +64,15 @@ struct LoginView: View {
             .buttonStyle(.link)
             .font(.callout)
 
+            #if DEBUG
+            // Solo en builds de desarrollo — en Release el servidor es fijo,
+            // ver AppSettings.fallbackURLString.
             Divider().padding(.vertical, 4)
 
             SettingsLink {
                 Text("Configurar servidor…")
             }
+            #endif
         }
         .padding(40)
         .frame(width: 400)

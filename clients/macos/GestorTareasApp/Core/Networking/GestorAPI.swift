@@ -42,6 +42,50 @@ struct GestorAPI {
         )
     }
 
+    /// `GET /v1/auth/me`: datos frescos del usuario autenticado.
+    func me() async throws -> SessionUser {
+        struct Response: Decodable { let user: SessionUser }
+        let response: Response = try await client.send(.init(method: "GET", path: "/v1/auth/me"))
+        return response.user
+    }
+
+    /// `PATCH /v1/auth/me`: el propio usuario cambia su email y/o contraseña
+    /// (distinto de `updateUser`, que es para que un admin edite a otros).
+    /// `nil` en cualquier campo significa "no tocar"; el backend solo
+    /// devuelve `{ ok: true }`, por eso `me()` se llama después para refrescar.
+    func updateMe(email: String?, currentPassword: String?, newPassword: String?) async throws {
+        struct Body: Encodable {
+            let email: String?
+            let currentPassword: String?
+            let newPassword: String?
+            enum CodingKeys: String, CodingKey { case email, currentPassword, newPassword }
+            func encode(to encoder: Encoder) throws {
+                var c = encoder.container(keyedBy: CodingKeys.self)
+                try c.encodeIfPresent(email, forKey: .email)
+                try c.encodeIfPresent(currentPassword, forKey: .currentPassword)
+                try c.encodeIfPresent(newPassword, forKey: .newPassword)
+            }
+        }
+        _ = try await client.sendVoid(
+            .json("PATCH", "/v1/auth/me",
+                  body: Body(email: email, currentPassword: currentPassword, newPassword: newPassword))
+        )
+    }
+
+    /// `POST /v1/auth/me/avatar` (multipart). Sube/reemplaza la foto de perfil;
+    /// el backend borra la anterior. Devuelve las URLs ya actualizadas.
+    func uploadAvatar(_ attachment: Attachment) async throws -> AvatarResponse {
+        var form = MultipartForm()
+        form.addFile(.avatar, filename: attachment.filename,
+                    mimeType: attachment.mimeType, data: attachment.data)
+        return try await client.send(.multipart("POST", "/v1/auth/me/avatar", form: form))
+    }
+
+    /// `DELETE /v1/auth/me/avatar`. Quita la foto de perfil actual.
+    func deleteAvatar() async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/auth/me/avatar"))
+    }
+
     // MARK: Issues
 
     func issues(filter: IssueFilter, page: Int, pageSize: Int = 50) async throws -> Paginated<Issue> {
@@ -127,6 +171,16 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/maps` (multipart, campo "map"). Sube un plano nuevo a la
+    /// biblioteca compartida — queda disponible para cualquier tarea nueva
+    /// igual que los ya existentes (misma tabla, mismo `GET /v1/maps`).
+    func createMap(name: String, image: Attachment) async throws -> MapRef {
+        var form = MultipartForm()
+        form.addField("name", name)
+        form.addFile(.map, filename: image.filename, mimeType: image.mimeType, data: image.data)
+        return try await client.send(.multipart("POST", "/v1/maps", form: form))
+    }
+
     // MARK: Plano (Hito 3)
 
     /// `GET /v1/maps/:id` → plano + `layers` (capas técnicas anidadas).
@@ -137,6 +191,21 @@ struct GestorAPI {
     /// `GET /v1/maps/:mapId/zones` → zonas dibujadas sobre el plano.
     func zones(mapID: Int) async throws -> [MapZone] {
         try await client.send(.init(method: "GET", path: "/v1/maps/\(mapID)/zones"))
+    }
+
+    /// `POST /v1/maps/:mapId/zones`. Solo el admin o el dueño del plano puede
+    /// crear zonas (`403` en caso contrario). Devuelve la zona ya creada.
+    func createZone(mapID: Int, name: String, type: String, geojson: String, color: String) async throws -> MapZone {
+        struct Body: Encodable { let name, type, geojson, color: String }
+        return try await client.send(
+            .json("POST", "/v1/maps/\(mapID)/zones",
+                  body: Body(name: name, type: type, geojson: geojson, color: color))
+        )
+    }
+
+    /// `DELETE /v1/maps/:mapId/zones/:id`. Mismo RBAC que crear (admin o dueño).
+    func deleteZone(mapID: Int, zoneID: Int) async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/maps/\(mapID)/zones/\(zoneID)"))
     }
 
     // MARK: Notificaciones (Hito 4)

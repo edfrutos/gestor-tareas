@@ -1,0 +1,34 @@
+name: macOS Client CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "clients/macos/**"
+      - ".github/workflows/macos-client-ci.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "clients/macos/**"
+      - ".github/workflows/macos-client-ci.yml"
+
+jobs:
+  test:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: clients/macos
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: make test
+        run: make test

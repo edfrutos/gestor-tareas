@@ -1,5 +1,5 @@
 import { API_BASE, LS_API_KEY } from "./config.js";
-import { fetchJson } from "./api.js";
+import { fetchJson, fetchUpload } from "./api.js";
 
 const LS_TOKEN = "cc_token";
 const LS_USER = "cc_user";
@@ -63,6 +63,21 @@ export async function updateProfile({ currentPassword, newPassword, email }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ currentPassword, newPassword, email })
   });
+}
+
+/** Sube/reemplaza la foto de perfil. Devuelve `{ avatar_url, avatar_thumb_url }`. */
+export async function uploadAvatar(file) {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  return await fetchUpload(`${API_BASE}/auth/me/avatar`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+/** Quita la foto de perfil actual. */
+export async function deleteAvatar() {
+  return await fetchJson(`${API_BASE}/auth/me/avatar`, { method: "DELETE" });
 }
 
 export async function changePassword(currentPassword, newPassword) {

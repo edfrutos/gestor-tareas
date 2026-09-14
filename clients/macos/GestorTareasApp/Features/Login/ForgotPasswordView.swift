@@ -17,7 +17,7 @@ struct ForgotPasswordView: View {
 
             if model.didSubmit {
                 Label("Si ese email existe, recibirás instrucciones en breve.",
-                      systemImage: "envelope.badge.checkmark")
+                      systemImage: "checkmark.circle")
                     .multilineTextAlignment(.center)
                 Text("El enlace del email expira en 1 hora. Cuando lo tengas, usa "
                      + "«Ya tengo un código» en la pantalla de inicio de sesión.")

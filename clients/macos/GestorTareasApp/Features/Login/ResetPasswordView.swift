@@ -30,12 +30,10 @@ struct ResetPasswordView: View {
                     TextField("Pega aquí el enlace completo o solo el código", text: $pastedToken)
                         .textFieldStyle(.roundedBorder)
                 }
-                SecureField("Contraseña nueva", text: $newPassword)
+                PasswordField(title: "Contraseña nueva", text: $newPassword, textContentType: .newPassword)
                     .textFieldStyle(.roundedBorder)
-                    .textContentType(.newPassword)
-                SecureField("Repite la contraseña", text: $confirmPassword)
+                PasswordField(title: "Repite la contraseña", text: $confirmPassword, textContentType: .newPassword)
                     .textFieldStyle(.roundedBorder)
-                    .textContentType(.newPassword)
                     .onSubmit(submit)
 
                 if let error = model.errorMessage {

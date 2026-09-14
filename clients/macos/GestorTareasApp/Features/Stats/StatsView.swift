@@ -51,9 +51,9 @@ struct StatsView: View {
 
     private var kpiRow: some View {
         HStack(spacing: 12) {
-            kpi("Abiertas", model.stats.open, .blue)
-            kpi("En proceso", model.stats.inProgress, .orange)
-            kpi("Resueltas", model.stats.resolved, .green)
+            kpi("Abiertas", model.stats.open, IssueStatus.open.color)
+            kpi("En proceso", model.stats.inProgress, IssueStatus.inProgress.color)
+            kpi("Resueltas", model.stats.resolved, IssueStatus.resolved.color)
             kpi("Total", model.stats.total, .primary)
         }
     }
@@ -88,7 +88,7 @@ struct StatsView: View {
                 }
                 .chartForegroundStyleScale(
                     domain: ["Abiertas", "En proceso", "Resueltas"],
-                    range: [Color.blue, Color.orange, Color.green]
+                    range: [IssueStatus.open.color, IssueStatus.inProgress.color, IssueStatus.resolved.color]
                 )
                 .frame(height: 220)
             }

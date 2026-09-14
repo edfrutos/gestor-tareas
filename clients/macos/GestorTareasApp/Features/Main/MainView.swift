@@ -8,6 +8,7 @@ struct MainView: View {
 
     @State private var selection: Panel? = .issues
     @State private var path = NavigationPath()
+    @State private var showProfile = false
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
@@ -66,6 +67,13 @@ struct MainView: View {
         .onDisappear { socket.disconnect() }
         .task { openPendingDeepLink() }
         .onChange(of: router.pendingIssueID) { openPendingDeepLink() }
+        .sheet(isPresented: $showProfile) {
+            if let user = session.currentUser {
+                ProfileView(user: user)
+                    .environment(session)
+                    .environment(settings)
+            }
+        }
     }
 
     @ViewBuilder
@@ -92,11 +100,34 @@ struct MainView: View {
                 if user.isAdmin { Text("Administrador") }
             }
             Divider()
+            Button("Editar perfil…") { showProfile = true }
+            Divider()
             Button("Cerrar sesión", role: .destructive) {
                 session.signOut()
             }
         } label: {
-            Label(session.currentUser?.username ?? "Cuenta", systemImage: "person.circle")
+            HStack(spacing: 6) {
+                accountAvatar
+                Text(session.currentUser?.username ?? "Cuenta")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var accountAvatar: some View {
+        if let url = settings.mediaURL(session.currentUser?.avatarThumbURL) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Image(systemName: "person.circle")
+                }
+            }
+            .frame(width: 18, height: 18)
+            .clipShape(Circle())
+        } else {
+            Image(systemName: "person.circle")
         }
     }
 

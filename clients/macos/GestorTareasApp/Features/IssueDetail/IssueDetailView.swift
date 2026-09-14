@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 
 struct IssueDetailView: View {
@@ -10,6 +11,9 @@ struct IssueDetailView: View {
     @State private var showEditor = false
     @State private var showPlan = false
     @State private var replyingTo: Int?
+    @State private var previewURL: URL?
+    @State private var downloadingPreviewURL: URL?
+    @State private var previewLoadError: String?
 
     var body: some View {
         Group {
@@ -25,6 +29,12 @@ struct IssueDetailView: View {
                 }
             } else if let issue = model.issue {
                 content(for: issue)
+            } else {
+                // Estado transitorio antes de que `.task(id:)` arranque (o si se
+                // cancela sin llegar a fijar isLoading/errorMessage): sin este
+                // reintento la vista se queda en blanco de forma indefinida.
+                ProgressView().controlSize(.large)
+                    .onAppear { load() }
             }
         }
         .navigationTitle(model.issue?.title ?? "Tarea \(issueID)")
@@ -57,6 +67,11 @@ struct IssueDetailView: View {
                         .navigationDestination(for: Int.self) { id in
                             IssueDetailView(issueID: id)
                         }
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cerrar") { showPlan = false }
+                            }
+                        }
                 }
                 .environment(session)
                 .environment(settings)
@@ -71,6 +86,15 @@ struct IssueDetailView: View {
             if let event = socket.lastEvent?.payload {
                 await model.applyRealtime(event, settings: settings, session: session)
             }
+        }
+        .quickLookPreview($previewURL)
+        .alert("No se pudo abrir el archivo", isPresented: Binding(
+            get: { previewLoadError != nil },
+            set: { if !$0 { previewLoadError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(previewLoadError ?? "")
         }
     }
 
@@ -117,6 +141,7 @@ struct IssueDetailView: View {
                 row("Plano", issue.mapID.map { "#\($0)" } ?? "—")
             }
         }
+        .cardStyle()
     }
 
     @ViewBuilder
@@ -137,6 +162,7 @@ struct IssueDetailView: View {
                     mediaRow(resolution)
                 }
             }
+            .cardStyle()
         }
     }
 
@@ -153,6 +179,7 @@ struct IssueDetailView: View {
                         .buttonStyle(.link)
                 }
             }
+            .cardStyle()
         }
     }
 
@@ -180,6 +207,7 @@ struct IssueDetailView: View {
                 }
             }
         }
+        .cardStyle()
     }
 
     @ViewBuilder
@@ -214,6 +242,7 @@ struct IssueDetailView: View {
             }
             .padding(.top, 4)
         }
+        .cardStyle()
     }
 
     // MARK: Utilidades de vista
@@ -233,17 +262,21 @@ struct IssueDetailView: View {
 
     private struct MediaItem: Identifiable {
         let id = UUID()
-        let url: URL
+        /// URL de baja resolución para la miniatura en la fila (thumb si existe).
+        let displayURL: URL
+        /// URL a descargar y previsualizar con Quick Look (el original a ser posible).
+        let previewURL: URL
         let isDocument: Bool
     }
 
     private func mediaItems(photo: String?, thumb: String?, doc: String?) -> [MediaItem] {
         var items: [MediaItem] = []
-        if let url = settings.mediaURL(thumb ?? photo) {
-            items.append(MediaItem(url: url, isDocument: false))
+        if let displayURL = settings.mediaURL(thumb ?? photo),
+           let previewURL = settings.mediaURL(photo ?? thumb) {
+            items.append(MediaItem(displayURL: displayURL, previewURL: previewURL, isDocument: false))
         }
         if let url = settings.mediaURL(doc) {
-            items.append(MediaItem(url: url, isDocument: true))
+            items.append(MediaItem(displayURL: url, previewURL: url, isDocument: true))
         }
         return items
     }
@@ -251,13 +284,17 @@ struct IssueDetailView: View {
     private func mediaRow(_ items: [MediaItem]) -> some View {
         HStack(spacing: 12) {
             ForEach(items) { item in
-                if item.isDocument {
-                    Link(destination: item.url) {
-                        Label("Ver documento", systemImage: "doc.text")
-                    }
-                } else {
-                    Link(destination: item.url) {
-                        AsyncImage(url: item.url) { phase in
+                Button {
+                    Task { await openPreview(item.previewURL) }
+                } label: {
+                    if item.isDocument {
+                        if isLoadingPreview(item.previewURL) {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label("Ver documento", systemImage: "doc.text")
+                        }
+                    } else {
+                        AsyncImage(url: item.displayURL) { phase in
                             switch phase {
                             case .success(let image):
                                 image.resizable().scaledToFill()
@@ -270,10 +307,47 @@ struct IssueDetailView: View {
                         .frame(width: 120, height: 120)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(.quaternary))
+                        .overlay {
+                            if isLoadingPreview(item.previewURL) {
+                                ZStack {
+                                    Color.black.opacity(0.35)
+                                    ProgressView().controlSize(.small).tint(.white)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+                .disabled(isLoadingPreview(item.previewURL))
             }
+        }
+    }
+
+    private func isLoadingPreview(_ url: URL) -> Bool {
+        downloadingPreviewURL == url
+    }
+
+    /// Descarga el archivo remoto a un temporal y lo abre con Quick Look
+    /// nativo, en vez de delegar a Safari/Chrome como hacía `Link`.
+    @MainActor
+    private func openPreview(_ url: URL) async {
+        downloadingPreviewURL = url
+        defer { downloadingPreviewURL = nil }
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                previewLoadError = "No se pudo descargar el archivo (código \(http.statusCode))."
+                return
+            }
+            let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension(ext)
+            try data.write(to: tempURL, options: .atomic)
+            previewURL = tempURL
+        } catch {
+            previewLoadError = error.localizedDescription
         }
     }
 

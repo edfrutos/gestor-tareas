@@ -15,6 +15,8 @@ struct GestorTareasApp: App {
                 .environment(socket)
                 .environment(router)
                 .frame(minWidth: 940, minHeight: 620)
+                .tint(Theme.accent)
+                .preferredColorScheme(settings.appearanceMode.colorScheme)
                 .onOpenURL { url in
                     router.handle(url)
                 }
@@ -26,6 +28,8 @@ struct GestorTareasApp: App {
         Settings {
             PreferencesView()
                 .environment(settings)
+                .tint(Theme.accent)
+                .preferredColorScheme(settings.appearanceMode.colorScheme)
         }
     }
 }

@@ -240,6 +240,8 @@ async function migrate() {
 
     const userCols = await checkColumns("users");
     if (!userCols.has("email")) await exec(`ALTER TABLE users ADD COLUMN email TEXT;`);
+    if (!userCols.has("avatar_url")) await exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT;`);
+    if (!userCols.has("avatar_thumb_url")) await exec(`ALTER TABLE users ADD COLUMN avatar_thumb_url TEXT;`);
 
     const commentCols = await checkColumns("issue_comments");
     if (!commentCols.has("parent_id")) {

@@ -2,13 +2,80 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
+const sharp = require("sharp");
 const { run, get } = require("../db/sqlite");
 const { z } = require("zod");
 const requireAuth = require("../middleware/auth.middleware");
 const { notifyPasswordReset } = require("../services/mail.service");
+const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
+
+// Subida de avatar: mismo patrón (multer + sharp + /uploads) que
+// issues.routes.js usa para las fotos de tareas.
+const uploadDir = getUploadDir();
+const thumbsDir = getThumbsDir();
+fs.mkdirSync(uploadDir, { recursive: true });
+fs.mkdirSync(thumbsDir, { recursive: true });
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    const id = crypto.randomBytes(6).toString("hex");
+    cb(null, `avatar_${Date.now()}_${id}${ext}`);
+  },
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: Number(process.env.MAX_UPLOAD_BYTES || 8 * 1024 * 1024) },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowedExts.includes(ext) || allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
+    const err = new Error(`Tipo de archivo no permitido para avatar: ${ext || file.mimetype}`);
+    err.status = 400;
+    cb(err, false);
+  },
+});
+
+function avatarThumbURL(avatarUrl) {
+  if (!avatarUrl || !avatarUrl.startsWith("/uploads/")) return null;
+  const filename = avatarUrl.replace("/uploads/", "");
+  return `/uploads/thumbs/${filename}.webp`;
+}
+
+async function makeAvatarThumb(filename) {
+  const srcPath = resolveSafe(uploadDir, filename);
+  const dstPath = resolveSafe(thumbsDir, `${filename}.webp`);
+  if (!srcPath || !dstPath) return;
+  try {
+    await sharp(srcPath).rotate().resize(256, 256, { fit: "cover" }).webp({ quality: 78 }).toFile(dstPath);
+  } catch (err) {
+    console.error("Error generating avatar thumb:", err);
+  }
+}
+
+function deleteAvatarFile(url) {
+  return new Promise((resolve) => {
+    if (!url || !url.startsWith("/uploads/")) return resolve();
+    const filename = url.replace("/uploads/", "");
+    const filepath = resolveSafe(uploadDir, filename);
+    if (!filepath) return resolve();
+    fs.unlink(filepath, (err) => {
+      if (err && err.code !== "ENOENT") console.error(`Error deleting avatar ${filepath}:`, err);
+      const thumbPath = resolveSafe(thumbsDir, `${filename}.webp`);
+      if (thumbPath) fs.unlink(thumbPath, () => {});
+      resolve();
+    });
+  });
+}
 
 const loginSchema = z.object({
   username: z.string().trim().min(1),
@@ -70,7 +137,14 @@ router.post("/login", async (req, res, next) => {
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role }
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        avatar_url: user.avatar_url,
+        avatar_thumb_url: user.avatar_thumb_url,
+      }
     });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
@@ -181,9 +255,54 @@ router.get("/me/apikey", requireAuth(), async (req, res, next) => {
 // GET /v1/auth/me
 router.get("/me", requireAuth(), async (req, res, next) => {
   try {
-    const user = await get("SELECT id, username, email, role FROM users WHERE id = ?", [req.user.id]);
+    const user = await get(
+      "SELECT id, username, email, role, avatar_url, avatar_thumb_url FROM users WHERE id = ?",
+      [req.user.id]
+    );
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     res.json({ user });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// POST /v1/auth/me/avatar (multipart, campo "avatar") — sube/reemplaza la
+// foto de perfil del usuario autenticado y borra la anterior si había.
+router.post("/me/avatar", requireAuth(), uploadAvatar.single("avatar"), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Falta el archivo 'avatar'." });
+    const userId = req.user.id;
+    const user = await get("SELECT avatar_url FROM users WHERE id = ?", [userId]);
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    await makeAvatarThumb(req.file.filename);
+    const thumbUrl = avatarThumbURL(avatarUrl);
+
+    await run("UPDATE users SET avatar_url = ?, avatar_thumb_url = ? WHERE id = ?",
+      [avatarUrl, thumbUrl, userId]);
+
+    if (user.avatar_url && user.avatar_url !== avatarUrl) {
+      await deleteAvatarFile(user.avatar_url);
+    }
+
+    res.json({ avatar_url: avatarUrl, avatar_thumb_url: thumbUrl });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// DELETE /v1/auth/me/avatar — quita la foto de perfil del usuario autenticado.
+router.delete("/me/avatar", requireAuth(), async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const user = await get("SELECT avatar_url FROM users WHERE id = ?", [userId]);
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    await run("UPDATE users SET avatar_url = NULL, avatar_thumb_url = NULL WHERE id = ?", [userId]);
+    if (user.avatar_url) await deleteAvatarFile(user.avatar_url);
+
+    res.json({ ok: true });
   } catch (e) {
     next(e);
   }

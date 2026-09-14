@@ -12,6 +12,10 @@ struct IssueEditorView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppSettings.self) private var settings
     @State private var model: IssueEditorViewModel
+    @State private var isImportingMap = false
+    @State private var pendingMapImage: Attachment?
+    @State private var showMapNamePrompt = false
+    @State private var mapNameInput = ""
 
     init(mode: IssueEditorMode, onSaved: @escaping (Issue) -> Void) {
         self.mode = mode
@@ -44,6 +48,18 @@ struct IssueEditorView: View {
         }
         .frame(width: 560, height: 640)
         .task { await model.loadReferenceData(settings: settings, session: session) }
+        .fileImporter(isPresented: $isImportingMap,
+                      allowedContentTypes: [.jpeg, .png, .webP],
+                      allowsMultipleSelection: false) { result in
+            handleMapPick(result)
+        }
+        .alert("Nombre del plano", isPresented: $showMapNamePrompt) {
+            TextField("Nombre", text: $mapNameInput)
+            Button("Cancelar", role: .cancel) { pendingMapImage = nil }
+            Button("Subir") { confirmMapUpload() }
+        } message: {
+            Text("Se añadirá a la biblioteca de planos, disponible para cualquier tarea.")
+        }
     }
 
     // MARK: Cabecera / pie
@@ -176,20 +192,27 @@ struct IssueEditorView: View {
                 }
             }
         }
-        Text("El plano ahora se puede consultar (pestaña \"Plano\" o \"Ver en el plano\" en el "
-             + "detalle), pero aquí sigue siendo un número: aún no se puede elegir haciendo clic.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
+        HStack {
+            Button("Subir plano nuevo…") { isImportingMap = true }
+                .disabled(model.isUploadingMap)
+            if model.isUploadingMap {
+                ProgressView().controlSize(.small)
+            }
+        }
+        if let mapUploadError = model.mapUploadError {
+            Text(mapUploadError).font(.caption).foregroundStyle(.red)
+        }
     }
 
     private func locationSection(draft: Binding<IssueDraft>) -> some View {
         Section("Ubicación en el plano") {
+            MapCoordinatePicker(mapID: draft.wrappedValue.mapID, x: draft.x, y: draft.y)
             HStack {
-                TextField("X", text: draft.x)
-                TextField("Y", text: draft.y)
+                TextField("X", text: draft.x, prompt: Text("Toca el plano…"))
+                TextField("Y", text: draft.y, prompt: Text("Toca el plano…"))
             }
-            Text("Coordenadas técnicas sobre el plano (obligatorias al crear). Elegirlas "
-                 + "haciendo clic en el plano queda pendiente; de momento se escriben a mano.")
+            Text("Toca sobre el plano para fijar la ubicación, o escribe las coordenadas a mano. "
+                 + "Obligatorio: sin una posición real, la tarea no se puede crear.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -237,6 +260,32 @@ struct IssueEditorView: View {
                 onSaved(issue)
                 dismiss()
             }
+        }
+    }
+
+    private func handleMapPick(_ result: Result<[URL], Error>) {
+        guard case let .success(urls) = result, let url = urls.first else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            pendingMapImage = Attachment(filename: url.lastPathComponent, data: data)
+            mapNameInput = url.deletingPathExtension().lastPathComponent
+            showMapNamePrompt = true
+        } catch {
+            model.mapUploadError = "No se pudo leer el archivo: \(error.localizedDescription)"
+        }
+    }
+
+    private func confirmMapUpload() {
+        guard let image = pendingMapImage else { return }
+        let name = mapNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            await model.uploadMap(name: name.isEmpty ? "Nuevo plano" : name,
+                                  image: image,
+                                  settings: settings,
+                                  session: session)
+            pendingMapImage = nil
         }
     }
 }

@@ -21,4 +21,4 @@ ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
 SWIFT_STRICT_CONCURRENCY = targeted
 
 // >>> Rellena con tu Team ID de Apple Developer (Membership details).
-DEVELOPMENT_TEAM =
+DEVELOPMENT_TEAM = V29BTBRY6G

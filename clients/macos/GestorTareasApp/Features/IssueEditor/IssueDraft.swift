@@ -46,10 +46,14 @@ struct IssueDraft: Equatable {
     var hasDueDate = false
     var dueDate = Date()
 
-    /// Coordenadas sobre el plano (píxeles/técnicas). Obligatorias al crear; el
-    /// selector visual llega en el Hito 3. Se admiten coma o punto decimal.
-    var x = "0"
-    var y = "0"
+    /// Coordenadas sobre el plano (píxeles/técnicas). Obligatorias al crear —
+    /// vacías por defecto a propósito: si arrancaran en "0" pasarían la
+    /// validación sin que el usuario haya tocado el plano nunca, y la tarea
+    /// quedaría con un pin fantasma en la esquina inferior izquierda (origen
+    /// del sistema de coordenadas). `MapCoordinatePicker` las rellena al
+    /// tocar el plano; también se admiten a mano, con coma o punto decimal.
+    var x = ""
+    var y = ""
 
     var photo: Attachment?
     var document: Attachment?

@@ -12,6 +12,8 @@ final class IssueEditorViewModel {
     var maps: [MapRef] = []
 
     var isLoadingReferenceData = false
+    var isUploadingMap = false
+    var mapUploadError: String?
     var isSubmitting = false
     /// Errores de validación local (solo al crear).
     var problems: [String] = []
@@ -52,6 +54,25 @@ final class IssueEditorViewModel {
         categories = (try? await categoriesResult) ?? []
         assignees = (try? await assigneesResult) ?? []
         maps = ((try? await mapsResult) ?? []).filter { $0.parentID == nil }
+    }
+
+    /// Sube un plano nuevo a la biblioteca y lo deja seleccionado en el
+    /// desplegable, listo para usar en esta tarea (y en cualquier otra futura).
+    func uploadMap(name: String, image: Attachment, settings: AppSettings, session: SessionStore) async {
+        mapUploadError = nil
+        isUploadingMap = true
+        defer { isUploadingMap = false }
+
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            let newMap = try await api.createMap(name: name, image: image)
+            maps.insert(newMap, at: 0)
+            draft.mapID = newMap.id
+        } catch let error as APIError {
+            mapUploadError = friendlyMessage(for: error)
+        } catch {
+            mapUploadError = error.localizedDescription
+        }
     }
 
     // MARK: Envío

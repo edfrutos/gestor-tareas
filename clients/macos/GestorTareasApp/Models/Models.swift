@@ -7,6 +7,14 @@ struct SessionUser: Codable, Equatable, Identifiable {
     let username: String
     let email: String?
     let role: String
+    var avatarURL: String?
+    var avatarThumbURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, email, role
+        case avatarURL = "avatar_url"
+        case avatarThumbURL = "avatar_thumb_url"
+    }
 
     var isAdmin: Bool { role == "admin" }
 }
@@ -14,6 +22,17 @@ struct SessionUser: Codable, Equatable, Identifiable {
 struct LoginResponse: Codable {
     let token: String
     let user: SessionUser
+}
+
+/// `POST /v1/auth/me/avatar`.
+struct AvatarResponse: Decodable {
+    let avatarURL: String?
+    let avatarThumbURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case avatarURL = "avatar_url"
+        case avatarThumbURL = "avatar_thumb_url"
+    }
 }
 
 /// Referencia mínima de usuario (`GET /v1/users/for-assign`).
