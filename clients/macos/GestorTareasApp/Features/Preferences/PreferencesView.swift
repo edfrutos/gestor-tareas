@@ -16,7 +16,11 @@ struct PreferencesView: View {
                 .pickerStyle(.segmented)
             }
 
-            Section("Servidor") {
+            #if DEBUG
+            // Solo en builds de desarrollo: en Release el servidor es fijo
+            // (gtareas.edefrutos2020.com, ver AppSettings.fallbackURLString)
+            // y no tiene sentido dejar que el usuario final lo cambie.
+            Section("Servidor (solo Debug)") {
                 TextField("URL base",
                           text: $settings.serverURLString,
                           prompt: Text(AppSettings.fallbackURLString))
@@ -32,6 +36,7 @@ struct PreferencesView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            #endif
         }
         .formStyle(.grouped)
         .frame(width: 480)

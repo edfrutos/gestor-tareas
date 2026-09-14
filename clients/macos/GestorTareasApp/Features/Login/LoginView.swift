@@ -64,11 +64,15 @@ struct LoginView: View {
             .buttonStyle(.link)
             .font(.callout)
 
+            #if DEBUG
+            // Solo en builds de desarrollo — en Release el servidor es fijo,
+            // ver AppSettings.fallbackURLString.
             Divider().padding(.vertical, 4)
 
             SettingsLink {
                 Text("Configurar servidor…")
             }
+            #endif
         }
         .padding(40)
         .frame(width: 400)

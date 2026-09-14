@@ -34,8 +34,19 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 final class AppSettings {
 
     static let defaultsKey = "server.baseURL"
-    static let fallbackURLString = "https://localhost:8443"
     static let appearanceDefaultsKey = "app.appearanceMode"
+
+    /// Servidor único y fijo de producción. En Debug se puede seguir
+    /// cambiando (útil para probar contra `localhost`/Docker/Caddy en
+    /// desarrollo); en Release el ajuste ni siquiera se muestra — ver
+    /// `PreferencesView`/`LoginView` (`#if DEBUG`) — y `init()` ignora
+    /// cualquier valor guardado antes, para que no haya forma de que la app
+    /// termine apuntando a otro sitio en manos de un usuario final.
+    #if DEBUG
+    static let fallbackURLString = "https://localhost:8443"
+    #else
+    static let fallbackURLString = "https://gtareas.edefrutos2020.com"
+    #endif
 
     var serverURLString: String {
         didSet { UserDefaults.standard.set(serverURLString, forKey: Self.defaultsKey) }
@@ -46,8 +57,12 @@ final class AppSettings {
     }
 
     init() {
+        #if DEBUG
         serverURLString = UserDefaults.standard.string(forKey: Self.defaultsKey)
             ?? Self.fallbackURLString
+        #else
+        serverURLString = Self.fallbackURLString
+        #endif
         appearanceMode = UserDefaults.standard.string(forKey: Self.appearanceDefaultsKey)
             .flatMap(AppearanceMode.init(rawValue:)) ?? .auto
     }
