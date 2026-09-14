@@ -26,6 +26,13 @@ struct MapCoordinatePicker: View {
                 Text(error).font(.caption).foregroundStyle(.red)
             } else if let image = model.image {
                 canvas(image: image)
+            } else {
+                // Estado transitorio antes de que `.task(id:)` arranque (mismo
+                // hueco que tenía IssueDetailView.swift): sin este reintento la
+                // miniatura se queda en blanco de forma indefinida.
+                HStack { Spacer(); ProgressView().controlSize(.small); Spacer() }
+                    .frame(height: 160)
+                    .task { await model.load(mapID: mapID, settings: settings, session: session) }
             }
         }
         .task(id: mapID) {
