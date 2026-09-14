@@ -26,6 +26,11 @@
 	<string>public.app-category.productivity</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 E. de Frutos. Todos los derechos reservados.</string>
+	<!-- Solo usa TLS/HTTPS estándar del sistema (URLSession), sin criptografía
+	     propia: exento de la declaración de exportación de EE.UU./Francia.
+	     Evita que App Store Connect pregunte por esto en cada subida. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- Permite http://localhost y *.local en desarrollo SIN debilitar TLS de hosts reales.
 	     Es aceptable para revisión de App Store. -->
 	<key>NSAppTransportSecurity</key>
