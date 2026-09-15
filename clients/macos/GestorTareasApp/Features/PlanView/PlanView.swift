@@ -20,6 +20,10 @@ struct PlanView: View {
     @Environment(SocketClient.self) private var socket
     @State private var model = PlanViewModel()
     @State private var showLibrary = false
+    @State private var showCreateSheet = false
+    @State private var createMapID: Int?
+    @State private var createX = ""
+    @State private var createY = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +39,16 @@ struct PlanView: View {
         .onChange(of: showLibrary) {
             guard !showLibrary else { return }
             Task { await model.reloadMapList(settings: settings, session: session) }
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            IssueEditorView(mode: .create,
+                            prefillMapID: createMapID,
+                            prefillX: createX,
+                            prefillY: createY) { issue in
+                model.highlightedIssueID = issue.id
+            }
+            .environment(session)
+            .environment(settings)
         }
         .background(Theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -86,6 +100,7 @@ struct PlanView: View {
             if model.mapDetail != nil {
                 Button {
                     model.isDrawingZone.toggle()
+                    if model.isDrawingZone { model.isPlacingIssue = false }
                 } label: {
                     Label(model.isDrawingZone ? "Cancelar dibujo" : "Dibujar zona",
                           systemImage: model.isDrawingZone ? "xmark.circle" : "pencil")
@@ -95,6 +110,16 @@ struct PlanView: View {
                 if model.isSavingZone {
                     ProgressView().controlSize(.small)
                 }
+
+                Button {
+                    model.isPlacingIssue.toggle()
+                    if model.isPlacingIssue { model.isDrawingZone = false }
+                } label: {
+                    Label(model.isPlacingIssue ? "Cancelar" : "Nueva tarea aquí",
+                          systemImage: model.isPlacingIssue ? "xmark.circle" : "mappin.and.ellipse")
+                }
+                .tint(model.isPlacingIssue ? Theme.bad : Theme.accent)
+                .help("Toca el plano para crear una tarea justo en ese punto.")
             }
 
             Button {
@@ -128,6 +153,22 @@ struct PlanView: View {
         )
     }
 
+    /// Convierte el punto (fracción `0...1` del plano) tocado en modo "Nueva
+    /// tarea aquí" en coordenadas del plano y arranca la hoja de creación.
+    private func handlePlaceIssue(fraction: CGPoint) {
+        guard let mapID = model.selectedMapID else { return }
+        let coord = model.coordinateSpace.coordinate(atFraction: fraction)
+        createMapID = mapID
+        createX = Self.formattedCoordinate(coord.lat)
+        createY = Self.formattedCoordinate(coord.lng)
+        model.isPlacingIssue = false
+        showCreateSheet = true
+    }
+
+    private static func formattedCoordinate(_ value: Double) -> String {
+        value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value)
+    }
+
     @ViewBuilder
     private var content: some View {
         if model.isLoadingMaps && model.maps.isEmpty {
@@ -147,7 +188,7 @@ struct PlanView: View {
             VStack { Spacer(); ProgressView().controlSize(.large); Spacer() }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let image = model.planImage {
-            PlanCanvas(model: model, image: image)
+            PlanCanvas(model: model, image: image, onPlaceIssue: handlePlaceIssue)
         } else {
             ContentUnavailableView("Elige un plano", systemImage: "map")
         }
@@ -159,6 +200,7 @@ struct PlanView: View {
 private struct PlanCanvas: View {
     let model: PlanViewModel
     let image: NSImage
+    let onPlaceIssue: (CGPoint) -> Void
 
     @Environment(AppSettings.self) private var settings
     @Environment(SessionStore.self) private var session
@@ -211,6 +253,13 @@ private struct PlanCanvas: View {
                             }
                             drawStartFraction = nil
                             drawCurrentFraction = nil
+                        }
+                )
+                .simultaneousGesture(
+                    SpatialTapGesture(coordinateSpace: .local)
+                        .onEnded { value in
+                            guard model.isPlacingIssue else { return }
+                            onPlaceIssue(fraction(for: value.location, in: displaySize))
                         }
                 )
             }

@@ -26,6 +26,11 @@ final class PlanViewModel {
     var isSavingZone = false
     var zoneError: String?
 
+    /// Modo "nueva tarea aquí": el próximo toque sobre el plano arranca la
+    /// creación de una tarea con el plano y la posición ya elegidos (atajo,
+    /// sin pasar antes por "Nueva tarea"). Mutuamente excluyente con dibujar zona.
+    var isPlacingIssue = false
+
     private static let issuesPageSize = 100
 
     // MARK: Selección de plano

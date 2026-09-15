@@ -348,11 +348,11 @@ plano:
   "Plano" → botón "Biblioteca"), con lista jerárquica (planos base + sus capas indentadas),
   checkbox "Ver planos archivados", subir plano nuevo, archivar/restaurar y borrar — mismo RBAC
   que la web (admin o dueño; el plano `id == 1` no se archiva ni se borra).
-- [ ] **Clic en la pestaña "Plano" (sin tener "Nueva tarea" abierta) para arrancar una tarea ahí** —
-  la web tiene el plano y el formulario de creación siempre visibles juntos en una sola pantalla;
-  macOS ya resuelve el mismo resultado final (fijar dónde ocurre la tarea tocando el plano) pero
-  solo dentro del propio editor de "Nueva tarea" (`MapCoordinatePicker`, hito post-5 anterior) — no
-  hay atajo para arrancar la creación tocando directamente la pestaña "Plano".
+- [x] **Clic en la pestaña "Plano" (sin tener "Nueva tarea" abierta) para arrancar una tarea ahí** —
+  gap cerrado: botón "Nueva tarea aquí" en la barra de `PlanView` (mutuamente excluyente con
+  "Dibujar zona"); al tocar el plano se abre "Nueva tarea" con el plano y la posición ya rellenos
+  (`IssueEditorView`/`IssueEditorViewModel` ganan `prefillMapID`/`prefillX`/`prefillY`, opcionales,
+  solo aplican en `.create`). La tarea recién creada queda resaltada en el plano al cerrarse la hoja.
 - **Descartado, no hace falta replicarlo:** el icono de "mi ubicación" que se ve en capturas de la
   web no tiene lógica real detrás — `initGeoModule()` en `map.js` está vacío, es un placeholder.
 
