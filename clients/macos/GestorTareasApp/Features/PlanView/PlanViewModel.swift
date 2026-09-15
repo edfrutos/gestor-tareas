@@ -38,6 +38,26 @@ final class PlanViewModel {
         maps = ((try? await api.maps()) ?? []).filter { $0.parentID == nil }
     }
 
+    /// Refresca la lista de planos tras cerrar la biblioteca (pudo cambiar por
+    /// subida/archivado/borrado). Si el plano activo dejó de estar disponible
+    /// (se archivó o se borró), selecciona otro o limpia la vista.
+    func reloadMapList(settings: AppSettings, session: SessionStore) async {
+        maps = []
+        await loadMapList(settings: settings, session: session)
+        if let selectedMapID, maps.contains(where: { $0.id == selectedMapID }) {
+            return
+        }
+        if let first = maps.first {
+            await selectMap(first.id, settings: settings, session: session)
+        } else {
+            selectedMapID = nil
+            mapDetail = nil
+            planImage = nil
+            zones = []
+            issues = []
+        }
+    }
+
     func selectMap(_ id: Int, settings: AppSettings, session: SessionStore) async {
         selectedMapID = id
         isLoadingPlan = true

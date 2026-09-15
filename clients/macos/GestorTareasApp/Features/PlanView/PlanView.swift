@@ -19,12 +19,22 @@ struct PlanView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(SocketClient.self) private var socket
     @State private var model = PlanViewModel()
+    @State private var showLibrary = false
 
     var body: some View {
         VStack(spacing: 0) {
             toolbarRow
             Divider()
             content
+        }
+        .sheet(isPresented: $showLibrary) {
+            MapLibraryView()
+                .environment(session)
+                .environment(settings)
+        }
+        .onChange(of: showLibrary) {
+            guard !showLibrary else { return }
+            Task { await model.reloadMapList(settings: settings, session: session) }
         }
         .background(Theme.panel)
         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -86,6 +96,13 @@ struct PlanView: View {
                     ProgressView().controlSize(.small)
                 }
             }
+
+            Button {
+                showLibrary = true
+            } label: {
+                Label("Biblioteca", systemImage: "books.vertical")
+            }
+            .help("Ver, archivar o borrar planos existentes; subir uno nuevo.")
 
             Spacer()
 
