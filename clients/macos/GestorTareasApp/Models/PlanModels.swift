@@ -43,6 +43,49 @@ struct MapDetail: Codable, Identifiable {
     }
 }
 
+// MARK: - Biblioteca de planos  (GET /v1/maps?include_archived=…)
+
+/// Fila completa de la tabla `maps`, para la pantalla de biblioteca (ver,
+/// archivar/restaurar, borrar) — a diferencia de `MapRef` (selector ligero del
+/// editor/filtros), incluye miniatura, autor y estado de archivado.
+struct LibraryMap: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let fileURL: String
+    let thumbURL: String?
+    let parentID: Int?
+    let createdBy: Int?
+    let createdByUsername: String?
+    private let archivedRaw: Int
+
+    var isArchived: Bool { archivedRaw != 0 }
+    /// El plano `id == 1` es el "plano del sistema": ni se archiva ni se borra
+    /// (mismo criterio que `src/routes/maps.routes.js` y `maps.js` en la web).
+    var isSystem: Bool { id == 1 }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case fileURL = "file_url"
+        case thumbURL = "thumb_url"
+        case parentID = "parent_id"
+        case createdBy = "created_by"
+        case createdByUsername = "created_by_username"
+        case archivedRaw = "archived"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? "Plano \(id)"
+        fileURL = try c.decode(String.self, forKey: .fileURL)
+        thumbURL = try c.decodeIfPresent(String.self, forKey: .thumbURL)
+        parentID = try c.decodeIfPresent(Int.self, forKey: .parentID)
+        createdBy = try c.decodeIfPresent(Int.self, forKey: .createdBy)
+        createdByUsername = try c.decodeIfPresent(String.self, forKey: .createdByUsername)
+        archivedRaw = try c.decodeIfPresent(Int.self, forKey: .archivedRaw) ?? 0
+    }
+}
+
 // MARK: - Zonas  (GET /v1/maps/:mapId/zones)
 
 /// Zona dibujada sobre un plano. `geojson` es una cadena con un `Feature`

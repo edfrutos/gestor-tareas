@@ -181,6 +181,32 @@ struct GestorAPI {
         return try await client.send(.multipart("POST", "/v1/maps", form: form))
     }
 
+    // MARK: Biblioteca de planos (ver/archivar/borrar)
+
+    /// `GET /v1/maps?include_archived=…` → todas las filas (planos base +
+    /// capas), sin filtrar por `exclude_layers` — la propia vista agrupa capas
+    /// bajo su plano padre, igual que `maps.js::renderMapsList`.
+    func mapLibrary(includeArchived: Bool) async throws -> [LibraryMap] {
+        try await client.send(
+            .init(method: "GET", path: "/v1/maps",
+                  query: [URLQueryItem(name: "include_archived", value: includeArchived ? "true" : "false")])
+        )
+    }
+
+    /// `PATCH /v1/maps/:id/archive`. Solo admin o dueño del plano (403 si no).
+    func archiveMap(id: Int, archived: Bool) async throws -> LibraryMap {
+        struct Body: Encodable { let archived: Bool }
+        return try await client.send(
+            .json("PATCH", "/v1/maps/\(id)/archive", body: Body(archived: archived))
+        )
+    }
+
+    /// `DELETE /v1/maps/:id`. Borra también sus capas y zonas; las tareas que
+    /// apuntaban a él quedan con `map_id = NULL` (lo hace el backend).
+    func deleteMap(id: Int) async throws {
+        _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/maps/\(id)"))
+    }
+
     // MARK: Plano (Hito 3)
 
     /// `GET /v1/maps/:id` → plano + `layers` (capas técnicas anidadas).

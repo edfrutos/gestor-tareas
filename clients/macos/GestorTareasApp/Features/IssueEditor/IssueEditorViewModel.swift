@@ -26,11 +26,17 @@ final class IssueEditorViewModel {
     /// mostraremos igualmente su mensaje.
     static let maxUploadBytes = 8 * 1024 * 1024
 
-    init(mode: IssueEditorMode) {
+    /// `prefillMapID`/`prefillX`/`prefillY`: al arrancar la creación tocando
+    /// directamente la pestaña "Plano" (atajo, sin abrir antes "Nueva tarea"),
+    /// dejan el plano y la posición ya elegidos — solo aplica en `.create`.
+    init(mode: IssueEditorMode, prefillMapID: Int? = nil, prefillX: String? = nil, prefillY: String? = nil) {
         self.mode = mode
         switch mode {
         case .create:
             draft = IssueDraft()
+            if let prefillMapID { draft.mapID = prefillMapID }
+            if let prefillX { draft.x = prefillX }
+            if let prefillY { draft.y = prefillY }
         case let .edit(issue):
             draft = .forEditing(issue)
         }

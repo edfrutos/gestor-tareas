@@ -344,14 +344,15 @@ plano:
 - [x] **Dibujar/borrar zonas sobre el plano** — gap real, ya cerrado (ver commit `5deeb22`):
   rectángulos únicamente por ahora (sin arrastrar vértices ni polígonos a mano alzada como la web),
   con menú contextual para borrar. `PATCH` (editar geometría de una zona ya creada) queda sin usar.
-- [ ] **Biblioteca de planos** — la web tiene un gestor completo (botón "🗺️ Planos": crear, listar,
-  archivar, borrar). macOS solo tiene "Subir plano nuevo…" suelto dentro del editor de tareas
-  (Hito post-5 anterior) — no hay forma de ver/archivar/borrar planos ya subidos.
-- [ ] **Clic en la pestaña "Plano" (sin tener "Nueva tarea" abierta) para arrancar una tarea ahí** —
-  la web tiene el plano y el formulario de creación siempre visibles juntos en una sola pantalla;
-  macOS ya resuelve el mismo resultado final (fijar dónde ocurre la tarea tocando el plano) pero
-  solo dentro del propio editor de "Nueva tarea" (`MapCoordinatePicker`, hito post-5 anterior) — no
-  hay atajo para arrancar la creación tocando directamente la pestaña "Plano".
+- [x] **Biblioteca de planos** — gap cerrado: `MapLibraryView` (hoja abierta desde la pestaña
+  "Plano" → botón "Biblioteca"), con lista jerárquica (planos base + sus capas indentadas),
+  checkbox "Ver planos archivados", subir plano nuevo, archivar/restaurar y borrar — mismo RBAC
+  que la web (admin o dueño; el plano `id == 1` no se archiva ni se borra).
+- [x] **Clic en la pestaña "Plano" (sin tener "Nueva tarea" abierta) para arrancar una tarea ahí** —
+  gap cerrado: botón "Nueva tarea aquí" en la barra de `PlanView` (mutuamente excluyente con
+  "Dibujar zona"); al tocar el plano se abre "Nueva tarea" con el plano y la posición ya rellenos
+  (`IssueEditorView`/`IssueEditorViewModel` ganan `prefillMapID`/`prefillX`/`prefillY`, opcionales,
+  solo aplican en `.create`). La tarea recién creada queda resaltada en el plano al cerrarse la hoja.
 - **Descartado, no hace falta replicarlo:** el icono de "mi ubicación" que se ve en capturas de la
   web no tiene lógica real detrás — `initGeoModule()` en `map.js` está vacío, es un placeholder.
 

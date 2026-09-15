@@ -26,6 +26,11 @@ final class PlanViewModel {
     var isSavingZone = false
     var zoneError: String?
 
+    /// Modo "nueva tarea aquí": el próximo toque sobre el plano arranca la
+    /// creación de una tarea con el plano y la posición ya elegidos (atajo,
+    /// sin pasar antes por "Nueva tarea"). Mutuamente excluyente con dibujar zona.
+    var isPlacingIssue = false
+
     private static let issuesPageSize = 100
 
     // MARK: Selección de plano
@@ -36,6 +41,26 @@ final class PlanViewModel {
         defer { isLoadingMaps = false }
         let api = GestorAPI(settings: settings, session: session)
         maps = ((try? await api.maps()) ?? []).filter { $0.parentID == nil }
+    }
+
+    /// Refresca la lista de planos tras cerrar la biblioteca (pudo cambiar por
+    /// subida/archivado/borrado). Si el plano activo dejó de estar disponible
+    /// (se archivó o se borró), selecciona otro o limpia la vista.
+    func reloadMapList(settings: AppSettings, session: SessionStore) async {
+        maps = []
+        await loadMapList(settings: settings, session: session)
+        if let selectedMapID, maps.contains(where: { $0.id == selectedMapID }) {
+            return
+        }
+        if let first = maps.first {
+            await selectMap(first.id, settings: settings, session: session)
+        } else {
+            selectedMapID = nil
+            mapDetail = nil
+            planImage = nil
+            zones = []
+            issues = []
+        }
     }
 
     func selectMap(_ id: Int, settings: AppSettings, session: SessionStore) async {

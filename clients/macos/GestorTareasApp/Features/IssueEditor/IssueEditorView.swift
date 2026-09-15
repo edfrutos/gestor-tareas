@@ -17,10 +17,17 @@ struct IssueEditorView: View {
     @State private var showMapNamePrompt = false
     @State private var mapNameInput = ""
 
-    init(mode: IssueEditorMode, onSaved: @escaping (Issue) -> Void) {
+    init(mode: IssueEditorMode,
+         prefillMapID: Int? = nil,
+         prefillX: String? = nil,
+         prefillY: String? = nil,
+         onSaved: @escaping (Issue) -> Void) {
         self.mode = mode
         self.onSaved = onSaved
-        _model = State(wrappedValue: IssueEditorViewModel(mode: mode))
+        _model = State(wrappedValue: IssueEditorViewModel(mode: mode,
+                                                           prefillMapID: prefillMapID,
+                                                           prefillX: prefillX,
+                                                           prefillY: prefillY))
     }
 
     var body: some View {
