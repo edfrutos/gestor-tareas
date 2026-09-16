@@ -62,7 +62,7 @@ struct MainView: View {
         // existe cuando `session.state == .signedIn`, ver RootView) y se
         // reconecta si cambia la URL del servidor en Preferencias.
         .task(id: settings.serverURLString) {
-            socket.connect(baseURL: settings.baseURL)
+            socket.connect(baseURL: settings.baseURL, token: session.authToken)
         }
         .onDisappear { socket.disconnect() }
         .task { openPendingDeepLink() }

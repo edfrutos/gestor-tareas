@@ -3,10 +3,11 @@ import Observation
 import SocketIO
 
 /// Los tres eventos de `issues` (más `settings:updated`, ver `docs/API.md §4`).
-/// **Sin autenticación en el handshake** — el backend emite a todos los
-/// clientes conectados (`io.emit`), así que cualquier sesión ve los eventos de
-/// cualquier usuario; se filtra donde haga falta (p. ej. por `issue.id` en el
-/// detalle).
+/// El backend emite a todos los clientes conectados (`io.emit`), así que
+/// cualquier sesión ve los eventos de cualquier usuario — pero desde que el
+/// handshake exige JWT (`socket.service.js::authenticateSocket`), al menos
+/// hace falta estar autenticado; se sigue filtrando donde haga falta (p. ej.
+/// por `issue.id` en el detalle).
 enum IssueRealtimeEvent: Equatable {
     case created(Issue)
     case updated(Issue)
@@ -35,7 +36,7 @@ final class SocketClient {
     private var socket: SocketIOClient?
     private var connectedURL: URL?
 
-    func connect(baseURL: URL?) {
+    func connect(baseURL: URL?, token: String?) {
         guard let baseURL else {
             disconnect()
             return
@@ -43,8 +44,13 @@ final class SocketClient {
         guard connectedURL != baseURL else { return }
         disconnect()
 
-        let manager = SocketManager(socketURL: baseURL,
-                                    config: [.log(false), .compress, .reconnects(true)])
+        // El handshake exige JWT (`socket.service.js::authenticateSocket`); sin
+        // `connectParams` el servidor rechaza la conexión con "unauthorized".
+        var config: SocketIOClientConfiguration = [.log(false), .compress, .reconnects(true)]
+        if let token, !token.isEmpty {
+            config.insert(.connectParams(["token": token]))
+        }
+        let manager = SocketManager(socketURL: baseURL, config: config)
         let socket = manager.defaultSocket
 
         socket.on(clientEvent: .connect) { [weak self] _, _ in
@@ -52,6 +58,9 @@ final class SocketClient {
         }
         socket.on(clientEvent: .disconnect) { [weak self] _, _ in
             Task { @MainActor in self?.isConnected = false }
+        }
+        socket.on(clientEvent: .error) { data, _ in
+            print("[SocketClient] error:", data)
         }
         socket.on("issue:created") { [weak self] data, _ in
             guard let issue: Issue = Self.decode(data.first) else { return }

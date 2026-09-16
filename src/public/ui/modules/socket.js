@@ -1,6 +1,7 @@
 /* global io */
 import { loadIssues } from "./list.v2.js";
 import { toast } from "./utils.js";
+import { getToken } from "./auth.js";
 
 let socket = null;
 
@@ -19,7 +20,7 @@ export function initSocketModule() {
     socket.disconnect();
   }
 
-  socket = io();
+  socket = io({ auth: { token: getToken() } });
 
   let debounceTimer = null;
   const DEBOUNCE_MS = 200;
@@ -33,6 +34,10 @@ export function initSocketModule() {
 
   socket.on("connect", () => {
     console.log("[Socket] Connected to server");
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("[Socket] Connection error:", err.message);
   });
 
   socket.on("issue:created", (data) => {
