@@ -14,6 +14,8 @@ struct IssueDetailView: View {
     @State private var previewURL: URL?
     @State private var downloadingPreviewURL: URL?
     @State private var previewLoadError: String?
+    @State private var markdownTitle: String?
+    @State private var markdownText: String?
 
     var body: some View {
         Group {
@@ -88,6 +90,12 @@ struct IssueDetailView: View {
             }
         }
         .quickLookPreview($previewURL)
+        .sheet(isPresented: Binding(
+            get: { markdownText != nil },
+            set: { if !$0 { markdownText = nil; markdownTitle = nil } }
+        )) {
+            MarkdownDocumentView(title: markdownTitle ?? "Documento", rawText: markdownText ?? "")
+        }
         .alert("No se pudo abrir el archivo", isPresented: Binding(
             get: { previewLoadError != nil },
             set: { if !$0 { previewLoadError = nil } }
@@ -328,8 +336,11 @@ struct IssueDetailView: View {
         downloadingPreviewURL == url
     }
 
-    /// Descarga el archivo remoto a un temporal y lo abre con Quick Look
-    /// nativo, en vez de delegar a Safari/Chrome como hacía `Link`.
+    /// Descarga el archivo remoto y lo abre con Quick Look nativo, en vez de
+    /// delegar a Safari/Chrome como hacía `Link`. Los `.md`/`.markdown` son la
+    /// excepción: Quick Look no interpreta Markdown (muestra el texto crudo
+    /// con "#"/"**" literales), así que se renderizan aparte con
+    /// `MarkdownDocumentView`.
     @MainActor
     private func openPreview(_ url: URL) async {
         downloadingPreviewURL = url
@@ -340,10 +351,19 @@ struct IssueDetailView: View {
                 previewLoadError = "No se pudo descargar el archivo (código \(http.statusCode))."
                 return
             }
-            let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
+            let ext = url.pathExtension.lowercased()
+            if ext == "md" || ext == "markdown" {
+                guard let text = String(data: data, encoding: .utf8) else {
+                    previewLoadError = "El archivo Markdown no está en un formato de texto reconocible."
+                    return
+                }
+                markdownTitle = url.lastPathComponent
+                markdownText = text
+                return
+            }
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension(ext)
+                .appendingPathExtension(ext.isEmpty ? "bin" : ext)
             try data.write(to: tempURL, options: .atomic)
             previewURL = tempURL
         } catch {
