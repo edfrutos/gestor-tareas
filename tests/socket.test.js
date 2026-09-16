@@ -1,6 +1,7 @@
 "use strict";
 
 const http = require("http");
+const request = require("supertest");
 const { io: Client } = require("socket.io-client");
 const app = require("../src/app");
 const { initSocket, emitEvent } = require("../src/services/socket.service");
@@ -12,20 +13,44 @@ describe("WebSocket System", () => {
   let port;
 
   beforeAll((done) => {
-    openDb();
-    httpServer = http.createServer(app);
-    initSocket(httpServer);
-    
-    httpServer.listen(() => {
-      port = httpServer.address().port;
-      socketClient = Client(`http://localhost:${port}`, {
-        transports: ["websocket"],
-        autoConnect: true
+    (async () => {
+      await openDb();
+      httpServer = http.createServer(app);
+      initSocket(httpServer);
+
+      // El handshake exige un JWT válido (ver socket.service.js) — registramos
+      // un usuario de prueba y usamos su token, igual que en zones.test.js.
+      const rnd = Math.floor(Math.random() * 1000000);
+      const username = `socktest${rnd}`;
+      const regRes = await request(app)
+        .post("/v1/auth/register")
+        .send({ username, password: "password123", email: `${username}@test.com` });
+      if (regRes.status !== 201) {
+        throw new Error(`socket.test setup: register failed (status ${regRes.status}): ${JSON.stringify(regRes.body)}`);
+      }
+      const loginRes = await request(app)
+        .post("/v1/auth/login")
+        .send({ username, password: "password123" });
+      const token = loginRes.body?.token;
+      if (!token) {
+        throw new Error(`socket.test setup: login failed (status ${loginRes.status}): ${JSON.stringify(loginRes.body)}`);
+      }
+
+      httpServer.listen(() => {
+        port = httpServer.address().port;
+        socketClient = Client(`http://localhost:${port}`, {
+          transports: ["websocket"],
+          autoConnect: true,
+          auth: { token }
+        });
+        socketClient.on("connect", () => {
+          done();
+        });
+        socketClient.on("connect_error", (err) => {
+          done(err);
+        });
       });
-      socketClient.on("connect", () => {
-        done();
-      });
-    });
+    })().catch(done);
   }, 10000);
 
   afterAll((done) => {
@@ -63,6 +88,23 @@ describe("WebSocket System", () => {
     });
 
     emitEvent("issue:created", issueData);
+  });
+
+  it("rejects a connection without a valid token", (done) => {
+    const anon = Client(`http://localhost:${port}`, {
+      transports: ["websocket"],
+      autoConnect: true,
+      auth: { token: "not-a-real-token" }
+    });
+    anon.on("connect", () => {
+      anon.disconnect();
+      done(new Error("no debería haberse podido conectar sin un token válido"));
+    });
+    anon.on("connect_error", (err) => {
+      expect(err.message).toBe("unauthorized");
+      anon.disconnect();
+      done();
+    });
   });
 
   it("should receive 'settings:updated' event", (done) => {
