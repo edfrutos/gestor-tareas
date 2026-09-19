@@ -5,7 +5,7 @@ const request = require("supertest");
 const { io: Client } = require("socket.io-client");
 const app = require("../src/app");
 const { initSocket, emitEvent } = require("../src/services/socket.service");
-const { openDb, closeDb } = require("../src/db/sqlite");
+const { openDb, closeDb, migrate } = require("../src/db/sqlite");
 
 describe("WebSocket System", () => {
   let httpServer;
@@ -15,6 +15,7 @@ describe("WebSocket System", () => {
   beforeAll((done) => {
     (async () => {
       await openDb();
+      await migrate();
       httpServer = http.createServer(app);
       initSocket(httpServer);
 
