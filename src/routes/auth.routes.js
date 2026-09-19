@@ -11,6 +11,7 @@ const { z } = require("zod");
 const requireAuth = require("../middleware/auth.middleware");
 const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
+const { disconnectUser } = require("../services/socket.service");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
@@ -82,11 +83,13 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// Público y sin autenticación: NUNCA aceptar `role` aquí (si no, cualquiera
+// podría autopromocionarse a admin con `role: "admin"` en el body). Crear
+// administradores es cosa de `POST /v1/users` (admin-only, users.routes.js).
 const registerSchema = z.object({
   username: z.string().trim().min(3).max(20),
   email: z.string().email().optional().or(z.literal("")),
   password: z.string().min(6),
-  role: z.enum(["admin", "user"]).optional().default("user"),
 });
 
 const forgotPasswordSchema = z.object({
@@ -107,6 +110,10 @@ const updateMeSchema = z.object({
   email: z.string().email().optional().nullable().or(z.literal("")),
   currentPassword: z.string().optional().or(z.literal("")),
   newPassword: z.string().min(6).optional().or(z.literal("")),
+});
+
+const deleteAccountSchema = z.object({
+  password: z.string().min(1),
 });
 
 // POST /v1/auth/login
@@ -152,11 +159,13 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-// POST /v1/auth/register (Para desarrollo/primer usuario)
+// POST /v1/auth/register — alta pública de cuenta (web + macOS). Siempre
+// role="user"; ver nota de seguridad en registerSchema.
 router.post("/register", async (req, res, next) => {
   try {
-    const { username, email, password, role } = registerSchema.parse(req.body);
-    
+    const { username, email, password } = registerSchema.parse(req.body);
+    const role = "user";
+
     // Verificar si ya existe
     const exists = await get("SELECT id FROM users WHERE username = ?", [username]);
     if (exists) return res.status(400).json({ error: "El usuario ya existe" });
@@ -368,6 +377,63 @@ router.patch("/me/password", requireAuth(), async (req, res, next) => {
 
     const newHash = await bcrypt.hash(newPassword, 10);
     await run("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, userId]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    next(e);
+  }
+});
+
+// DELETE /v1/auth/me — borrado de cuenta por el propio usuario (self-service,
+// requerido por Apple Guideline 5.1.1(v)). Distinto de `DELETE /v1/users/:id`
+// (users.routes.js), que es solo para que un admin borre a OTROS usuarios.
+router.delete("/me", requireAuth(), async (req, res, next) => {
+  try {
+    const { password } = deleteAccountSchema.parse(req.body);
+    const userId = req.user.id;
+
+    const user = await get("SELECT * FROM users WHERE id = ?", [userId]);
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) return res.status(403).json({ error: "Contraseña incorrecta" });
+
+    // `maps.created_by` y `map_zones.created_by` son NOT NULL con ON DELETE
+    // CASCADE: si se borrara el usuario tal cual, se llevaría por delante
+    // mapas/zonas que puede estar usando todo el equipo. Los reasignamos
+    // antes a otro usuario (preferiblemente un admin) salvo que esta cuenta
+    // sea la última que queda, en cuyo caso no hay a quién reasignar y el
+    // cascade es correcto.
+    const otherUsers = await get("SELECT COUNT(*) as c FROM users WHERE id != ?", [userId]);
+    if (otherUsers.c > 0) {
+      const ownsSharedData = await get(
+        "SELECT (SELECT COUNT(*) FROM maps WHERE created_by = ?) + (SELECT COUNT(*) FROM map_zones WHERE created_by = ?) as c",
+        [userId, userId]
+      );
+      if (ownsSharedData.c > 0) {
+        const fallback = await get(
+          "SELECT id FROM users WHERE id != ? AND role = 'admin' ORDER BY id ASC LIMIT 1",
+          [userId]
+        );
+        const fallbackId = fallback?.id ?? (await get(
+          "SELECT id FROM users WHERE id != ? ORDER BY id ASC LIMIT 1",
+          [userId]
+        ))?.id;
+        if (!fallbackId) {
+          return res.status(400).json({
+            error: "Tienes planos o zonas propias y no hay otro usuario al que transferirlos. Pide a otro administrador que los reasigne primero.",
+          });
+        }
+        await run("UPDATE maps SET created_by = ? WHERE created_by = ?", [fallbackId, userId]);
+        await run("UPDATE map_zones SET created_by = ? WHERE created_by = ?", [fallbackId, userId]);
+      }
+    }
+
+    await run("DELETE FROM users WHERE id = ?", [userId]);
+
+    if (user.avatar_url) await deleteAvatarFile(user.avatar_url);
+    disconnectUser(userId);
 
     res.json({ ok: true });
   } catch (e) {

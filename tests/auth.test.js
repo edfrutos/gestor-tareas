@@ -13,7 +13,7 @@ process.env.JWT_SECRET = "test-jwt-secret";
 process.env.PINO_LOG_LEVEL = "silent";
 
 const app = require("../src/app");
-const { migrate, closeDb } = require("../src/db/sqlite");
+const { migrate, closeDb, run, get } = require("../src/db/sqlite");
 
 beforeAll(async () => {
   await migrate();
@@ -33,25 +33,41 @@ describe("Auth & RBAC Integration Tests", () => {
   let issue1Id;
 
   test("Register Admin and User", async () => {
-    // Registro admin
+    // El registro público (`/v1/auth/register`) siempre crea role="user" —
+    // ignora cualquier `role` que mande el cliente (no debe poder
+    // autopromocionarse a admin). Para tener un admin en los tests,
+    // promocionamos directamente en BD, como en zones.test.js/settings.test.js.
     const resAdmin = await request(app)
       .post("/v1/auth/register")
       .send({ username: "testadmin", password: "password123", role: "admin" });
     expect(resAdmin.statusCode).toBe(201);
+    expect(resAdmin.body.role).toBe("user");
+    await run("UPDATE users SET role = 'admin' WHERE username = ?", ["testadmin"]);
 
     // Registro user1
     const resUser1 = await request(app)
       .post("/v1/auth/register")
-      .send({ username: "user1", password: "password123", role: "user" });
+      .send({ username: "user1", password: "password123" });
     expect(resUser1.statusCode).toBe(201);
     user1Id = resUser1.body.id;
 
     // Registro user2
     const resUser2 = await request(app)
       .post("/v1/auth/register")
-      .send({ username: "user2", password: "password123", role: "user" });
+      .send({ username: "user2", password: "password123" });
     expect(resUser2.statusCode).toBe(201);
     user2Id = resUser2.body.id;
+  });
+
+  test("Public register can never self-promote to admin", async () => {
+    const res = await request(app)
+      .post("/v1/auth/register")
+      .send({ username: "wannabe_admin", password: "password123", role: "admin" });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.role).toBe("user");
+
+    const row = await get("SELECT role FROM users WHERE username = ?", ["wannabe_admin"]);
+    expect(row.role).toBe("user");
   });
 
   test("Login and obtain tokens", async () => {
@@ -190,5 +206,84 @@ describe("Auth & RBAC Integration Tests", () => {
         .get("/v1/users")
         .set("Authorization", `Bearer ${adminToken}`);
     expect(resListFinal.body.items.some(u => u.id === user1Id)).toBe(false);
+  });
+});
+
+describe("Self-service account deletion (DELETE /v1/auth/me)", () => {
+  test("requires the current password", async () => {
+    const resRegister = await request(app)
+      .post("/v1/auth/register")
+      .send({ username: "selfdel_nopass", password: "password123" });
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ username: "selfdel_nopass", password: "password123" });
+
+    const res = await request(app)
+      .delete("/v1/auth/me")
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .send({});
+    expect(res.statusCode).toBe(400);
+
+    const res2 = await request(app)
+      .delete("/v1/auth/me")
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .send({ password: "wrong-password" });
+    expect(res2.statusCode).toBe(403);
+
+    // La cuenta sigue existiendo tras los intentos fallidos
+    const stillThere = await get("SELECT id FROM users WHERE id = ?", [resRegister.body.id]);
+    expect(stillThere).toBeDefined();
+  });
+
+  test("deletes the account and it can no longer log in", async () => {
+    await request(app)
+      .post("/v1/auth/register")
+      .send({ username: "selfdel_basic", password: "password123" });
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ username: "selfdel_basic", password: "password123" });
+
+    const res = await request(app)
+      .delete("/v1/auth/me")
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .send({ password: "password123" });
+    expect(res.statusCode).toBe(200);
+
+    const loginAfter = await request(app)
+      .post("/v1/auth/login")
+      .send({ username: "selfdel_basic", password: "password123" });
+    expect(loginAfter.statusCode).toBe(401);
+  });
+
+  test("reassigns owned maps/zones to another admin instead of cascading them away", async () => {
+    const resRegister = await request(app)
+      .post("/v1/auth/register")
+      .send({ username: "selfdel_mapowner", password: "password123" });
+    const ownerId = resRegister.body.id;
+    const login = await request(app)
+      .post("/v1/auth/login")
+      .send({ username: "selfdel_mapowner", password: "password123" });
+
+    const now = new Date().toISOString();
+    const mapResult = await run(
+      "INSERT INTO maps (name, file_url, created_by, created_at) VALUES (?, ?, ?, ?)",
+      ["Plano de prueba", "/ui/plano.jpg", ownerId, now]
+    );
+    const mapId = mapResult.lastID;
+
+    const res = await request(app)
+      .delete("/v1/auth/me")
+      .set("Authorization", `Bearer ${login.body.token}`)
+      .send({ password: "password123" });
+    expect(res.statusCode).toBe(200);
+
+    // El mapa sigue existiendo (no se ha borrado en cascada)...
+    const mapAfter = await get("SELECT created_by FROM maps WHERE id = ?", [mapId]);
+    expect(mapAfter).toBeDefined();
+    // ...pero reasignado a otro usuario (nunca al que se acaba de borrar).
+    expect(mapAfter.created_by).not.toBe(ownerId);
+
+    // limpieza para no afectar otros tests que cuentan mapas
+    await run("DELETE FROM maps WHERE id = ?", [mapId]);
   });
 });

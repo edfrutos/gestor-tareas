@@ -1308,6 +1308,23 @@
         </div>
         <div id="profileStatus" style="margin-top:10px; font-size:13px; min-height:16px; text-align:center;"></div>
       </form>
+
+      <hr style="margin:20px 0; border:none; border-top:1px solid var(--border);" />
+      <div id="dangerZone">
+        <button type="button" class="btn danger small" id="btnDeleteAccount" style="width:100%;">🗑️ Eliminar mi cuenta</button>
+        <div id="deleteAccountConfirm" style="display:none; margin-top:12px;">
+          <p style="font-size:12px; opacity:0.8; margin:0 0 8px 0;">Esta acción es irreversible: se borrarán tu perfil, tus comentarios y tus tokens de recuperación. Introduce tu contraseña para confirmar.</p>
+          <div style="position:relative; margin-bottom:10px;">
+            <input id="deleteAccountPass" type="password" autocomplete="current-password" placeholder="Contraseña" style="padding-right:40px; width:100%;" />
+            <button type="button" class="toggle-pass-btn" data-target="deleteAccountPass" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;">👁️</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn small" id="btnDeleteAccountCancel" style="flex:1;">Cancelar</button>
+            <button type="button" class="btn danger small" id="btnDeleteAccountConfirm" style="flex:1;">Confirmar borrado</button>
+          </div>
+          <div id="deleteAccountStatus" style="margin-top:8px; font-size:13px; min-height:16px; text-align:center;"></div>
+        </div>
+      </div>
     </div>
   </div>
 

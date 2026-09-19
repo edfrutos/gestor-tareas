@@ -99,8 +99,8 @@ function getIo() {
 
 /**
  * Emite un evento a todos los clientes conectados
- * @param {string} event 
- * @param {any} data 
+ * @param {string} event
+ * @param {any} data
  */
 function emitEvent(event, data) {
   if (io) {
@@ -111,8 +111,24 @@ function emitEvent(event, data) {
   }
 }
 
+/**
+ * Fuerza la desconexión de todos los sockets abiertos de un usuario. Se usa
+ * al borrar una cuenta (self-service o admin) para que no siga recibiendo/
+ * mandando eventos con un JWT de un usuario que ya no existe en BD.
+ * @param {number} userId
+ */
+function disconnectUser(userId) {
+  if (!io) return;
+  for (const socket of io.sockets.sockets.values()) {
+    if (socket.user?.id === userId) {
+      socket.disconnect(true);
+    }
+  }
+}
+
 module.exports = {
   initSocket,
   getIo,
-  emitEvent
+  emitEvent,
+  disconnectUser
 };

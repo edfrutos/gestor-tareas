@@ -24,6 +24,19 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/auth/register`: alta pública de cuenta (siempre `role:
+    /// "user"`, el backend ignora cualquier otro valor). No devuelve token:
+    /// tras registrar hay que llamar a `login`, igual que en la web
+    /// (`register()` + `login()` en `modules/auth.js`).
+    func register(username: String, email: String?, password: String) async throws {
+        struct Body: Encodable { let username: String; let email: String?; let password: String }
+        _ = try await client.sendVoid(
+            .json("POST", "/v1/auth/register",
+                  body: Body(username: username, email: email, password: password),
+                  authorized: false)
+        )
+    }
+
     /// `POST /v1/auth/forgot-password`. Siempre `200`, no revela si el email existe.
     func forgotPassword(email: String) async throws {
         struct Body: Encodable { let email: String }
@@ -84,6 +97,16 @@ struct GestorAPI {
     /// `DELETE /v1/auth/me/avatar`. Quita la foto de perfil actual.
     func deleteAvatar() async throws {
         _ = try await client.sendVoid(.init(method: "DELETE", path: "/v1/auth/me/avatar"))
+    }
+
+    /// `DELETE /v1/auth/me`: borrado de cuenta por el propio usuario
+    /// (self-service, distinto de `deleteUser`, que es solo para admins
+    /// borrando a otros). Requiere confirmar con la contraseña actual.
+    func deleteMe(password: String) async throws {
+        struct Body: Encodable { let password: String }
+        _ = try await client.sendVoid(
+            .json("DELETE", "/v1/auth/me", body: Body(password: password))
+        )
     }
 
     // MARK: Issues

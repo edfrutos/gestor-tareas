@@ -20,6 +20,12 @@ final class ProfileViewModel {
     var isUploadingAvatar = false
     var avatarError: String?
 
+    // Borrado de cuenta (self-service)
+    var deleteAccountPassword = ""
+    var isDeletingAccount = false
+    var deleteAccountError: String?
+    var didDeleteAccount = false
+
     init(user: SessionUser) {
         email = user.email ?? ""
         avatarThumbURL = user.avatarThumbURL
@@ -114,6 +120,30 @@ final class ProfileViewModel {
             errorMessage = friendlyMessage(for: error)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Borra la cuenta del usuario (self-service) y cierra sesión localmente
+    /// si el backend confirma el borrado.
+    func deleteAccount(settings: AppSettings, session: SessionStore) async {
+        deleteAccountError = nil
+        guard !deleteAccountPassword.isEmpty else {
+            deleteAccountError = "Introduce tu contraseña para confirmar."
+            return
+        }
+
+        isDeletingAccount = true
+        defer { isDeletingAccount = false }
+
+        let api = GestorAPI(settings: settings, session: session)
+        do {
+            try await api.deleteMe(password: deleteAccountPassword)
+            didDeleteAccount = true
+            session.signOut()
+        } catch let error as APIError {
+            deleteAccountError = friendlyMessage(for: error)
+        } catch {
+            deleteAccountError = error.localizedDescription
         }
     }
 

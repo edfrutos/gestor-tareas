@@ -10,6 +10,8 @@ struct ProfileView: View {
     @Environment(AppSettings.self) private var settings
     @State private var model: ProfileViewModel
     @State private var isImportingAvatar = false
+    @State private var showDeleteConfirm = false
+    @State private var showFinalDeleteAlert = false
 
     init(user: SessionUser) {
         _model = State(wrappedValue: ProfileViewModel(user: user))
@@ -51,6 +53,9 @@ struct ProfileView: View {
                                  text: $model.newPassword,
                                  textContentType: .newPassword)
                 }
+                Section("Zona de peligro") {
+                    dangerZone
+                }
             }
             .formStyle(.grouped)
 
@@ -62,6 +67,62 @@ struct ProfileView: View {
                       allowedContentTypes: [.jpeg, .png, .gif, .webP],
                       allowsMultipleSelection: false) { result in
             handleAvatarPick(result)
+        }
+        .onChange(of: model.didDeleteAccount) { _, deleted in
+            if deleted { dismiss() }
+        }
+        .alert("¿Eliminar tu cuenta?",
+               isPresented: $showFinalDeleteAlert) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Eliminar cuenta", role: .destructive) {
+                Task { await model.deleteAccount(settings: settings, session: session) }
+            }
+        } message: {
+            Text("Esta acción no se puede deshacer.")
+        }
+    }
+
+    /// Borrado de cuenta self-service (requerido por Apple Guideline
+    /// 5.1.1(v)): distinto del borrado de OTROS usuarios que hace un admin
+    /// desde `AdminUsersViewModel`.
+    @ViewBuilder
+    private var dangerZone: some View {
+        if !showDeleteConfirm {
+            Button("Eliminar mi cuenta…", role: .destructive) {
+                showDeleteConfirm = true
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Esta acción es irreversible: se borrarán tu perfil, tus comentarios y tus tokens de recuperación. Introduce tu contraseña para confirmar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                PasswordField(title: "Contraseña",
+                             text: $model.deleteAccountPassword,
+                             textContentType: .password)
+                if let error = model.deleteAccountError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                HStack {
+                    Button("Cancelar") {
+                        showDeleteConfirm = false
+                        model.deleteAccountPassword = ""
+                        model.deleteAccountError = nil
+                    }
+                    Spacer()
+                    Button(role: .destructive) {
+                        showFinalDeleteAlert = true
+                    } label: {
+                        if model.isDeletingAccount {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Confirmar borrado")
+                        }
+                    }
+                    .disabled(model.isDeletingAccount || model.deleteAccountPassword.isEmpty)
+                }
+            }
         }
     }
 

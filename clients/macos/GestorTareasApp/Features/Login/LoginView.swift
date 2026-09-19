@@ -7,6 +7,7 @@ struct LoginView: View {
     @State private var model = LoginViewModel()
     @State private var username = ""
     @State private var password = ""
+    @State private var email = ""
     @State private var showForgotPassword = false
     @State private var showResetPassword = false
 
@@ -26,6 +27,10 @@ struct LoginView: View {
             VStack(spacing: 10) {
                 TextField("Usuario o email", text: $username)
                     .textContentType(.username)
+                if model.isRegisterMode {
+                    TextField("Email (opcional)", text: $email)
+                        .textContentType(.emailAddress)
+                }
                 PasswordField(title: "Contraseña", text: $password, textContentType: .password)
                     .onSubmit(attempt)
             }
@@ -48,7 +53,7 @@ struct LoginView: View {
                 if model.isLoading {
                     ProgressView().controlSize(.small)
                 } else {
-                    Text("Entrar").frame(maxWidth: .infinity)
+                    Text(model.isRegisterMode ? "Registrarme" : "Entrar").frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -57,9 +62,16 @@ struct LoginView: View {
             .disabled(model.isLoading || username.isEmpty || password.isEmpty)
 
             HStack(spacing: 14) {
-                Button("¿Olvidaste tu contraseña?") { showForgotPassword = true }
-                Text("·").foregroundStyle(.tertiary)
-                Button("Ya tengo un código") { showResetPassword = true }
+                Button(model.isRegisterMode ? "Ya tengo cuenta (Entrar)" : "Crear cuenta") {
+                    model.isRegisterMode.toggle()
+                    model.errorMessage = nil
+                }
+                if !model.isRegisterMode {
+                    Text("·").foregroundStyle(.tertiary)
+                    Button("¿Olvidaste tu contraseña?") { showForgotPassword = true }
+                    Text("·").foregroundStyle(.tertiary)
+                    Button("Ya tengo un código") { showResetPassword = true }
+                }
             }
             .buttonStyle(.link)
             .font(.callout)
@@ -86,10 +98,18 @@ struct LoginView: View {
 
     private func attempt() {
         Task {
-            await model.login(username: username,
-                              password: password,
-                              settings: settings,
-                              session: session)
+            if model.isRegisterMode {
+                await model.register(username: username,
+                                     email: email,
+                                     password: password,
+                                     settings: settings,
+                                     session: session)
+            } else {
+                await model.login(username: username,
+                                  password: password,
+                                  settings: settings,
+                                  session: session)
+            }
         }
     }
 }

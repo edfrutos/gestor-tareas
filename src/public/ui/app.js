@@ -5,7 +5,7 @@ import { ensureMap, initMapModule } from "./modules/map.js";
 import { setStatus, $, resolveSameOriginUrl } from "./modules/utils.js";
 import { LS_THEME, API_BASE } from "./modules/config.js";
 import { startStatsPolling, initStatsModule } from "./modules/stats.js";
-import { isAuthenticated, getUser, login, logout, register, updateProfile, uploadAvatar, deleteAvatar } from "./modules/auth.js";
+import { isAuthenticated, getUser, login, logout, register, updateProfile, uploadAvatar, deleteAvatar, deleteAccount } from "./modules/auth.js";
 import { initUsersModule } from "./modules/users.js";
 import { initMapsModule, loadMaps } from "./modules/maps.js";
 import { initSocketModule } from "./modules/socket.js";
@@ -116,6 +116,7 @@ async function initAuth() {
         const pe = $("#profileEmail"); if(pe) pe.value = user?.email || "";
         const st = $("#profileStatus"); if(st) st.textContent = "";
         renderProfileAvatar(user);
+        resetDeleteAccountUI();
       }
     };
   }
@@ -224,7 +225,60 @@ async function initAuth() {
       }
     };
   }
-  
+
+  // Eliminar cuenta (self-service, requerido por Apple Guideline 5.1.1(v))
+  const btnDeleteAccount = $("#btnDeleteAccount");
+  const deleteAccountConfirm = $("#deleteAccountConfirm");
+  const deleteAccountPass = $("#deleteAccountPass");
+  const deleteAccountStatus = $("#deleteAccountStatus");
+  const btnDeleteAccountCancel = $("#btnDeleteAccountCancel");
+  const btnDeleteAccountConfirm = $("#btnDeleteAccountConfirm");
+
+  function resetDeleteAccountUI() {
+    if (btnDeleteAccount) btnDeleteAccount.style.display = "block";
+    if (deleteAccountConfirm) deleteAccountConfirm.style.display = "none";
+    if (deleteAccountPass) deleteAccountPass.value = "";
+    if (deleteAccountStatus) deleteAccountStatus.textContent = "";
+  }
+
+  if (btnDeleteAccount) {
+    btnDeleteAccount.onclick = () => {
+      btnDeleteAccount.style.display = "none";
+      if (deleteAccountConfirm) deleteAccountConfirm.style.display = "block";
+      deleteAccountPass?.focus();
+    };
+  }
+
+  if (btnDeleteAccountCancel) {
+    btnDeleteAccountCancel.onclick = () => resetDeleteAccountUI();
+  }
+
+  if (btnDeleteAccountConfirm) {
+    btnDeleteAccountConfirm.onclick = async () => {
+      const password = deleteAccountPass?.value || "";
+      if (!password) {
+        if (deleteAccountStatus) { deleteAccountStatus.textContent = "Introduce tu contraseña."; deleteAccountStatus.style.color = "var(--bad)"; }
+        return;
+      }
+      if (!confirm("¿Seguro que quieres eliminar tu cuenta? Esta acción no se puede deshacer.")) return;
+
+      btnDeleteAccountConfirm.disabled = true;
+      if (deleteAccountStatus) { deleteAccountStatus.textContent = "Eliminando cuenta..."; deleteAccountStatus.style.color = "var(--text)"; }
+      try {
+        await deleteAccount(password);
+        if (deleteAccountStatus) { deleteAccountStatus.textContent = "Cuenta eliminada. Cerrando sesión..."; deleteAccountStatus.style.color = "var(--ok)"; }
+        setTimeout(() => logout(), 1200);
+      } catch (err) {
+        let msg = err.message;
+        if (err.data && err.data.error) {
+          msg = typeof err.data.error === "string" ? err.data.error : (err.data.error.message || msg);
+        }
+        if (deleteAccountStatus) { deleteAccountStatus.textContent = msg || "No se pudo eliminar la cuenta"; deleteAccountStatus.style.color = "var(--bad)"; }
+        btnDeleteAccountConfirm.disabled = false;
+      }
+    };
+  }
+
   // UI Elements
   const title = modal.querySelector("h2");
   const subtitle = modal.querySelector("p");

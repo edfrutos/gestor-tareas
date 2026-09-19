@@ -88,6 +88,15 @@ export async function changePassword(currentPassword, newPassword) {
   });
 }
 
+/** Borra la cuenta del usuario autenticado (self-service). Requiere su contraseña actual. */
+export async function deleteAccount(password) {
+  return await fetchJson(`${API_BASE}/auth/me`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password })
+  });
+}
+
 export function logout() {
   localStorage.removeItem(LS_TOKEN);
   localStorage.removeItem(LS_USER);

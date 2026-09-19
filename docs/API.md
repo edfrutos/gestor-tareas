@@ -46,7 +46,7 @@ GET /v1/config → 200 { "publicApiIdentifier": string|null, "csrfEnabled": bool
 | Método | Ruta | Auth | Cuerpo | Respuesta |
 | --- | --- | --- | --- | --- |
 | POST | `/v1/auth/login` | — | `{ username, password }` (`username` acepta email, case-insensitive) | `200 { token, user:{id,username,email,role,avatar_url,avatar_thumb_url} }` · `401 { error: "Usuario o contraseña incorrectos" }` |
-| POST | `/v1/auth/register` | — | `{ username, email?, password, role? }` | `201 { id, username, email, role }` · `400 { error }` |
+| POST | `/v1/auth/register` | — | `{ username, email?, password }` (siempre crea `role: "user"`; no acepta `role` del cliente) | `201 { id, username, email, role }` · `400 { error }` |
 | POST | `/v1/auth/forgot-password` | — | `{ email }` | `200` (siempre, no revela existencia). Email vía SMTP/Mailpit |
 | POST | `/v1/auth/reset-password` | — | `{ token, password }` | `200` · `400` token inválido/expirado (1 h) |
 | GET | `/v1/auth/me` | Bearer | — | `200 { id, username, email, role, avatar_url, avatar_thumb_url }` |
@@ -55,6 +55,7 @@ GET /v1/config → 200 { "publicApiIdentifier": string|null, "csrfEnabled": bool
 | GET | `/v1/auth/me/apikey` | Bearer | — | `200 { apiKey }` (uso avanzado; no necesario en la app) |
 | POST | `/v1/auth/me/avatar` | Bearer | `multipart/form-data`, campo `avatar` (imagen, mismos límites/tipos que las fotos de tareas: jpg/png/webp/gif, `MAX_UPLOAD_BYTES`) | `200 { avatar_url, avatar_thumb_url }` · `400` tipo/tamaño inválido. Reemplaza y borra el avatar anterior si había. |
 | DELETE | `/v1/auth/me/avatar` | Bearer | — | `200 { ok: true }`. Pone `avatar_url`/`avatar_thumb_url` a `null` y borra los ficheros. |
+| DELETE | `/v1/auth/me` | Bearer | `{ password }` | `200 { ok: true }` · `400/403`. Borrado de cuenta self-service (Apple Guideline 5.1.1(v)); reasigna planos/zonas propios a otro admin antes de borrar. |
 
 ---
 
