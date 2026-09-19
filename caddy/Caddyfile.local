@@ -5,5 +5,13 @@
 
 {$SITE_HOST:localhost} {
   encode gzip
-  reverse_proxy gestor-tareas:3000
+  # El backend siempre sirve HTTPS (FORCE_HTTPS=true en docker-compose.yml,
+  # con certs propios en /app/certs) aunque estemos detrás de Caddy en
+  # local. Hay que hablarle por HTTPS y saltarse la verificación: el cert
+  # es autofirmado y no lleva el nombre "gestor-tareas" del contenedor.
+  reverse_proxy https://gestor-tareas:3000 {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
 }
