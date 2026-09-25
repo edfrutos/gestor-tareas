@@ -11,3 +11,8 @@ PROVISIONING_PROFILE_SPECIFIER = GestorTareas
 ENABLE_HARDENED_RUNTIME = YES
 SWIFT_OPTIMIZATION_LEVEL = -O
 SWIFT_COMPILATION_MODE = wholemodule
+
+// Distingue este canal en código (ver UpdateChecker/RootView): la build de
+// Mac App Store nunca debe enlazar a una descarga fuera de la App Store, ya
+// que Apple la actualiza sola. Ausente en Debug/Release-DevID a propósito.
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = MAS_BUILD

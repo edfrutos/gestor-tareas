@@ -560,4 +560,70 @@ final class DecodingTests: XCTestCase {
         XCTAssertNil(ResetTokenParsing.token(from: ""))
         XCTAssertNil(ResetTokenParsing.token(from: "no es un token"))
     }
+
+    // MARK: Hito 5 — comprobación de nuevas releases (macOS)
+
+    func testGitHubReleaseDTOParsesMacosTagWithDmgAsset() throws {
+        // Forma real de GET /repos/edfrutos/gestor-tareas/releases (verificado
+        // contra la API), tag actual macos-v0.1.0-2.
+        let json = Data("""
+        {
+          "tag_name": "macos-v0.1.0-2", "html_url": "https://github.com/edfrutos/gestor-tareas/releases/tag/macos-v0.1.0-2",
+          "draft": false,
+          "assets": [{ "name": "GestorTareas.dmg", "browser_download_url": "https://example.com/GestorTareas.dmg" }]
+        }
+        """.utf8)
+        let dto = try decoder.decode(GitHubReleaseDTO.self, from: json)
+        let release = try XCTUnwrap(dto.asAppRelease(tagPrefix: "macos-v"))
+        XCTAssertEqual(release.version, "0.1.0")
+        XCTAssertEqual(release.build, 2)
+        XCTAssertEqual(release.dmgURL?.absoluteString, "https://example.com/GestorTareas.dmg")
+    }
+
+    func testGitHubReleaseDTOIgnoresDraftsAndOtherTags() throws {
+        let draft = try decoder.decode(GitHubReleaseDTO.self, from: Data("""
+        { "tag_name": "macos-v0.2.0-1", "html_url": "https://example.com", "draft": true, "assets": [] }
+        """.utf8))
+        XCTAssertNil(draft.asAppRelease(tagPrefix: "macos-v"))
+
+        // Tag del backend (docker-build-push.yml), no del cliente macOS.
+        let backendTag = try decoder.decode(GitHubReleaseDTO.self, from: Data("""
+        { "tag_name": "v1.0.0", "html_url": "https://example.com", "draft": false, "assets": [] }
+        """.utf8))
+        XCTAssertNil(backendTag.asAppRelease(tagPrefix: "macos-v"))
+
+        let noDmg = try decoder.decode(GitHubReleaseDTO.self, from: Data("""
+        { "tag_name": "macos-v0.1.0-2", "html_url": "https://example.com", "draft": false, "assets": [] }
+        """.utf8))
+        XCTAssertEqual(noDmg.asAppRelease(tagPrefix: "macos-v")?.dmgURL, nil)
+    }
+
+    func testCompareVersionsHandlesDifferentLengthsAndEquality() {
+        XCTAssertEqual(UpdateChecker.compareVersions("0.2.0", "0.1.9"), .orderedDescending)
+        XCTAssertEqual(UpdateChecker.compareVersions("0.1.0", "0.1"), .orderedSame)
+        XCTAssertEqual(UpdateChecker.compareVersions("1.0.0", "0.9.9"), .orderedDescending)
+        XCTAssertEqual(UpdateChecker.compareVersions("0.1.0", "0.1.0"), .orderedSame)
+    }
+
+    func testIsNewerComparesVersionThenBuild() {
+        let notes = URL(string: "https://example.com")!
+        let sameVersionHigherBuild = AppRelease(version: "0.1.0", build: 3, releaseNotesURL: notes, dmgURL: nil)
+        XCTAssertTrue(UpdateChecker.isNewer(sameVersionHigherBuild, than: (version: "0.1.0", build: 2)))
+
+        let sameVersionSameBuild = AppRelease(version: "0.1.0", build: 2, releaseNotesURL: notes, dmgURL: nil)
+        XCTAssertFalse(UpdateChecker.isNewer(sameVersionSameBuild, than: (version: "0.1.0", build: 2)))
+
+        let olderVersion = AppRelease(version: "0.0.9", build: 99, releaseNotesURL: notes, dmgURL: nil)
+        XCTAssertFalse(UpdateChecker.isNewer(olderVersion, than: (version: "0.1.0", build: 2)))
+    }
+
+    func testNewestPicksHighestAmongMultipleReleases() {
+        let notes = URL(string: "https://example.com")!
+        let releases = [
+            AppRelease(version: "0.1.0", build: 2, releaseNotesURL: notes, dmgURL: nil),
+            AppRelease(version: "0.2.0", build: 1, releaseNotesURL: notes, dmgURL: nil),
+            AppRelease(version: "0.1.0", build: 5, releaseNotesURL: notes, dmgURL: nil),
+        ]
+        XCTAssertEqual(UpdateChecker.newest(of: releases)?.version, "0.2.0")
+    }
 }

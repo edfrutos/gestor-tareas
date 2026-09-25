@@ -5,6 +5,7 @@ struct MainView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(SocketClient.self) private var socket
     @Environment(DeepLinkRouter.self) private var router
+    @Environment(UpdateChecker.self) private var updateChecker
 
     @State private var selection: Panel? = .issues
     @State private var path = NavigationPath()
@@ -101,6 +102,9 @@ struct MainView: View {
             }
             Divider()
             Button("Editar perfil…") { showProfile = true }
+            Button("Buscar actualizaciones…") {
+                Task { await updateChecker.check() }
+            }
             Divider()
             Button("Cerrar sesión", role: .destructive) {
                 session.signOut()

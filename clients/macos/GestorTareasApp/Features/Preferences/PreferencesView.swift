@@ -1,12 +1,44 @@
+import AppKit
 import SwiftUI
 
 struct PreferencesView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(UpdateChecker.self) private var updateChecker
 
     var body: some View {
         @Bindable var settings = settings
 
         Form {
+            Section("Actualizaciones") {
+                let running = UpdateChecker.runningVersion
+                Text("Versión instalada: \(running.version) (build \(running.build))")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                if updateChecker.hasUpdate, let release = updateChecker.latestRelease {
+                    Label("Hay una versión nueva: \(release.displayName)", systemImage: "arrow.down.circle.fill")
+                        .foregroundStyle(Theme.accent)
+                    #if !MAS_BUILD
+                    if let dmgURL = release.dmgURL {
+                        Button("Descargar…") { NSWorkspace.shared.open(dmgURL) }
+                    }
+                    #endif
+                } else if let error = updateChecker.lastError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                } else if !updateChecker.isChecking {
+                    Text("No hay actualizaciones pendientes.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button(updateChecker.isChecking ? "Comprobando…" : "Buscar actualizaciones ahora") {
+                    Task { await updateChecker.check() }
+                }
+                .disabled(updateChecker.isChecking)
+            }
+
             Section("Apariencia") {
                 Picker("Tema", selection: $settings.appearanceMode) {
                     ForEach(AppearanceMode.allCases) { mode in
