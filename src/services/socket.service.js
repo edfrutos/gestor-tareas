@@ -81,6 +81,15 @@ function initSocket(httpServer) {
   io.on("connection", (socket) => {
     logger.info({ socketId: socket.id, userId: socket.user?.id }, "[socket] client connected");
 
+    // Sala por usuario (visibilidad de eventos, ver emitToUsers) + sala de
+    // admins, que ven todo igual que en el filtrado RBAC de GET /v1/issues.
+    if (socket.user?.id !== undefined && socket.user?.id !== null) {
+      socket.join(`user:${socket.user.id}`);
+    }
+    if (socket.user?.role === "admin") {
+      socket.join("role:admin");
+    }
+
     socket.on("disconnect", (reason) => {
       logger.info({ socketId: socket.id, reason }, "[socket] client disconnected");
     });
@@ -112,6 +121,29 @@ function emitEvent(event, data) {
 }
 
 /**
+ * Emite un evento solo a quienes tendrían visibilidad de la tarea según el
+ * mismo criterio que el filtrado RBAC de `GET /v1/issues`: admins, el
+ * creador y el asignado. Antes, `issue:created/updated/deleted` se mandaban
+ * a `io.emit()` (broadcast a cualquier socket autenticado), así que un
+ * usuario normal veía en tiempo real tareas que no podía listar por API.
+ * @param {string} event
+ * @param {any} data
+ * @param {Array<number|null|undefined>} userIds - created_by / assigned_to relevantes
+ */
+function emitToUsers(event, data, userIds) {
+  if (!io) {
+    const dataPreview = data === undefined ? "undefined" : typeof data === "object" ? JSON.stringify(data).slice(0, 80) : String(data);
+    logger.warn({ event, dataPreview }, "[socket] emitToUsers skipped: io not initialized");
+    return;
+  }
+  const rooms = new Set(["role:admin"]);
+  for (const id of userIds || []) {
+    if (id !== null && id !== undefined) rooms.add(`user:${id}`);
+  }
+  io.to([...rooms]).emit(event, data);
+}
+
+/**
  * Fuerza la desconexión de todos los sockets abiertos de un usuario. Se usa
  * al borrar una cuenta (self-service o admin) para que no siga recibiendo/
  * mandando eventos con un JWT de un usuario que ya no existe en BD.
@@ -130,5 +162,6 @@ module.exports = {
   initSocket,
   getIo,
   emitEvent,
+  emitToUsers,
   disconnectUser
 };

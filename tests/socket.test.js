@@ -11,6 +11,7 @@ describe("WebSocket System", () => {
   let httpServer;
   let socketClient;
   let port;
+  let token;
 
   beforeAll((done) => {
     (async () => {
@@ -32,7 +33,7 @@ describe("WebSocket System", () => {
       const loginRes = await request(app)
         .post("/v1/auth/login")
         .send({ username, password: "password123" });
-      const token = loginRes.body?.token;
+      token = loginRes.body?.token;
       if (!token) {
         throw new Error(`socket.test setup: login failed (status ${loginRes.status}): ${JSON.stringify(loginRes.body)}`);
       }
@@ -72,7 +73,7 @@ describe("WebSocket System", () => {
   it("should receive an event when emitEvent is called", (done) => {
     const testData = { id: 1, message: "test event" };
     
-    socketClient.on("test:event", (data) => {
+    socketClient.once("test:event", (data) => {
       expect(data).toEqual(testData);
       done();
     });
@@ -83,7 +84,7 @@ describe("WebSocket System", () => {
   it("should receive 'issue:created' event", (done) => {
     const issueData = { id: 123, title: "Nueva Incidencia" };
 
-    socketClient.on("issue:created", (data) => {
+    socketClient.once("issue:created", (data) => {
       expect(data).toEqual(issueData);
       done();
     });
@@ -111,11 +112,69 @@ describe("WebSocket System", () => {
   it("should receive 'settings:updated' event", (done) => {
     const settingsData = { TEST: "VALUE" };
 
-    socketClient.on("settings:updated", (data) => {
+    socketClient.once("settings:updated", (data) => {
       expect(data).toEqual(settingsData);
       done();
     });
 
     emitEvent("settings:updated", settingsData);
   });
+
+  it("only sends 'issue:created' to the creator/assignee/admins, not to an unrelated user (salas por usuario)", (done) => {
+    (async () => {
+      const rnd = Math.floor(Math.random() * 1000000);
+      const otherUsername = `sockother${rnd}`;
+      const regRes = await request(app)
+        .post("/v1/auth/register")
+        .send({ username: otherUsername, password: "password123", email: `${otherUsername}@test.com` });
+      if (regRes.status !== 201) {
+        throw new Error(`setup: register otro usuario falló (status ${regRes.status}): ${JSON.stringify(regRes.body)}`);
+      }
+      const loginRes = await request(app)
+        .post("/v1/auth/login")
+        .send({ username: otherUsername, password: "password123" });
+      const otherToken = loginRes.body?.token;
+      if (!otherToken) {
+        throw new Error(`setup: login otro usuario falló (status ${loginRes.status}): ${JSON.stringify(loginRes.body)}`);
+      }
+
+      const otherClient = Client(`http://localhost:${port}`, {
+        transports: ["websocket"],
+        autoConnect: true,
+        auth: { token: otherToken }
+      });
+
+      await new Promise((resolve, reject) => {
+        otherClient.on("connect", resolve);
+        otherClient.on("connect_error", reject);
+      });
+
+      let ownerReceived = false;
+      let otherReceived = false;
+      socketClient.once("issue:created", () => { ownerReceived = true; });
+      otherClient.on("issue:created", () => { otherReceived = true; });
+
+      const createRes = await request(app)
+        .post("/v1/issues")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          title: "Tarea privada para salas",
+          category: "general",
+          description: "Solo debería verla su creador (y un admin)",
+          lat: 40.0,
+          lng: -3.0,
+        });
+      if (createRes.status !== 201) {
+        throw new Error(`setup: crear issue falló (status ${createRes.status}): ${JSON.stringify(createRes.body)}`);
+      }
+
+      // Los eventos socket son async respecto a la respuesta HTTP: dar un
+      // margen antes de comprobar que "otherClient" no ha recibido nada.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      otherClient.disconnect();
+      expect(ownerReceived).toBe(true);
+      expect(otherReceived).toBe(false);
+    })().then(done).catch(done);
+  }, 10000);
 });

@@ -11,7 +11,7 @@ const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 const { notifyStatusChange, notifyNewIssue, notifyTaskAssignment } = require("../services/mail.service");
-const { emitEvent } = require("../services/socket.service");
+const { emitToUsers } = require("../services/socket.service");
 
 const router = express.Router();
 
@@ -588,7 +588,7 @@ router.post("/", requireAuth(), (req, res, next) => {
 
     res.setHeader("Cache-Control", "no-store");
     res.status(201).json(created);
-    emitEvent("issue:created", created);
+    emitToUsers("issue:created", created, [created.created_by, created.assigned_to]);
   } catch (e) {
     next(e);
   }
@@ -716,7 +716,9 @@ router.patch("/:id", requireAuth(), (req, res, next) => {
       thumb_url: updated.photo_url ? photoToThumbUrl(updated.photo_url) : null,
       resolution_thumb_url: updated.resolution_photo_url ? photoToThumbUrl(updated.resolution_photo_url) : null,
     });
-    emitEvent("issue:updated", updated);
+    // Unión de creador + asignado anterior + asignado nuevo: si se reasigna,
+    // tanto quien pierde la tarea como quien la recibe deben verlo en vivo.
+    emitToUsers("issue:updated", updated, [currentIssue.created_by, currentIssue.assigned_to, updated.assigned_to]);
   } catch (e) {
     console.error("PATCH Error:", e);
     e.status = e.status || 500;
@@ -731,7 +733,7 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
     if (!id || !Number.isInteger(id)) {
       return res.status(400).json({ error: { code: "bad_request", message: "id inválido", requestId: req.id } });
     }
-    const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url, created_by FROM issues WHERE id = ?`, [id]);
+    const row = await get(`SELECT photo_url, resolution_photo_url, text_url, resolution_text_url, created_by, assigned_to FROM issues WHERE id = ?`, [id]);
     if (!row) return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
     if (req.user.role !== 'admin' && row.created_by !== req.user.id) return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para borrar esta tarea", requestId: req.id } });
     await run(`DELETE FROM issues WHERE id = ?`, [id]);
@@ -741,7 +743,7 @@ router.delete("/:id", requireAuth(), async (req, res, next) => {
     }
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true });
-    emitEvent("issue:deleted", { id });
+    emitToUsers("issue:deleted", { id }, [row.created_by, row.assigned_to]);
   } catch (e) { next(e); }
 });
 
