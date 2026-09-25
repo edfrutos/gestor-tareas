@@ -9,6 +9,16 @@ const { getDbFile } = require("../config/paths");
 let db = null;
 let dbPromise = null;
 
+// SQLite en modo WAL usa locking por mmap sobre un archivo -shm compartido.
+// Docker Desktop para Mac no soporta bien ese locking cuando el bind mount
+// apunta a un volumen externo (no el disco interno) — da SQLITE_IOERR al
+// primer acceso. Permite bajar a un journal_mode sin mmap (DELETE, el
+// clásico rollback journal) solo para ese caso vía env var; en producción
+// (Linux nativo, sin esa capa de virtualización) se deja WAL por defecto.
+const VALID_JOURNAL_MODES = new Set(["DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"]);
+const requestedJournalMode = (process.env.SQLITE_JOURNAL_MODE || "WAL").toUpperCase();
+const JOURNAL_MODE = VALID_JOURNAL_MODES.has(requestedJournalMode) ? requestedJournalMode : "WAL";
+
 function ensureDirForFile(filePath) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
@@ -35,7 +45,7 @@ async function openDb() {
 
       // Configuración inicial robusta (mitigación SQLITE_CORRUPT - Fase 36)
       newDb.serialize(() => {
-        newDb.run("PRAGMA journal_mode=WAL;");
+        newDb.run(`PRAGMA journal_mode=${JOURNAL_MODE};`);
         newDb.run("PRAGMA foreign_keys=ON;");
         newDb.run("PRAGMA busy_timeout=5000;"); // Esperar hasta 5s si está bloqueada
         newDb.run("PRAGMA synchronous=FULL;");  // Durabilidad máxima; reduce riesgo de corrupción

@@ -14,6 +14,10 @@ services:
       HTTPS_PORT: "3443"
       NODE_ENV: development
       DB_FILE: /app/data/data.db
+      # Docker Desktop (Mac) + bind mount sobre volumen externo no soporta el
+      # locking por mmap de SQLite en modo WAL (SQLITE_IOERR). DELETE evita
+      # ese locking; producción no define esta variable y sigue en WAL.
+      SQLITE_JOURNAL_MODE: DELETE
       UPLOAD_DIR: /app/uploads
       BACKUP_DIR: /app/backups
       BACKUP_RETENTION_DAYS: "1"
