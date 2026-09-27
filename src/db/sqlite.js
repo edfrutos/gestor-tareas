@@ -187,6 +187,24 @@ async function migrate() {
       )
     `);
 
+    // Mensajes del formulario de contacto. Se guardan aunque falle el SMTP
+    // (sendMail no lanza), para no perder ninguno. `user_id` es opcional:
+    // el formulario también se usa desde el login, sin sesión.
+    await exec(`
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        source TEXT,
+        ip TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
     // 2. Índices (Solo si la columna existe o se crea abajo)
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_logs_issue_id ON issue_logs(issue_id)`);
     await exec(`CREATE INDEX IF NOT EXISTS idx_issue_comments_issue_id ON issue_comments(issue_id)`);

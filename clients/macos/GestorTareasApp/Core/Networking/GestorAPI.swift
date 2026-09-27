@@ -55,6 +55,20 @@ struct GestorAPI {
         )
     }
 
+    /// `POST /v1/contact`: formulario de contacto. Funciona con y sin sesión
+    /// (desde el login no hay token; si lo hay, el backend asocia el mensaje
+    /// al usuario). Límite de 5 envíos/hora por IP (`429`).
+    func sendContact(name: String, email: String, subject: String, message: String) async throws {
+        struct Body: Encodable {
+            let name, email, subject, message: String
+            let source = "macos"
+        }
+        _ = try await client.sendVoid(
+            .json("POST", "/v1/contact",
+                  body: Body(name: name, email: email, subject: subject, message: message))
+        )
+    }
+
     /// `GET /v1/auth/me`: datos frescos del usuario autenticado.
     func me() async throws -> SessionUser {
         struct Response: Decodable { let user: SessionUser }

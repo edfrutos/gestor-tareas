@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
 
 const FROM_EMAIL = process.env.SMTP_FROM || '"Gestor de Tareas" <no-reply@gestor-tareas.local>';
 
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, replyTo }) {
   // Si hay SMTP_HOST (ej. Mailpit) configurado, enviar aunque no haya SMTP_USER
   const hasSmtp = process.env.SMTP_HOST || process.env.SMTP_PORT;
   const shouldSend = hasSmtp || process.env.SMTP_USER;
@@ -43,6 +43,7 @@ async function sendMail({ to, subject, text, html }) {
       subject,
       text,
       html,
+      replyTo,
     });
     console.log(`[MailService] Correo enviado: ${info.messageId}`);
     return info;
@@ -192,8 +193,47 @@ Puedes ver los detalles y empezar a trabajar en ella desde la aplicación.`;
   return sendMail({ to: user.email, subject, text, html });
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Reenvía al administrador un mensaje del formulario de contacto.
+ * `Reply-To` apunta al remitente para poder contestarle directamente.
+ * @param {Object} msg - { name, email, subject, message, username, source }
+ */
+async function notifyContactMessage(adminEmail, msg) {
+  if (!adminEmail) return null;
+
+  const subject = `[Contacto] ${msg.subject}`;
+  const who = msg.username ? `${msg.name} (usuario: ${msg.username})` : `${msg.name} (sin sesión)`;
+  const text = `Nuevo mensaje desde el formulario de contacto.
+
+De: ${who} <${msg.email}>
+Origen: ${msg.source || "desconocido"}
+Asunto: ${msg.subject}
+
+${msg.message}`;
+
+  const html = `
+    <h2>Nuevo mensaje de contacto</h2>
+    <p><strong>De:</strong> ${escapeHtml(who)} &lt;${escapeHtml(msg.email)}&gt;</p>
+    <p><strong>Origen:</strong> ${escapeHtml(msg.source || "desconocido")}</p>
+    <p><strong>Asunto:</strong> ${escapeHtml(msg.subject)}</p>
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border-left: 4px solid #7c5cff; margin: 20px 0; white-space: pre-wrap;">${escapeHtml(msg.message)}</div>
+    <p style="font-size: 0.8em; color: gray;">Responde a este correo para contestar directamente al remitente.</p>
+  `;
+
+  return sendMail({ to: adminEmail, subject, text, html, replyTo: msg.email });
+}
+
 module.exports = {
   sendMail,
+  notifyContactMessage,
   notifyStatusChange,
   notifyNewIssue,
   notifyNewComment,

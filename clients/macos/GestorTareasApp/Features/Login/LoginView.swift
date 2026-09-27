@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var showForgotPassword = false
     @State private var showResetPassword = false
+    @State private var showContact = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -76,6 +77,10 @@ struct LoginView: View {
             .buttonStyle(.link)
             .font(.callout)
 
+            Button("Contactar con soporte") { showContact = true }
+                .buttonStyle(.link)
+                .font(.callout)
+
             #if DEBUG
             // Solo en builds de desarrollo — en Release el servidor es fijo,
             // ver AppSettings.fallbackURLString.
@@ -93,6 +98,9 @@ struct LoginView: View {
         }
         .sheet(isPresented: $showResetPassword) {
             ResetPasswordView().environment(session).environment(settings)
+        }
+        .sheet(isPresented: $showContact) {
+            ContactView(user: nil).environment(session).environment(settings)
         }
     }
 

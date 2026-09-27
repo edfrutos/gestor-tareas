@@ -381,6 +381,7 @@ const mapsRoutes = require("./routes/maps.routes");
 const commentsRoutes = require("./routes/comments.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
 const settingsRoutes = require("./routes/settings.routes");
+const contactRoutes = require("./routes/contact.routes");
 const { router: authRoutes } = require("./routes/auth.routes");
 
 // -------------------- rate limit (API) --------------------
@@ -412,6 +413,7 @@ app.use("/v1/users", usersRoutes);
 app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1/maps", mapsRoutes);
 app.use("/v1/settings", settingsRoutes);
+app.use("/v1/contact", contactRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issuesRoutes);
 app.use("/api/photos", photosRoutes);

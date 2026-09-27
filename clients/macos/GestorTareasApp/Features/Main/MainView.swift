@@ -10,6 +10,7 @@ struct MainView: View {
     @State private var selection: Panel? = .issues
     @State private var path = NavigationPath()
     @State private var showProfile = false
+    @State private var showContact = false
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
@@ -42,6 +43,17 @@ struct MainView: View {
                 Label(panel.rawValue, systemImage: panel.systemImage)
                     .tag(panel)
             }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    showContact = true
+                } label: {
+                    Label("Contactar con soporte", systemImage: "envelope")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+            }
             .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
         } detail: {
             NavigationStack(path: $path) {
@@ -68,6 +80,11 @@ struct MainView: View {
         .onDisappear { socket.disconnect() }
         .task { openPendingDeepLink() }
         .onChange(of: router.pendingIssueID) { openPendingDeepLink() }
+        .sheet(isPresented: $showContact) {
+            ContactView(user: session.currentUser)
+                .environment(session)
+                .environment(settings)
+        }
         .sheet(isPresented: $showProfile) {
             if let user = session.currentUser {
                 ProfileView(user: user)
@@ -102,6 +119,7 @@ struct MainView: View {
             }
             Divider()
             Button("Editar perfil…") { showProfile = true }
+            Button("Contactar con soporte…") { showContact = true }
             Button("Buscar actualizaciones…") {
                 Task { await updateChecker.check() }
             }

@@ -1,13 +1,14 @@
-const CACHE_NAME = "gt-v4";
+const CACHE_NAME = "gt-v5";
 const ASSETS = [
   "/",
   "/index.html",
   "/offline.html",
-  "/ui/app.js?v=14",
+  "/ui/app.js?v=15",
   "/ui/plano.jpg",
   "/ui/modules/api.js",
   "/ui/modules/auth.js",
   "/ui/modules/config.js",
+  "/ui/modules/contact.js",
   "/ui/modules/details.v2.js",
   "/ui/modules/forms.js",
   "/ui/modules/list.v2.js",

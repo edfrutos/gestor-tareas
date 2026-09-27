@@ -11,6 +11,7 @@ import { initMapsModule, loadMaps } from "./modules/maps.js";
 import { initSocketModule } from "./modules/socket.js";
 import { initSettingsModule } from "./modules/settings.js";
 import { initNotificationsModule, showNotificationsModal } from "./modules/notifications.js";
+import { initContactModule } from "./modules/contact.js";
 
 console.log("[App] Módulos cargados correctamente.");
 
@@ -584,6 +585,7 @@ function initOfflineSupport() {
     const isAuth = await initAuth();
     initPasswordToggles();
     initRecovery(); // Siempre inicializar para detectar tokens en URL
+    initContactModule(); // Antes del corte por auth: también se usa desde el login
 
     if (!isAuth) return; // Detener carga si no está autenticado
 
