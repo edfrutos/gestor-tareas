@@ -126,7 +126,7 @@ router.post("/", requireAuth(), async (req, res, next) => {
 
     res.status(201).json(created);
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });

@@ -272,7 +272,7 @@ router.post("/:mapId/zones", requireAuth(), async (req, res, next) => {
     const newItem = await get("SELECT * FROM map_zones WHERE id = ?", [result.lastID]);
     res.status(201).json(newItem);
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -306,7 +306,7 @@ router.patch("/:mapId/zones/:id", requireAuth(), async (req, res, next) => {
     const updatedItem = await get("SELECT * FROM map_zones WHERE id = ?", [id]);
     res.json(updatedItem);
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });

@@ -73,7 +73,7 @@ router.post("/", contactLimiter, async (req, res, next) => {
 
     res.status(201).json({ ok: true, message: "Mensaje enviado. Te responderemos lo antes posible." });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });

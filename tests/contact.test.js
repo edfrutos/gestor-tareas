@@ -63,6 +63,9 @@ describe("POST /v1/contact", () => {
   test("rechaza datos inválidos", async () => {
     const res = await request(app).post("/v1/contact").send({ ...valid, email: "no-es-email", message: "corto" });
     expect(res.statusCode).toBe(400);
+    // Formato Zod que esperan los clientes: [{ path, message }, ...]
+    expect(Array.isArray(res.body.error)).toBe(true);
+    expect(res.body.error.map((x) => x.path[0])).toEqual(expect.arrayContaining(["email", "message"]));
   });
 
   test("rechaza saltos de línea en el asunto (inyección de cabeceras)", async () => {

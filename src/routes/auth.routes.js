@@ -154,7 +154,7 @@ router.post("/login", async (req, res, next) => {
       }
     });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -185,7 +185,7 @@ router.post("/register", async (req, res, next) => {
 
     res.status(201).json({ id: result.lastID, username, email, role });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -215,7 +215,7 @@ router.post("/forgot-password", async (req, res, next) => {
 
     res.json({ ok: true, message: "Si el email existe, recibirás instrucciones pronto." });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -240,7 +240,7 @@ router.post("/reset-password", async (req, res, next) => {
 
     res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -358,7 +358,7 @@ router.patch("/me", requireAuth(), async (req, res, next) => {
 
     res.json({ ok: true });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -380,7 +380,7 @@ router.patch("/me/password", requireAuth(), async (req, res, next) => {
 
     res.json({ ok: true });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
@@ -437,7 +437,7 @@ router.delete("/me", requireAuth(), async (req, res, next) => {
 
     res.json({ ok: true });
   } catch (e) {
-    if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
+    if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
   }
 });
