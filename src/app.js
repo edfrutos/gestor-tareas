@@ -392,7 +392,7 @@ app.get("/v1/config", (req, res) => {
   // IMPORTANTE: NO devolver API_KEY (secreto). Si necesitas exponer un identificador
   // público para el cliente (no autenticación), usa PUBLIC_API_IDENTIFIER.
   const publicApiIdentifier = process.env.PUBLIC_API_IDENTIFIER || null;
-  const csrfEnabled = process.env.CSRF_ENABLED === "1";
+  const csrfEnabled = CSRF_ENABLED;
   res.json({ publicApiIdentifier, csrfEnabled });
 });
 
@@ -445,17 +445,7 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-// Error handler global
-app.use((err, req, res, _next) => {
-  console.error("[Global Error]", err);
-  const status = Number(err.status) || 500;
-  res.status(status).json({
-    error: {
-      message: err.message || "Internal Server Error",
-      code: err.code || "internal_error",
-      data: err.data || null,
-    },
-  });
-});
+// Error handler global (ver src/middleware/errorHandler.js)
+app.use(require("./middleware/errorHandler"));
 
 module.exports = app;
