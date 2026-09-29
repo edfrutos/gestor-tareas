@@ -36,12 +36,12 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^10.0.12",
     "pino": "^9.3.2",
     "pino-http": "^10.3.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.5",
     "socket.io": "^4.8.3",
-    "sqlite3": "^5.1.7",
+    "sqlite3": "^6.0.1",
     "zod": "^4.3.6"
   },
   "overrides": {
@@ -52,7 +52,8 @@
     "picomatch": "^4.0.4",
     "path-to-regexp": "^0.1.13",
     "socket.io-parser": "^4.2.6",
-    "brace-expansion": "^2.0.3"
+    "brace-expansion": "^2.0.3",
+    "qs": "^6.15.4"
   },
   "devDependencies": {
     "@eslint/css": "^0.14.1",
