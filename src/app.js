@@ -49,6 +49,8 @@ function _getSafeRedirectHost(req) {
   return null;
 }
 
+const { SERVABLE_UPLOAD_EXTS } = require("./config/uploadTypes");
+
 const allowHttpImages =
   process.env.ALLOW_HTTP_IMAGES === "true" || process.env.ALLOW_HTTP_IMAGES === "1";
 
@@ -65,6 +67,22 @@ app.use(
     etag: true,
     maxAge: IS_PROD ? "7d" : 0,
     setHeaders(res, filePath) {
+      // Este estático va antes de helmet, así que las cabeceras de seguridad
+      // se ponen aquí. Contenido subido por usuarios: nunca debe poder
+      // ejecutar nada en nuestro origen.
+      const ext = path.extname(filePath).toLowerCase();
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      if (!SERVABLE_UPLOAD_EXTS.has(ext)) {
+        // Ficheros antiguos con extensión no permitida (.html, .svg, .bin...)
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", "attachment");
+      }
+      // Sin `sandbox` en PDFs: Chrome no los muestra en un documento sandbox
+      // (la web los incrusta en un iframe). El visor de PDF ya aísla su JS.
+      if (ext !== ".pdf") {
+        res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+      }
+
       // Tipos
       if (filePath.endsWith(".webp")) {
         res.setHeader("Content-Type", "image/webp");

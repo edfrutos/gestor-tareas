@@ -59,6 +59,24 @@ describe("Auth & RBAC Integration Tests", () => {
     user2Id = resUser2.body.id;
   });
 
+  test("GET /v1/auth/me/apikey ya no existe", async () => {
+    process.env.API_KEY = "test-server-api-key";
+    try {
+      const login = await request(app)
+        .post("/v1/auth/login")
+        .send({ username: "user1", password: "password123" });
+      expect(login.statusCode).toBe(200);
+
+      const res = await request(app)
+        .get("/v1/auth/me/apikey")
+        .set("Authorization", `Bearer ${login.body.token}`);
+      expect(res.statusCode).toBe(404);
+      expect(JSON.stringify(res.body)).not.toContain("test-server-api-key");
+    } finally {
+      delete process.env.API_KEY;
+    }
+  });
+
   test("Public register can never self-promote to admin", async () => {
     const res = await request(app)
       .post("/v1/auth/register")

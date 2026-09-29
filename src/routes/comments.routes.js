@@ -12,11 +12,29 @@ const createCommentSchema = z.object({
   parent_id: z.number().optional().nullable(),
 });
 
+/**
+ * Mismo criterio de visibilidad que `GET /v1/issues/:id`: admin, creador o
+ * asignado. Responde 404/403 y devuelve `false` si no puede verla.
+ */
+async function ensureIssueVisible(req, res, issueId) {
+  const issue = await get("SELECT created_by, assigned_to FROM issues WHERE id = ?", [issueId]);
+  if (!issue) {
+    res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+    return false;
+  }
+  if (req.user.role !== "admin" && issue.created_by !== req.user.id && issue.assigned_to !== req.user.id) {
+    res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para ver esta tarea" } });
+    return false;
+  }
+  return true;
+}
+
 // GET /v1/issues/:id/comments - Listar comentarios (estructurados en árbol)
-router.get("/", async (req, res, next) => {
+router.get("/", requireAuth(), async (req, res, next) => {
   try {
     const issueId = Number(req.params.id);
     if (!issueId) return res.status(400).json({ error: "ID de tarea inválido" });
+    if (!(await ensureIssueVisible(req, res, issueId))) return;
 
     const comments = await all(
       `SELECT c.*, u.username 
@@ -60,6 +78,7 @@ router.post("/", requireAuth(), async (req, res, next) => {
     const userId = req.user.id;
 
     if (!issueId) return res.status(400).json({ error: "ID de tarea inválido" });
+    if (!(await ensureIssueVisible(req, res, issueId))) return;
 
     // Verificar que el padre existe y pertenece a la misma issue si se proporciona
     if (parent_id) {

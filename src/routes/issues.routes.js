@@ -9,6 +9,7 @@ const sharp = require("sharp");
 const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
+const { IMAGE_TYPES, DOC_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { createIssueSchema, updateIssueSchema, getIssuesSchema } = require("../schemas/issue.schema");
 const { notifyStatusChange, notifyNewIssue, notifyTaskAssignment } = require("../services/mail.service");
 const { emitToUsers } = require("../services/socket.service");
@@ -41,7 +42,7 @@ ensureDir(thumbsDir);
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".bin";
+    const ext = pickUploadExtension(file, typesForField(file.fieldname));
     const id = crypto.randomBytes(6).toString("hex");
     let prefix = "doc";
     if (file.fieldname === "photo" || file.fieldname === "resolution_photo") prefix = "photo";
@@ -49,28 +50,21 @@ const storage = multer.diskStorage({
   },
 });
 
+function typesForField(fieldname) {
+  if (fieldname === "photo" || fieldname === "resolution_photo") return IMAGE_TYPES;
+  if (fieldname === "file" || fieldname === "resolution_doc") return DOC_TYPES;
+  return {};
+}
+
 const upload = multer({
   storage,
   limits: {
     fileSize: Number(process.env.MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
   },
   fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    
-    // Filtros por campo
-    if (file.fieldname === "photo" || file.fieldname === "resolution_photo") {
-      const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-      if (allowedExts.includes(ext)) return cb(null, true);
-      const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-      if (allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
+    if (pickUploadExtension(file, typesForField(file.fieldname))) return cb(null, true);
 
-    } else if (file.fieldname === "file" || file.fieldname === "resolution_doc") {
-      const allowedExts = [".pdf", ".txt", ".md", ".markdown"];
-      if (allowedExts.includes(ext)) return cb(null, true);
-      const allowedMimeTypes = ["application/pdf", "text/plain", "text/markdown"];
-      if (allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
-    }
-
+    const ext = path.extname(file.originalname || "").toLowerCase();
     const err = new Error(`Tipo de archivo no permitido en campo ${file.fieldname}: ${ext || file.mimetype}`);
     err.status = 400;
     return cb(err, false);

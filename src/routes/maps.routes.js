@@ -9,6 +9,7 @@ const { z } = require("zod");
 const { run, all, get } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
+const { MAP_IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ const thumbsDir = getThumbsDir();
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    const ext = pickUploadExtension(file, MAP_IMAGE_TYPES);
     const id = crypto.randomBytes(6).toString("hex");
     cb(null, `map_${Date.now()}_${id}${ext}`);
   },
@@ -29,8 +30,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
-    if (allowedMimes.includes(file.mimetype)) cb(null, true);
+    if (pickUploadExtension(file, MAP_IMAGE_TYPES)) cb(null, true);
     else cb(new Error("Solo se permiten imágenes (JPG, PNG, WEBP)"), false);
   },
 });
