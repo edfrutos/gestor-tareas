@@ -1,11 +1,10 @@
 "use strict";
 
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Server } = require("socket.io");
 const { logger } = require("../middleware/logger");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
+const { resolveSessionUser } = require("./session.service");
 
 let io = null;
 let boundServer = null;
@@ -21,16 +20,21 @@ let boundServer = null;
  * conectara al socket sin ninguna comprobación — cualquiera que supiera la
  * URL veía en vivo títulos/descripciones/asignaciones de todas las tareas.
  */
-function authenticateSocket(socket, next) {
+async function authenticateSocket(socket, next) {
   const token = socket.handshake.auth?.token || socket.handshake.query?.token;
 
   if (token) {
     try {
-      socket.user = jwt.verify(token, JWT_SECRET);
-      return next();
-    } catch (_err) {
-      // token inválido como JWT: seguimos probando como API key
+      const user = await resolveSessionUser(token);
+      if (user) {
+        socket.user = user;
+        return next();
+      }
+    } catch (err) {
+      logger.error({ err }, "[socket] error validando la sesión");
+      return next(new Error("unauthorized"));
     }
+    // token inválido/revocado como JWT: seguimos probando como API key
 
     const expectedKey = process.env.API_KEY;
     if (expectedKey) {

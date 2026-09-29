@@ -53,12 +53,19 @@ export async function register(username, password, email) {
   });
 }
 
+// Al cambiar la contraseña el servidor revoca las sesiones anteriores y
+// devuelve un token nuevo para esta.
+function storeReissuedToken(data) {
+  if (data?.token) localStorage.setItem(LS_TOKEN, data.token);
+  return data;
+}
+
 export async function updateProfile({ currentPassword, newPassword, email }) {
-  return await fetchJson(`${API_BASE}/auth/me`, {
+  return storeReissuedToken(await fetchJson(`${API_BASE}/auth/me`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ currentPassword, newPassword, email })
-  });
+  }));
 }
 
 /** Sube/reemplaza la foto de perfil. Devuelve `{ avatar_url, avatar_thumb_url }`. */
@@ -77,11 +84,11 @@ export async function deleteAvatar() {
 }
 
 export async function changePassword(currentPassword, newPassword) {
-  return await fetchJson(`${API_BASE}/auth/me/password`, {
+  return storeReissuedToken(await fetchJson(`${API_BASE}/auth/me/password`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ currentPassword, newPassword })
-  });
+  }));
 }
 
 /** Borra la cuenta del usuario autenticado (self-service). Requiere su contraseña actual. */

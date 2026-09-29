@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const { z } = require("zod");
 const { run, get, all } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
+const { revokeUserSessions } = require("../services/session.service");
+const { disconnectUser } = require("../services/socket.service");
 
 const router = express.Router();
 
@@ -133,6 +135,10 @@ router.patch("/:id", requireAuth(), requireAdmin, async (req, res, next) => {
     params.push(id);
     await run(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
 
+    // Nueva contraseña o cambio de rol: cerrar sus sesiones (y sockets, que
+    // se unieron a las salas con el rol anterior).
+    if (password || role) await revokeUserSessions(id);
+
     res.json({ ok: true });
   } catch (e) {
     next(e);
@@ -151,6 +157,7 @@ router.delete("/:id", requireAuth(), requireAdmin, async (req, res, next) => {
     }
 
     await run("DELETE FROM users WHERE id = ?", [id]);
+    disconnectUser(id);
     res.json({ ok: true });
   } catch (e) {
     next(e);

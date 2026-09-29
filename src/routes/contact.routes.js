@@ -1,15 +1,14 @@
 "use strict";
 
 const express = require("express");
-const jwt = require("jsonwebtoken");
 const { z } = require("zod");
-const { run, get } = require("../db/sqlite");
+const { run } = require("../db/sqlite");
 const { getConfigValue } = require("../services/config.service");
 const { notifyContactMessage } = require("../services/mail.service");
 const { makeRateLimiter } = require("../middleware/rateLimit");
+const { resolveSessionUser } = require("../services/session.service");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
 
 // Endpoint público (se usa desde el login): limitador propio y siempre
 // activo, independiente de RATE_LIMIT_ENABLED, para frenar spam.
@@ -37,12 +36,7 @@ async function optionalUser(req) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (!token) return null;
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return await get("SELECT id, username, email FROM users WHERE id = ?", [decoded.id]);
-  } catch (_e) {
-    return null;
-  }
+  return resolveSessionUser(token);
 }
 
 // POST /v1/contact

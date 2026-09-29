@@ -156,6 +156,29 @@ describe("Auth & RBAC Integration Tests", () => {
     expect(resAdmin.body.items.some(i => i.id === issue1Id)).toBe(true);
   });
 
+  test("RBAC: Issue logs visibility", async () => {
+    const resOwner = await request(app)
+      .get(`/v1/issues/${issue1Id}/logs`)
+      .set("Authorization", `Bearer ${user1Token}`);
+    expect(resOwner.statusCode).toBe(200);
+    expect(resOwner.body.length).toBeGreaterThan(0);
+
+    const resOther = await request(app)
+      .get(`/v1/issues/${issue1Id}/logs`)
+      .set("Authorization", `Bearer ${user2Token}`);
+    expect(resOther.statusCode).toBe(403);
+
+    const resAdmin = await request(app)
+      .get(`/v1/issues/${issue1Id}/logs`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(resAdmin.statusCode).toBe(200);
+
+    const resMissing = await request(app)
+      .get(`/v1/issues/999999/logs`)
+      .set("Authorization", `Bearer ${adminToken}`);
+    expect(resMissing.statusCode).toBe(404);
+  });
+
   test("RBAC: Issues modification", async () => {
     // User 2 intenta editar la issue de User 1 -> 403
     const resUser2Edit = await request(app)

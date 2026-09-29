@@ -20,7 +20,9 @@ export function initSocketModule() {
     socket.disconnect();
   }
 
-  socket = io({ auth: { token: getToken() } });
+  // Función (no objeto) para que cada reconexión use el token vigente, p. ej.
+  // el nuevo tras cambiar la contraseña.
+  socket = io({ auth: (cb) => cb({ token: getToken() }) });
 
   let debounceTimer = null;
   const DEBOUNCE_MS = 200;
@@ -56,8 +58,12 @@ export function initSocketModule() {
     debouncedRefreshAll();
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
     console.log("[Socket] Disconnected from server");
+    // El servidor cierra los sockets de un usuario al revocar sus sesiones.
+    // Socket.io no reconecta solo en ese caso: reintentamos con el token
+    // actual (si también está revocado, el handshake lo rechazará).
+    if (reason === "io server disconnect" && getToken()) socket.connect();
   });
 }
 

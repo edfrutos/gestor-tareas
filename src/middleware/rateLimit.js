@@ -22,6 +22,12 @@ function makeRateLimiter({
   keyPrefix = "rl",
   skip = () => false,
   onLimit = null,
+  // Solo cuentan las respuestas con error (>= 400): útil contra fuerza bruta
+  // sin penalizar el uso normal.
+  skipSuccessfulRequests = false,
+  // false: un único contador por IP aunque el router esté montado en varias
+  // rutas base (p. ej. /v1/auth y /api/auth).
+  groupByBasePath = true,
 } = {}) {
   const buckets = new Map(); // key => { resetAt, count }
 
@@ -50,11 +56,22 @@ function makeRateLimiter({
       const base =
         req.baseUrl || (originalUrl.startsWith("/v1") ? "/v1" : originalUrl.startsWith("/api") ? "/api" : "");
 
-      const key = `${keyPrefix}:${ip}:${base}`;
+      const key = groupByBasePath ? `${keyPrefix}:${ip}:${base}` : `${keyPrefix}:${ip}`;
+
+      const refundIfSuccessful = (bucket) => {
+        if (!skipSuccessfulRequests) return;
+        res.on("finish", () => {
+          if (res.statusCode < 400 && buckets.get(key) === bucket) {
+            bucket.count = Math.max(0, bucket.count - 1);
+          }
+        });
+      };
 
       const b = buckets.get(key);
       if (!b || b.resetAt <= now) {
-        buckets.set(key, { resetAt: now + windowMs, count: 1 });
+        const fresh = { resetAt: now + windowMs, count: 1 };
+        buckets.set(key, fresh);
+        refundIfSuccessful(fresh);
         res.setHeader("X-RateLimit-Limit", String(max));
         res.setHeader("X-RateLimit-Remaining", String(max - 1));
         res.setHeader("X-RateLimit-Reset", String(Math.floor((now + windowMs) / 1000)));
@@ -62,6 +79,7 @@ function makeRateLimiter({
       }
 
       b.count += 1;
+      refundIfSuccessful(b);
 
       const remaining = Math.max(0, max - b.count);
       res.setHeader("X-RateLimit-Limit", String(max));

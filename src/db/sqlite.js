@@ -270,6 +270,8 @@ async function migrate() {
     if (!userCols.has("email")) await exec(`ALTER TABLE users ADD COLUMN email TEXT;`);
     if (!userCols.has("avatar_url")) await exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT;`);
     if (!userCols.has("avatar_thumb_url")) await exec(`ALTER TABLE users ADD COLUMN avatar_thumb_url TEXT;`);
+    // Versión de sesión: subirla revoca todos los JWT del usuario (session.service.js)
+    if (!userCols.has("token_version")) await exec(`ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0;`);
 
     const commentCols = await checkColumns("issue_comments");
     if (!commentCols.has("parent_id")) {

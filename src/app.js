@@ -12,7 +12,6 @@ const morgan = require("morgan");
 const IS_PROD = process.env.NODE_ENV === "production";
 
 // Hardening toggles (NO activados por defecto)
-const _TRUST_PROXY = process.env.TRUST_PROXY ?? "1";      // detrás de Caddy/NGINX (local OK)
 const _FORCE_HTTPS = process.env.FORCE_HTTPS === "true" || process.env.FORCE_HTTPS === "1";     // solo en prod cuando lo decidas
 const HSTS_ENABLED = process.env.HSTS_ENABLED === "true" || process.env.HSTS_ENABLED === "1";   // solo en prod cuando lo decidas
 
@@ -56,6 +55,11 @@ const allowHttpImages =
 
 
 const app = express();
+
+// IP real del cliente detrás de Plesk/nginx/Caddy (rate limiting, logs).
+// Ver src/config/trustProxy.js.
+const { parseTrustProxy } = require("./config/trustProxy");
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
 
 // -------------------- static: uploads (MUST be first) --------------------
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, "..", "uploads");

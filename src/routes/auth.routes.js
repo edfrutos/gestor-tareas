@@ -1,6 +1,5 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
@@ -13,9 +12,32 @@ const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { disconnectUser } = require("../services/socket.service");
+const { issueToken, revokeUserSessions, reissueToken } = require("../services/session.service");
+const { makeRateLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
+
+// Limitadores propios y siempre activos (independientes de RATE_LIMIT_ENABLED).
+// Un único contador por IP aunque el router se monte en /v1/auth y /api/auth.
+//
+// Login, registro y reset: solo cuentan los intentos fallidos, así el uso
+// normal no se ve afectado.
+const authFailureLimiter = makeRateLimiter({
+  windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  keyPrefix: "auth-fail",
+  skipSuccessfulRequests: true,
+  groupByBasePath: false,
+});
+
+// forgot-password responde siempre 200 (no revela si el email existe), así
+// que aquí cuentan todas las peticiones.
+const forgotPasswordLimiter = makeRateLimiter({
+  windowMs: Number(process.env.FORGOT_RATE_LIMIT_WINDOW_MS || 60 * 60 * 1000),
+  max: Number(process.env.FORGOT_RATE_LIMIT_MAX || 5),
+  keyPrefix: "auth-forgot",
+  groupByBasePath: false,
+});
 
 // Subida de avatar: mismo patrón (multer + sharp + /uploads) que
 // issues.routes.js usa para las fotos de tareas.
@@ -116,7 +138,7 @@ const deleteAccountSchema = z.object({
 });
 
 // POST /v1/auth/login
-router.post("/login", async (req, res, next) => {
+router.post("/login", authFailureLimiter, async (req, res, next) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
 
@@ -135,11 +157,7 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "24h" }
-    );
+    const token = issueToken(user);
 
     res.json({
       token,
@@ -160,7 +178,7 @@ router.post("/login", async (req, res, next) => {
 
 // POST /v1/auth/register — alta pública de cuenta (web + macOS). Siempre
 // role="user"; ver nota de seguridad en registerSchema.
-router.post("/register", async (req, res, next) => {
+router.post("/register", authFailureLimiter, async (req, res, next) => {
   try {
     const { username, email, password } = registerSchema.parse(req.body);
     const role = "user";
@@ -190,7 +208,7 @@ router.post("/register", async (req, res, next) => {
 });
 
 // POST /v1/auth/forgot-password
-router.post("/forgot-password", async (req, res, next) => {
+router.post("/forgot-password", forgotPasswordLimiter, async (req, res, next) => {
   try {
     const { email } = forgotPasswordSchema.parse(req.body);
     const user = await get("SELECT id, username, email FROM users WHERE email = ?", [email]);
@@ -220,7 +238,7 @@ router.post("/forgot-password", async (req, res, next) => {
 });
 
 // POST /v1/auth/reset-password
-router.post("/reset-password", async (req, res, next) => {
+router.post("/reset-password", authFailureLimiter, async (req, res, next) => {
   try {
     const { token, password } = resetPasswordSchema.parse(req.body);
     
@@ -236,6 +254,8 @@ router.post("/reset-password", async (req, res, next) => {
     const hash = await bcrypt.hash(password, 10);
     await run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, resetReq.user_id]);
     await run("UPDATE password_resets SET used = 1 WHERE id = ?", [resetReq.id]);
+    // Quien restablece la contraseña cierra también las sesiones abiertas.
+    await revokeUserSessions(resetReq.user_id);
 
     res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   } catch (e) {
@@ -339,6 +359,13 @@ router.patch("/me", requireAuth(), async (req, res, next) => {
     params.push(userId);
     await run(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
 
+    // Cambio de contraseña: se cierran las demás sesiones y se entrega un
+    // token nuevo para que esta siga funcionando.
+    if (updates.includes("password_hash = ?")) {
+      await revokeUserSessions(userId);
+      return res.json({ ok: true, token: await reissueToken(userId) });
+    }
+
     res.json({ ok: true });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
@@ -360,8 +387,9 @@ router.patch("/me/password", requireAuth(), async (req, res, next) => {
 
     const newHash = await bcrypt.hash(newPassword, 10);
     await run("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, userId]);
+    await revokeUserSessions(userId);
 
-    res.json({ ok: true });
+    res.json({ ok: true, token: await reissueToken(userId) });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
