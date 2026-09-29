@@ -5,14 +5,15 @@ const { Server } = require("socket.io");
 const { logger } = require("../middleware/logger");
 
 const { resolveSessionUser } = require("./session.service");
+const { devAuthBypassEnabled, DEV_USER, warnDevAuthBypass } = require("../config/devAuth");
 
 let io = null;
 let boundServer = null;
 
 /**
  * Autenticación del handshake — mismo criterio que `requireAuth()` (REST):
- * JWT válido, o API_KEY, o bypass en dev sin API_KEY configurada (nunca en
- * test/production). El token puede llegar como `auth.token` (clientes
+ * JWT válido, o API_KEY, o bypass de desarrollo si se activa explícitamente
+ * (config/devAuth.js). El token puede llegar como `auth.token` (clientes
  * modernos, incluida la web) o `query.token` (fallback, por si el cliente
  * Swift/macOS solo puede mandar query params en el handshake).
  *
@@ -49,8 +50,9 @@ async function authenticateSocket(socket, next) {
     }
   }
 
-  if (!process.env.API_KEY && process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
-    socket.user = { id: 1, username: "dev-anonymous", role: "admin" };
+  if (devAuthBypassEnabled()) {
+    warnDevAuthBypass(logger);
+    socket.user = { ...DEV_USER };
     return next();
   }
 

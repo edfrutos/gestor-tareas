@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { resolveSessionUser } = require("../services/session.service");
+const { devAuthBypassEnabled, DEV_USER, warnDevAuthBypass } = require("../config/devAuth");
 
 function forbidden(res) {
   return res.status(403).json({
@@ -43,9 +44,10 @@ function requireAuth(options = {}) {
         }
       }
 
-      // 3. Si estamos en DEV sin clave configurada, dejamos pasar (no en test: los tests deben verificar auth real)
-      if (!expectedKey && process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
-        req.user = { id: 1, username: "dev-anonymous", role: "admin" };
+      // 3. Bypass de desarrollo, solo si se activa explícitamente (ver config/devAuth.js)
+      if (devAuthBypassEnabled()) {
+        warnDevAuthBypass();
+        req.user = { ...DEV_USER };
         req.authMethod = "dev";
         if (requiredRole && req.user.role !== requiredRole) return forbidden(res);
         return next();
