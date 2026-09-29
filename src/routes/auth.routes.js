@@ -11,6 +11,7 @@ const { z } = require("zod");
 const requireAuth = require("../middleware/auth.middleware");
 const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
+const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { disconnectUser } = require("../services/socket.service");
 
 const router = express.Router();
@@ -26,7 +27,7 @@ fs.mkdirSync(thumbsDir, { recursive: true });
 const avatarStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
+    const ext = pickUploadExtension(file, IMAGE_TYPES);
     const id = crypto.randomBytes(6).toString("hex");
     cb(null, `avatar_${Date.now()}_${id}${ext}`);
   },
@@ -36,10 +37,8 @@ const uploadAvatar = multer({
   storage: avatarStorage,
   limits: { fileSize: Number(process.env.MAX_UPLOAD_BYTES || 8 * 1024 * 1024) },
   fileFilter: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (allowedExts.includes(ext) || allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
+    if (pickUploadExtension(file, IMAGE_TYPES)) return cb(null, true);
+    const ext = path.extname(file.originalname || "").toLowerCase();
     const err = new Error(`Tipo de archivo no permitido para avatar: ${ext || file.mimetype}`);
     err.status = 400;
     cb(err, false);

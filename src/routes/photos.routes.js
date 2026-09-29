@@ -1,12 +1,12 @@
 // src/routes/photos.routes.js
 const express = require("express");
-const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const multer = require("multer");
 
 const requireAuth = require("../middleware/auth.middleware");
 const { getUploadDir } = require("../config/paths");
+const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ ensureDir(uploadDir);
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".bin";
+    const ext = pickUploadExtension(file, IMAGE_TYPES);
     const id = crypto.randomBytes(6).toString("hex");
     cb(null, `photo_${Date.now()}_${id}${ext}`);
   },
@@ -32,11 +32,7 @@ const upload = multer({
     fileSize: Number(process.env.MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
   },
   fileFilter: (_req, file, cb) => {
-    const ok =
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/webp" ||
-      file.mimetype === "image/gif";
+    const ok = !!pickUploadExtension(file, IMAGE_TYPES);
     cb(ok ? null : new Error("unsupported_file_type"), ok);
   },
 });
