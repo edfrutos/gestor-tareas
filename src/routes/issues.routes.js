@@ -291,6 +291,12 @@ router.get("/:id/logs", requireAuth(), async (req, res, next) => {
     if (!id || !Number.isInteger(id)) {
       return res.status(400).json({ error: { code: "bad_request", message: "ID inválido" } });
     }
+    const issue = await get(`SELECT created_by, assigned_to FROM issues WHERE id = ?`, [id]);
+    if (!issue) return res.status(404).json({ error: { code: "not_found", message: "Tarea no encontrada" } });
+    if (req.user.role !== "admin" && issue.created_by !== req.user.id && issue.assigned_to !== req.user.id) {
+      return res.status(403).json({ error: { code: "forbidden", message: "No tienes permiso para ver esta tarea" } });
+    }
+
     const logs = await all(
       `SELECT * FROM issue_logs WHERE issue_id = ? ORDER BY datetime(created_at) DESC`,
       [id]
