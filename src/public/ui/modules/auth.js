@@ -8,6 +8,10 @@ export function getToken() {
   return localStorage.getItem(LS_TOKEN);
 }
 
+// Limpieza de la API key que guardaban versiones anteriores del cliente: con
+// sesión JWT no hace falta.
+if (getToken()) localStorage.removeItem(LS_API_KEY);
+
 export function getUser() {
   const u = localStorage.getItem(LS_USER);
   try { return u ? JSON.parse(u) : null; } catch { return null; }
@@ -32,17 +36,9 @@ export async function login(username, password) {
     localStorage.setItem(LS_TOKEN, data.token);
     localStorage.setItem(LS_USER, JSON.stringify(data.user || {}));
 
-    // Tras login: obtener API_KEY del servidor (desde .env) si no hay en localStorage
-    try {
-      const apiRes = await fetch(`${API_BASE}/auth/me/apikey`, {
-        headers: { "Authorization": `Bearer ${data.token}`, "Accept": "application/json" },
-        credentials: "include"
-      });
-      if (apiRes.ok) {
-        const { apiKey } = await apiRes.json().catch(() => ({}));
-        if (apiKey) localStorage.setItem(LS_API_KEY, apiKey);
-      }
-    } catch (_e) { /* ignorar si falla */ }
+    // Con sesión iniciada basta el JWT; se descarta la API key que pudiera
+    // quedar de versiones anteriores del cliente.
+    localStorage.removeItem(LS_API_KEY);
 
     return data.user;
   }

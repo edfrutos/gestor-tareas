@@ -52,7 +52,6 @@ GET /v1/config → 200 { "publicApiIdentifier": string|null, "csrfEnabled": bool
 | GET | `/v1/auth/me` | Bearer | — | `200 { id, username, email, role, avatar_url, avatar_thumb_url }` |
 | PATCH | `/v1/auth/me` | Bearer | `{ email?, password?, currentPassword? }` (`currentPassword` solo obligatorio si se cambia `password`) | `200 { user }` · `404` si la cuenta ya no existe → la app debe cerrar sesión |
 | PATCH | `/v1/auth/me/password` | Bearer | `{ currentPassword, newPassword }` | `200` · `400/401` |
-| GET | `/v1/auth/me/apikey` | Bearer | — | `200 { apiKey }` (uso avanzado; no necesario en la app) |
 | POST | `/v1/auth/me/avatar` | Bearer | `multipart/form-data`, campo `avatar` (imagen, mismos límites/tipos que las fotos de tareas: jpg/png/webp/gif, `MAX_UPLOAD_BYTES`) | `200 { avatar_url, avatar_thumb_url }` · `400` tipo/tamaño inválido. Reemplaza y borra el avatar anterior si había. |
 | DELETE | `/v1/auth/me/avatar` | Bearer | — | `200 { ok: true }`. Pone `avatar_url`/`avatar_thumb_url` a `null` y borra los ficheros. |
 | DELETE | `/v1/auth/me` | Bearer | `{ password }` | `200 { ok: true }` · `400/403`. Borrado de cuenta self-service (Apple Guideline 5.1.1(v)); reasigna planos/zonas propios a otro admin antes de borrar. |
