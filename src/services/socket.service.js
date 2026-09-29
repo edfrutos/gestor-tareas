@@ -6,6 +6,7 @@ const { logger } = require("../middleware/logger");
 
 const { resolveSessionUser } = require("./session.service");
 const { devAuthBypassEnabled, DEV_USER, warnDevAuthBypass } = require("../config/devAuth");
+const { makeOriginChecker } = require("../config/cors");
 
 let io = null;
 let boundServer = null;
@@ -76,9 +77,11 @@ function initSocket(httpServer) {
   }
 
   io = new Server(httpServer, {
+    // Misma regla de orígenes que la API REST (config/cors.js)
     cors: {
-      origin: "*", // En producción se podría restringir más
-      methods: ["GET", "POST"]
+      origin: makeOriginChecker(),
+      methods: ["GET", "POST"],
+      credentials: true,
     }
   });
 
