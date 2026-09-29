@@ -13,8 +13,31 @@ const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { disconnectUser } = require("../services/socket.service");
 const { issueToken, revokeUserSessions, reissueToken } = require("../services/session.service");
+const { makeRateLimiter } = require("../middleware/rateLimit");
 
 const router = express.Router();
+
+// Limitadores propios y siempre activos (independientes de RATE_LIMIT_ENABLED).
+// Un único contador por IP aunque el router se monte en /v1/auth y /api/auth.
+//
+// Login, registro y reset: solo cuentan los intentos fallidos, así el uso
+// normal no se ve afectado.
+const authFailureLimiter = makeRateLimiter({
+  windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000),
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX || 10),
+  keyPrefix: "auth-fail",
+  skipSuccessfulRequests: true,
+  groupByBasePath: false,
+});
+
+// forgot-password responde siempre 200 (no revela si el email existe), así
+// que aquí cuentan todas las peticiones.
+const forgotPasswordLimiter = makeRateLimiter({
+  windowMs: Number(process.env.FORGOT_RATE_LIMIT_WINDOW_MS || 60 * 60 * 1000),
+  max: Number(process.env.FORGOT_RATE_LIMIT_MAX || 5),
+  keyPrefix: "auth-forgot",
+  groupByBasePath: false,
+});
 
 // Subida de avatar: mismo patrón (multer + sharp + /uploads) que
 // issues.routes.js usa para las fotos de tareas.
@@ -115,7 +138,7 @@ const deleteAccountSchema = z.object({
 });
 
 // POST /v1/auth/login
-router.post("/login", async (req, res, next) => {
+router.post("/login", authFailureLimiter, async (req, res, next) => {
   try {
     const { username, password } = loginSchema.parse(req.body);
 
@@ -155,7 +178,7 @@ router.post("/login", async (req, res, next) => {
 
 // POST /v1/auth/register — alta pública de cuenta (web + macOS). Siempre
 // role="user"; ver nota de seguridad en registerSchema.
-router.post("/register", async (req, res, next) => {
+router.post("/register", authFailureLimiter, async (req, res, next) => {
   try {
     const { username, email, password } = registerSchema.parse(req.body);
     const role = "user";
@@ -185,7 +208,7 @@ router.post("/register", async (req, res, next) => {
 });
 
 // POST /v1/auth/forgot-password
-router.post("/forgot-password", async (req, res, next) => {
+router.post("/forgot-password", forgotPasswordLimiter, async (req, res, next) => {
   try {
     const { email } = forgotPasswordSchema.parse(req.body);
     const user = await get("SELECT id, username, email FROM users WHERE email = ?", [email]);
@@ -215,7 +238,7 @@ router.post("/forgot-password", async (req, res, next) => {
 });
 
 // POST /v1/auth/reset-password
-router.post("/reset-password", async (req, res, next) => {
+router.post("/reset-password", authFailureLimiter, async (req, res, next) => {
   try {
     const { token, password } = resetPasswordSchema.parse(req.body);
     
