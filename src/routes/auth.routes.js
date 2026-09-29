@@ -12,7 +12,7 @@ const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { disconnectUser } = require("../services/socket.service");
-const { signToken } = require("../config/secrets");
+const { issueToken, revokeUserSessions, reissueToken } = require("../services/session.service");
 
 const router = express.Router();
 
@@ -134,10 +134,7 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
     }
 
-    const token = signToken(
-      { id: user.id, username: user.username, email: user.email, role: user.role },
-      { expiresIn: "24h" }
-    );
+    const token = issueToken(user);
 
     res.json({
       token,
@@ -234,6 +231,8 @@ router.post("/reset-password", async (req, res, next) => {
     const hash = await bcrypt.hash(password, 10);
     await run("UPDATE users SET password_hash = ? WHERE id = ?", [hash, resetReq.user_id]);
     await run("UPDATE password_resets SET used = 1 WHERE id = ?", [resetReq.id]);
+    // Quien restablece la contraseña cierra también las sesiones abiertas.
+    await revokeUserSessions(resetReq.user_id);
 
     res.json({ ok: true, message: "Contraseña actualizada correctamente" });
   } catch (e) {
@@ -337,6 +336,13 @@ router.patch("/me", requireAuth(), async (req, res, next) => {
     params.push(userId);
     await run(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`, params);
 
+    // Cambio de contraseña: se cierran las demás sesiones y se entrega un
+    // token nuevo para que esta siga funcionando.
+    if (updates.includes("password_hash = ?")) {
+      await revokeUserSessions(userId);
+      return res.json({ ok: true, token: await reissueToken(userId) });
+    }
+
     res.json({ ok: true });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
@@ -358,8 +364,9 @@ router.patch("/me/password", requireAuth(), async (req, res, next) => {
 
     const newHash = await bcrypt.hash(newPassword, 10);
     await run("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, userId]);
+    await revokeUserSessions(userId);
 
-    res.json({ ok: true });
+    res.json({ ok: true, token: await reissueToken(userId) });
   } catch (e) {
     if (e instanceof z.ZodError) return res.status(400).json({ error: e.issues });
     next(e);
