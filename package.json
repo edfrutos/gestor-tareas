@@ -52,7 +52,8 @@
     "picomatch": "^4.0.4",
     "path-to-regexp": "^0.1.13",
     "socket.io-parser": "^4.2.6",
-    "brace-expansion": "^2.0.3"
+    "brace-expansion": "^2.0.3",
+    "qs": "^6.15.4"
   },
   "devDependencies": {
     "@eslint/css": "^0.14.1",
