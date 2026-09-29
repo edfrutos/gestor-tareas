@@ -1,6 +1,5 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
@@ -13,9 +12,9 @@ const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
 const { IMAGE_TYPES, pickUploadExtension } = require("../config/uploadTypes");
 const { disconnectUser } = require("../services/socket.service");
+const { signToken } = require("../config/secrets");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
 
 // Subida de avatar: mismo patrón (multer + sharp + /uploads) que
 // issues.routes.js usa para las fotos de tareas.
@@ -135,9 +134,8 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
     }
 
-    const token = jwt.sign(
+    const token = signToken(
       { id: user.id, username: user.username, email: user.email, role: user.role },
-      JWT_SECRET,
       { expiresIn: "24h" }
     );
 

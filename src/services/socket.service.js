@@ -1,11 +1,10 @@
 "use strict";
 
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Server } = require("socket.io");
 const { logger } = require("../middleware/logger");
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
+const { verifyToken } = require("../config/secrets");
 
 let io = null;
 let boundServer = null;
@@ -26,7 +25,7 @@ function authenticateSocket(socket, next) {
 
   if (token) {
     try {
-      socket.user = jwt.verify(token, JWT_SECRET);
+      socket.user = verifyToken(token);
       return next();
     } catch (_err) {
       // token inválido como JWT: seguimos probando como API key

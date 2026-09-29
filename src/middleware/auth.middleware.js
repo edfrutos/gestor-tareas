@@ -1,7 +1,5 @@
 const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-key-12345";
+const { verifyToken } = require("../config/secrets");
 
 function requireAuth(options = {}) {
   const requiredRole = typeof options === "string" ? options : options?.role;
@@ -13,7 +11,7 @@ function requireAuth(options = {}) {
     // 1. Intentar JWT
     if (token) {
       try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = verifyToken(token);
         req.user = decoded; // { id, username, role }
         req.authMethod = "jwt";
         if (requiredRole && req.user.role !== requiredRole) {
