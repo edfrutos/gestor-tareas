@@ -113,6 +113,12 @@ const registerSchema = z.object({
   password: z.string().min(6),
 });
 
+// Los tokens de reset solo se guardan como hash: con una copia de la BD no
+// se pueden usar. El token en claro solo viaja en el enlace del correo.
+function hashResetToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });
@@ -225,7 +231,7 @@ router.post("/forgot-password", forgotPasswordLimiter, async (req, res, next) =>
     await run("DELETE FROM password_resets WHERE user_id = ?", [user.id]);
     await run(
       "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-      [user.id, token, expiresAt]
+      [user.id, hashResetToken(token), expiresAt]
     );
 
     await notifyPasswordReset(user, token);
@@ -244,7 +250,7 @@ router.post("/reset-password", authFailureLimiter, async (req, res, next) => {
     
     const resetReq = await get(
       "SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > ?",
-      [token, new Date().toISOString()]
+      [hashResetToken(token), new Date().toISOString()]
     );
 
     if (!resetReq) {

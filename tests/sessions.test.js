@@ -17,6 +17,13 @@ process.env.UPLOAD_DIR = path.join(TEST_DIR, "uploads");
 process.env.JWT_SECRET = "test-jwt-secret";
 process.env.PINO_LOG_LEVEL = "silent";
 
+// El token de reset solo viaja en claro en el correo: lo capturamos ahí.
+jest.mock("../src/services/mail.service", () => ({
+  ...jest.requireActual("../src/services/mail.service"),
+  notifyPasswordReset: jest.fn(async () => {}),
+}));
+const { notifyPasswordReset } = require("../src/services/mail.service");
+
 const app = require("../src/app");
 const { migrate, closeDb, run, get } = require("../src/db/sqlite");
 const { initSocket } = require("../src/services/socket.service");
@@ -90,7 +97,15 @@ describe("Revocación de sesiones", () => {
   test("restablecer la contraseña revoca las sesiones abiertas", async () => {
     const { id, token } = await createUser("s_reset");
     await request(app).post("/v1/auth/forgot-password").send({ email: "s_reset@test.com" }).expect(200);
-    const { token: resetToken } = await get("SELECT token FROM password_resets WHERE user_id = ?", [id]);
+    const resetToken = notifyPasswordReset.mock.calls.at(-1)[1];
+
+    // En la BD solo está el hash: el valor guardado no sirve como token.
+    const { token: stored } = await get("SELECT token FROM password_resets WHERE user_id = ?", [id]);
+    expect(stored).not.toBe(resetToken);
+    await request(app)
+      .post("/v1/auth/reset-password")
+      .send({ token: stored, password: "no-deberia-valer" })
+      .expect(400);
 
     await request(app)
       .post("/v1/auth/reset-password")
