@@ -177,7 +177,7 @@ export function setControlsDisabled(disabled) {
   const submitBtn = document.querySelector('form button[type="submit"]');
   // Se asume que estos elementos existen en el DOM o se ignoran si no
   const toDisable = [
-    $("#btnRefresh"), $("#btnClear"), $("#btnLocate"), $("#btnSaveKey"), 
+    $("#btnRefresh"), $("#btnClear"), $("#btnLocate"), 
     $("#btnMore"), $("#btnAddr"), submitBtn
   ].filter(Boolean);
 

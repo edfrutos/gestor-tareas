@@ -8,9 +8,9 @@ export function getToken() {
   return localStorage.getItem(LS_TOKEN);
 }
 
-// Limpieza de la API key que guardaban versiones anteriores del cliente: con
-// sesión JWT no hace falta.
-if (getToken()) localStorage.removeItem(LS_API_KEY);
+// La web solo se autentica con la sesión JWT. Se borra la API key que
+// guardaban versiones anteriores del cliente (campo manual o descarga).
+localStorage.removeItem(LS_API_KEY);
 
 export function getUser() {
   const u = localStorage.getItem(LS_USER);
@@ -108,5 +108,5 @@ export function logout() {
 }
 
 export function isAuthenticated() {
-  return !!getToken() || !!(localStorage.getItem(LS_API_KEY) || "").trim();
+  return !!getToken();
 }
