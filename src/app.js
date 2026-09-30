@@ -138,39 +138,11 @@ app.get("/.well-known/appspecific/com.chrome.devtools.json", (req, res) => {
 });
 
 // -------------------- CORS (UI + API) --------------------
-function parseAllowedOrigins(value) {
-  if (Array.isArray(value)) {
-    return value.map((v) => String(v).trim()).filter(Boolean);
-  }
-  if (typeof value === "string") {
-    return value.split(",").map((v) => v.trim()).filter(Boolean);
-  }
-  return [];
-}
-
-const explicitAllowed = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
-
-function isLocalOrigin(origin) {
-  try {
-    const u = new URL(origin);
-    return (
-      u.hostname === "localhost" ||
-      u.hostname === "127.0.0.1"
-    );
-  } catch {
-    return false;
-  }
-}
+// Misma regla que Socket.io (ver src/config/cors.js)
+const { makeOriginChecker } = require("./config/cors");
 
 const corsOptions = {
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (explicitAllowed.length > 0) {
-      return cb(null, explicitAllowed.includes(origin));
-    }
-    if (!IS_PROD && isLocalOrigin(origin)) return cb(null, true);
-    return cb(null, false);
-  },
+  origin: makeOriginChecker(),
   credentials: true,
 };
 
@@ -392,7 +364,7 @@ app.get("/v1/config", (req, res) => {
   // IMPORTANTE: NO devolver API_KEY (secreto). Si necesitas exponer un identificador
   // público para el cliente (no autenticación), usa PUBLIC_API_IDENTIFIER.
   const publicApiIdentifier = process.env.PUBLIC_API_IDENTIFIER || null;
-  const csrfEnabled = process.env.CSRF_ENABLED === "1";
+  const csrfEnabled = CSRF_ENABLED;
   res.json({ publicApiIdentifier, csrfEnabled });
 });
 
@@ -445,17 +417,7 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not Found" });
 });
 
-// Error handler global
-app.use((err, req, res, _next) => {
-  console.error("[Global Error]", err);
-  const status = Number(err.status) || 500;
-  res.status(status).json({
-    error: {
-      message: err.message || "Internal Server Error",
-      code: err.code || "internal_error",
-      data: err.data || null,
-    },
-  });
-});
+// Error handler global (ver src/middleware/errorHandler.js)
+app.use(require("./middleware/errorHandler"));
 
 module.exports = app;

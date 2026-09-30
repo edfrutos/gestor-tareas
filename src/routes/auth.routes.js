@@ -7,6 +7,7 @@ const multer = require("multer");
 const sharp = require("sharp");
 const { run, get } = require("../db/sqlite");
 const { z } = require("zod");
+const { newPasswordSchema } = require("../schemas/password.schema");
 const requireAuth = require("../middleware/auth.middleware");
 const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
@@ -110,8 +111,14 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   username: z.string().trim().min(3).max(20),
   email: z.string().email().optional().or(z.literal("")),
-  password: z.string().min(6),
+  password: newPasswordSchema,
 });
+
+// Los tokens de reset solo se guardan como hash: con una copia de la BD no
+// se pueden usar. El token en claro solo viaja en el enlace del correo.
+function hashResetToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
 
 const forgotPasswordSchema = z.object({
   email: z.string().email(),
@@ -119,18 +126,18 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   token: z.string(),
-  password: z.string().min(6),
+  password: newPasswordSchema,
 });
 
 const changePasswordSchema = z.object({
   currentPassword: z.string(),
-  newPassword: z.string().min(6),
+  newPassword: newPasswordSchema,
 });
 
 const updateMeSchema = z.object({
   email: z.string().email().optional().nullable().or(z.literal("")),
   currentPassword: z.string().optional().or(z.literal("")),
-  newPassword: z.string().min(6).optional().or(z.literal("")),
+  newPassword: newPasswordSchema.optional().or(z.literal("")),
 });
 
 const deleteAccountSchema = z.object({
@@ -225,7 +232,7 @@ router.post("/forgot-password", forgotPasswordLimiter, async (req, res, next) =>
     await run("DELETE FROM password_resets WHERE user_id = ?", [user.id]);
     await run(
       "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-      [user.id, token, expiresAt]
+      [user.id, hashResetToken(token), expiresAt]
     );
 
     await notifyPasswordReset(user, token);
@@ -244,7 +251,7 @@ router.post("/reset-password", authFailureLimiter, async (req, res, next) => {
     
     const resetReq = await get(
       "SELECT * FROM password_resets WHERE token = ? AND used = 0 AND expires_at > ?",
-      [token, new Date().toISOString()]
+      [hashResetToken(token), new Date().toISOString()]
     );
 
     if (!resetReq) {

@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const { z } = require("zod");
+const { newPasswordSchema } = require("../schemas/password.schema");
 const { run, get, all } = require("../db/sqlite");
 const requireAuth = require("../middleware/auth.middleware");
 const { revokeUserSessions } = require("../services/session.service");
@@ -22,7 +23,7 @@ router.post("/", requireAuth(), requireAdmin, async (req, res, next) => {
     const schema = z.object({
       username: z.string().min(3).max(50),
       email: z.string().email().optional().nullable().or(z.literal("")),
-      password: z.string().min(6),
+      password: newPasswordSchema,
       role: z.enum(["admin", "user"]).default("user")
     });
     
@@ -103,7 +104,7 @@ router.patch("/:id", requireAuth(), requireAdmin, async (req, res, next) => {
     const schema = z.object({
       role: z.enum(["admin", "user"]).optional(),
       email: z.string().email().optional().nullable().or(z.literal("")),
-      password: z.string().min(6).optional()
+      password: newPasswordSchema.optional()
     });
     
     const body = schema.parse(req.body);

@@ -32,8 +32,11 @@ const upload = multer({
     fileSize: Number(process.env.MAX_UPLOAD_BYTES || 8 * 1024 * 1024),
   },
   fileFilter: (_req, file, cb) => {
-    const ok = !!pickUploadExtension(file, IMAGE_TYPES);
-    cb(ok ? null : new Error("unsupported_file_type"), ok);
+    if (pickUploadExtension(file, IMAGE_TYPES)) return cb(null, true);
+    const err = new Error("Tipo de archivo no permitido (JPG, PNG, WEBP o GIF)");
+    err.status = 400;
+    err.code = "unsupported_file_type";
+    cb(err, false);
   },
 });
 

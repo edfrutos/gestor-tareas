@@ -30,8 +30,10 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    if (pickUploadExtension(file, MAP_IMAGE_TYPES)) cb(null, true);
-    else cb(new Error("Solo se permiten imágenes (JPG, PNG, WEBP)"), false);
+    if (pickUploadExtension(file, MAP_IMAGE_TYPES)) return cb(null, true);
+    const err = new Error("Solo se permiten imágenes (JPG, PNG, WEBP)");
+    err.status = 400;
+    cb(err, false);
   },
 });
 

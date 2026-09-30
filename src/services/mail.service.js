@@ -20,6 +20,17 @@ const transporter = nodemailer.createTransport({
   } : undefined,
 });
 
+// Todo dato de usuario (títulos, descripciones, nombres, comentarios) se
+// escapa antes de ir al HTML del correo.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const FROM_EMAIL = process.env.SMTP_FROM || '"Gestor de Tareas" <no-reply@gestor-tareas.local>';
 
 async function sendMail({ to, subject, text, html, replyTo }) {
@@ -74,8 +85,8 @@ Puedes ver los detalles en la aplicación.`;
 
   const html = `
     <h2>Actualización de tarea</h2>
-    <p>Hola <strong>${user.username}</strong>,</p>
-    <p>El estado de tu tarea "<em>${issue.title}</em>" ha cambiado:</p>
+    <p>Hola <strong>${escapeHtml(user.username)}</strong>,</p>
+    <p>El estado de tu tarea "<em>${escapeHtml(issue.title)}</em>" ha cambiado:</p>
     <p style="font-size: 1.2em;">
       <span style="color: gray;">${statusLabels[oldStatus]}</span> 
       &rarr; 
@@ -103,11 +114,12 @@ Descripción: ${issue.description}`;
 
   const html = `
     <h2>Nueva incidencia en el sistema</h2>
-    <p><strong>Título:</strong> ${issue.title}</p>
-    <p><strong>Categoría:</strong> ${issue.category}</p>
-    <p><strong>Creado por:</strong> ${creator.username}</p>
+    <p><strong>Título:</strong> ${escapeHtml(issue.title)}</p>
+    <p><strong>Categoría:</strong> ${escapeHtml(issue.category)}</p>
+    <p><strong>Creado por:</strong> ${escapeHtml(creator.username)}</p>
     <hr>
-    <p><strong>Descripción:</strong><br>${issue.description}</p>
+    <p><strong>Descripción:</strong></p>
+    <div style="white-space: pre-wrap;">${escapeHtml(issue.description)}</div>
   `;
 
   return sendMail({ to: adminEmail, subject, text, html });
@@ -133,10 +145,10 @@ Si no has solicitado este cambio, puedes ignorar este correo. Este enlace expira
 
   const html = `
     <h2>Recuperación de contraseña</h2>
-    <p>Hola <strong>${user.username}</strong>,</p>
+    <p>Hola <strong>${escapeHtml(user.username)}</strong>,</p>
     <p>Has solicitado restablecer tu contraseña. Haz clic en el botón de abajo para elegir una nueva:</p>
     <div style="margin: 30px 0;">
-      <a href="${resetUrl}" style="background-color: #7c5cff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 10px; font-weight: bold;">Restablecer Contraseña</a>
+      <a href="${escapeHtml(resetUrl)}" style="background-color: #7c5cff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 10px; font-weight: bold;">Restablecer Contraseña</a>
     </div>
     <p>Si no has solicitado este cambio, puedes ignorar este correo de forma segura.</p>
     <p style="font-size: 0.8em; color: gray;">Este enlace expirará en 1 hora.</p>
@@ -156,9 +168,9 @@ async function notifyNewComment(commenter, issue, commentText, recipients, isRep
   const text = `${commenter.username} ha comentado en la tarea "${issue.title}":\n\n"${commentText}"\n\nPuedes ver el hilo completo en la aplicación.`;
   const html = `
     <h2>Nuevo comentario</h2>
-    <p><strong>${commenter.username}</strong> ha comentado en la tarea "<em>${issue.title}</em>":</p>
+    <p><strong>${escapeHtml(commenter.username)}</strong> ha comentado en la tarea "<em>${escapeHtml(issue.title)}</em>":</p>
     <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border-left: 4px solid #7c5cff; margin: 20px 0;">
-      <p style="margin: 0;">${String(commentText).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")}</p>
+      <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(commentText)}</p>
     </div>
     <p>Puedes ver el hilo completo en la aplicación.</p>
   `;
@@ -181,24 +193,16 @@ Puedes ver los detalles y empezar a trabajar en ella desde la aplicación.`;
 
   const html = `
     <h2>Nueva tarea asignada</h2>
-    <p>Hola <strong>${user.username}</strong>,</p>
-    <p><strong>${assigner.username}</strong> te ha asignado la siguiente tarea:</p>
+    <p>Hola <strong>${escapeHtml(user.username)}</strong>,</p>
+    <p><strong>${escapeHtml(assigner.username)}</strong> te ha asignado la siguiente tarea:</p>
     <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; border-left: 4px solid #7c5cff; margin: 20px 0;">
-      <h3 style="margin-top: 0;">${issue.title}</h3>
-      <p>${issue.description}</p>
+      <h3 style="margin-top: 0;">${escapeHtml(issue.title)}</h3>
+      <p style="white-space: pre-wrap;">${escapeHtml(issue.description)}</p>
     </div>
     <p>Puedes ver los detalles completos en la aplicación.</p>
   `;
 
   return sendMail({ to: user.email, subject, text, html });
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 /**
