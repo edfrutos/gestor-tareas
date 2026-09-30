@@ -24,7 +24,15 @@ struct GestorTareasApp: App {
                 }
         }
         .commands {
-            CommandGroup(replacing: .appInfo) {}
+            // Se mantiene el "Acerca de GestorTareas" estándar de macOS
+            // (icono, versión y build del Info.plist) y, justo debajo, la
+            // comprobación de actualizaciones: abre Ajustes, que comprueba al
+            // aparecer y muestra el resultado (ver PreferencesView).
+            CommandGroup(after: .appInfo) {
+                SettingsLink {
+                    Text("Buscar actualizaciones…")
+                }
+            }
         }
 
         Settings {

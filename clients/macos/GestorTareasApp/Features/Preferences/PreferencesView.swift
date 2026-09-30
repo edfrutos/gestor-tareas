@@ -73,5 +73,8 @@ struct PreferencesView: View {
         .formStyle(.grouped)
         .frame(width: 480)
         .padding(20)
+        // Al abrir Ajustes (también desde "Buscar actualizaciones…") se
+        // comprueba en el momento, para que el resultado se vea siempre.
+        .task { await updateChecker.check() }
     }
 }
