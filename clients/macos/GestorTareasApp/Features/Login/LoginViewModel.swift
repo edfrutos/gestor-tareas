@@ -54,8 +54,8 @@ final class LoginViewModel {
             errorMessage = "El usuario debe tener al menos 3 caracteres."
             return
         }
-        guard password.count >= 6 else {
-            errorMessage = "La contraseña debe tener al menos 6 caracteres."
+        guard password.count >= PasswordPolicy.minLength else {
+            errorMessage = PasswordPolicy.tooShortMessage
             return
         }
 

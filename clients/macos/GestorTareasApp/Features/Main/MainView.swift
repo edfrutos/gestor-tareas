@@ -73,8 +73,9 @@ struct MainView: View {
         }
         // Tiempo real (Hito 3): se conecta mientras haya sesión (MainView solo
         // existe cuando `session.state == .signedIn`, ver RootView) y se
-        // reconecta si cambia la URL del servidor en Preferencias.
-        .task(id: settings.serverURLString) {
+        // reconecta si cambia la URL del servidor en Preferencias o el JWT
+        // (cambio de contraseña: el servidor cierra los sockets con el viejo).
+        .task(id: "\(settings.serverURLString)|\(session.tokenRevision)") {
             socket.connect(baseURL: settings.baseURL, token: session.authToken)
         }
         .onDisappear { socket.disconnect() }

@@ -89,8 +89,8 @@ final class ProfileViewModel {
             return
         }
         if wantsPasswordChange {
-            guard newPassword.count >= 6 else {
-                errorMessage = "La nueva contraseña debe tener al menos 6 caracteres."
+            guard newPassword.count >= PasswordPolicy.minLength else {
+                errorMessage = PasswordPolicy.tooShortMessage
                 return
             }
             guard !currentPassword.isEmpty else {
@@ -104,11 +104,14 @@ final class ProfileViewModel {
 
         let api = GestorAPI(settings: settings, session: session)
         do {
-            try await api.updateMe(
+            let reissuedToken = try await api.updateMe(
                 email: emailChanged ? trimmedEmail : nil,
                 currentPassword: wantsPasswordChange ? currentPassword : nil,
                 newPassword: wantsPasswordChange ? newPassword : nil
             )
+            // Cambio de contraseña: el token anterior ya no vale. Guardamos el
+            // nuevo antes de cualquier otra petición (incluida `me()`).
+            if let reissuedToken { session.replaceToken(reissuedToken) }
             // El PATCH solo devuelve { ok: true }: pedimos el usuario fresco
             // para reflejar el cambio en SessionStore/UI (menú de cuenta).
             let refreshed = try await api.me()

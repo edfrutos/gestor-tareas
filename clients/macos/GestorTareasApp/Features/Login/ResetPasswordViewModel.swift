@@ -19,8 +19,8 @@ final class ResetPasswordViewModel {
             errorMessage = "No se reconoce el enlace o el código. Pega el que recibiste por email."
             return
         }
-        guard newPassword.count >= 6 else {
-            errorMessage = "La contraseña debe tener al menos 6 caracteres."
+        guard newPassword.count >= PasswordPolicy.minLength else {
+            errorMessage = PasswordPolicy.tooShortMessage
             return
         }
         guard newPassword == confirmPassword else {
