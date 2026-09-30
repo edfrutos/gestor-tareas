@@ -1,13 +1,21 @@
 // src/db/sqlite.js
+//
+// Acceso a SQLite con `node:sqlite` (módulo incluido en Node >= 22.13; sin
+// dependencias nativas). La API de este módulo (openDb, migrate, closeDb,
+// run, get, all, integrityCheck) es la misma que con el antiguo paquete
+// `sqlite3`: el resto de la app no depende del driver.
+//
+// `node:sqlite` es síncrono. Las funciones se mantienen `async` para no
+// cambiar a quien las usa; con consultas por clave sobre una BD pequeña el
+// bloqueo es de microsegundos.
 const fs = require("fs");
 const path = require("path");
-const sqlite3 = require("sqlite3").verbose();
+const { DatabaseSync } = require("node:sqlite");
 const bcrypt = require("bcryptjs");
 
 const { getDbFile } = require("../config/paths");
 
 let db = null;
-let dbPromise = null;
 
 // SQLite en modo WAL usa locking por mmap sobre un archivo -shm compartido.
 // Docker Desktop para Mac no soporta bien ese locking cuando el bind mount
@@ -19,6 +27,38 @@ const VALID_JOURNAL_MODES = new Set(["DELETE", "TRUNCATE", "PERSIST", "MEMORY", 
 const requestedJournalMode = (process.env.SQLITE_JOURNAL_MODE || "WAL").toUpperCase();
 const JOURNAL_MODE = VALID_JOURNAL_MODES.has(requestedJournalMode) ? requestedJournalMode : "WAL";
 
+// Códigos primarios de SQLite (errcode & 0xff). node:sqlite lanza errores con
+// code "ERR_SQLITE_ERROR" y el código numérico en `errcode`; se traducen a los
+// nombres que usaba `sqlite3` (p. ej. la detección de SQLITE_CORRUPT).
+const SQLITE_CODE_NAMES = {
+  1: "SQLITE_ERROR", 5: "SQLITE_BUSY", 6: "SQLITE_LOCKED", 8: "SQLITE_READONLY",
+  10: "SQLITE_IOERR", 11: "SQLITE_CORRUPT", 13: "SQLITE_FULL", 14: "SQLITE_CANTOPEN",
+  19: "SQLITE_CONSTRAINT", 26: "SQLITE_NOTADB",
+};
+
+function normalizeError(err) {
+  if (err && typeof err.errcode === "number") {
+    const name = SQLITE_CODE_NAMES[err.errcode & 0xff];
+    if (name) err.code = name;
+  }
+  return err;
+}
+
+function isCorruption(err) {
+  return err?.code === "SQLITE_CORRUPT" || err?.code === "SQLITE_NOTADB" ||
+    /SQLITE_CORRUPT|malformed/i.test(err?.message || "");
+}
+
+// node:sqlite no admite `undefined` (y en Node 22 tampoco booleanos) como
+// parámetro: se convierten como hacía `sqlite3` (NULL y 1/0).
+function bindParams(params = []) {
+  return params.map((p) => (p === undefined ? null : typeof p === "boolean" ? (p ? 1 : 0) : p));
+}
+
+// Las filas de node:sqlite son objetos sin prototipo; se devuelven como
+// objetos normales, igual que antes.
+const toPlainRow = (row) => (row ? { ...row } : null);
+
 function ensureDirForFile(filePath) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
@@ -27,53 +67,46 @@ function ensureDirForFile(filePath) {
 }
 
 async function openDb() {
-  if (dbPromise) return dbPromise;
+  if (db) return db;
 
-  dbPromise = new Promise((resolve, reject) => {
-    const file = getDbFile();
-    ensureDirForFile(file);
+  const file = getDbFile();
+  ensureDirForFile(file);
 
-    const newDb = new sqlite3.Database(file, (err) => {
-      if (err) {
-        console.error(`[sqlite] FATAL: Could not open database at ${file}`, err);
-        if (err.code === "SQLITE_CORRUPT" || err.message?.includes("SQLITE_CORRUPT")) {
-          console.error("[sqlite] CORRUPTION DETECTED. See docs/RECOVERY.md or run: node src/scripts/db-recover.js");
-        }
-        dbPromise = null; // permitir reintento
-        return reject(err);
-      }
+  let newDb;
+  try {
+    newDb = new DatabaseSync(file);
+    // busy_timeout va PRIMERO: cambiar journal_mode necesita un bloqueo y, si
+    // otra conexión (otro proceso, un script, un test en paralelo) tiene la BD
+    // ocupada, sin espera fallaría al instante con "database is locked".
+    // (El paquete `sqlite3` aplicaba 1 s de espera por defecto al abrir.)
+    newDb.exec("PRAGMA busy_timeout=5000;");
+    // Configuración inicial robusta (mitigación SQLITE_CORRUPT - Fase 36)
+    newDb.exec(`
+      PRAGMA journal_mode=${JOURNAL_MODE};
+      PRAGMA foreign_keys=ON;
+      PRAGMA synchronous=FULL;
+      PRAGMA temp_store=MEMORY;
+    `);
+  } catch (err) {
+    normalizeError(err);
+    try { newDb?.close(); } catch (_e) { /* noop */ }
+    console.error(`[sqlite] FATAL: Could not open database at ${file}`, err);
+    if (isCorruption(err)) {
+      console.error("[sqlite] CORRUPTION DETECTED. See docs/RECOVERY.md or run: node src/scripts/db-recover.js");
+    }
+    throw err;
+  }
 
-      // Configuración inicial robusta (mitigación SQLITE_CORRUPT - Fase 36)
-      newDb.serialize(() => {
-        newDb.run(`PRAGMA journal_mode=${JOURNAL_MODE};`);
-        newDb.run("PRAGMA foreign_keys=ON;");
-        newDb.run("PRAGMA busy_timeout=5000;"); // Esperar hasta 5s si está bloqueada
-        newDb.run("PRAGMA synchronous=FULL;");  // Durabilidad máxima; reduce riesgo de corrupción
-        newDb.run("PRAGMA temp_store=MEMORY;");  // Evita I/O extra en disco para temporales
-
-        db = newDb;
-        resolve(db);
-      });
-    });
-
-    newDb.on("error", (err) => {
-      console.error("[sqlite] Unhandled error:", err);
-      if (err && (err.code === "SQLITE_CORRUPT" || err.message?.includes("SQLITE_CORRUPT"))) {
-        console.error("[sqlite] CORRUPTION DETECTED. Run: node src/scripts/db-recover.js");
-      }
-    });
-  });
-
-  return dbPromise;
+  db = newDb;
+  return db;
 }
 
 async function migrate() {
   const d = await openDb();
 
-  // Helper local para evitar callbacks anidados
-  const exec = (sql, params = []) => new Promise((resolve, reject) => {
-    d.run(sql, params, (err) => (err ? reject(err) : resolve()));
-  });
+  const exec = async (sql, params = []) => {
+    d.prepare(sql).run(...bindParams(params));
+  };
 
   try {
     // 1. Tablas en orden (Users primero por FKs)
@@ -257,11 +290,8 @@ async function migrate() {
     await exec("UPDATE issues SET map_id = 1 WHERE map_id IS NULL");
 
     // 4. Migraciones suaves (columnas extra)
-    const checkColumns = async (table) => {
-      return new Promise((resolve, reject) => {
-        d.all(`PRAGMA table_info(${table});`, (err, cols) => (err ? reject(err) : resolve(new Set(cols.map(c => c.name)))));
-      });
-    };
+    const checkColumns = async (table) =>
+      new Set(d.prepare(`PRAGMA table_info(${table});`).all().map((c) => c.name));
 
     const logCols = await checkColumns("issue_logs");
     if (!logCols.has("user_id")) await exec(`ALTER TABLE issue_logs ADD COLUMN user_id INTEGER;`);
@@ -313,84 +343,64 @@ async function migrate() {
 
     return Promise.resolve();
   } catch (err) {
+    normalizeError(err);
     console.error("[sqlite] Migration error:", err);
     throw err;
   }
 }
 
 
-function closeDb() {
-  return new Promise((resolve, reject) => {
-    if (!db) {
-      dbPromise = null;
-      return resolve();
-    }
-    db.close((err) => {
-      if (err) return reject(err);
-      db = null;
-      dbPromise = null;
-      resolve();
-    });
-  });
+async function closeDb() {
+  if (!db) return;
+  const d = db;
+  db = null;
+  d.close();
 }
 
-function run(sql, params = []) {
-  return openDb().then(d => {
-    const safeParams = params.map(p => p === undefined ? null : p);
-    return new Promise((resolve, reject) => {
-      d.run(sql, safeParams, function (err) {
-        if (err) {
-          console.error("[sqlite] run error:", err, "SQL:", sql, "Params:", safeParams);
-          return reject(err);
-        }
-        resolve({ changes: this.changes, lastID: this.lastID });
-      });
-    });
-  });
+async function run(sql, params = []) {
+  const d = await openDb();
+  const safeParams = bindParams(params);
+  try {
+    const res = d.prepare(sql).run(...safeParams);
+    return { changes: res.changes, lastID: Number(res.lastInsertRowid) };
+  } catch (err) {
+    normalizeError(err);
+    console.error("[sqlite] run error:", err, "SQL:", sql, "Params:", safeParams);
+    throw err;
+  }
 }
 
-function get(sql, params = []) {
-  return openDb().then(d => {
-    const safeParams = params.map(p => p === undefined ? null : p);
-    return new Promise((resolve, reject) => {
-      d.get(sql, safeParams, (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      });
-    });
-  });
+async function get(sql, params = []) {
+  const d = await openDb();
+  try {
+    return toPlainRow(d.prepare(sql).get(...bindParams(params)));
+  } catch (err) {
+    throw normalizeError(err);
+  }
 }
 
-function all(sql, params = []) {
-  return openDb().then(d => {
-    const safeParams = params.map(p => p === undefined ? null : p);
-    return new Promise((resolve, reject) => {
-      d.all(sql, safeParams, (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows || []);
-      });
-    });
-  });
+async function all(sql, params = []) {
+  const d = await openDb();
+  try {
+    return d.prepare(sql).all(...bindParams(params)).map(toPlainRow);
+  } catch (err) {
+    throw normalizeError(err);
+  }
 }
 
 /**
  * Ejecuta PRAGMA integrity_check. Útil para detectar corrupción.
  * @returns {Promise<{ok: boolean, result?: string}>}
  */
-function integrityCheck() {
-  return openDb().then(
-    (d) =>
-      new Promise((resolve) => {
-        d.get("PRAGMA integrity_check;", (err, row) => {
-          if (err) {
-            resolve({ ok: false, result: err.message });
-            return;
-          }
-          const result = row ? row.integrity_check : "unknown";
-          resolve({ ok: result === "ok", result });
-        });
-      })
-  );
+async function integrityCheck() {
+  try {
+    const d = await openDb();
+    const row = d.prepare("PRAGMA integrity_check;").get();
+    const result = row ? row.integrity_check : "unknown";
+    return { ok: result === "ok", result };
+  } catch (err) {
+    return { ok: false, result: normalizeError(err).message };
+  }
 }
 
 module.exports = { openDb, migrate, closeDb, run, get, all, integrityCheck };

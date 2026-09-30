@@ -1,22 +1,14 @@
-# Stage 1: Builder - compile native modules (sqlite3, sharp)
-FROM node:22-alpine AS builder
+# Stage 1: Builder - instala dependencias y comprueba que cargan.
+# Sin herramientas de compilación: la BD usa node:sqlite (incluido en Node) y
+# sharp trae binarios precompilados para Alpine (linuxmusl x64/arm64).
+FROM node:24-alpine AS builder
 
 WORKDIR /app
-
-# Install build dependencies (Alpine packages)
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for compilation)
+# Install all dependencies (incluidas las de desarrollo; se podan después)
 RUN npm ci
 
 # Copy source for sanity checks during build
@@ -31,7 +23,7 @@ RUN node -e "require('sharp'); console.log('sharp OK')"
 RUN npm prune --production
 
 # Stage 2: Runtime - Alpine slim image without build tools or devDependencies
-FROM node:22-alpine
+FROM node:24-alpine
 
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV

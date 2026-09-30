@@ -9,6 +9,8 @@
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
+const { execFileSync } = require("child_process");
 
 // Configurar env antes de cargar módulos que dependen de paths
 const TEST_DIR = path.join(os.tmpdir(), `gestor-tareas-restore-test-${Date.now()}`);
@@ -47,12 +49,21 @@ test("backup and restore cycle works", async () => {
   const before = await get("SELECT COUNT(*) as n FROM issues");
   await closeDb();
 
+  // Un upload de 3 MB (incomprimible) para que el tar tarde de verdad: la
+  // promesa de runBackup() no debe resolverse hasta que también haya acabado.
+  fs.writeFileSync(path.join(TEST_DIR, "uploads", "photo_grande.jpg"), crypto.randomBytes(3 * 1024 * 1024));
+
   const { runBackup } = require("../src/cron/backup");
   await runBackup();
 
   const backups = fs.readdirSync(path.join(TEST_DIR, "backups"));
   const dbBackup = backups.find((f) => f.startsWith("db-") && f.endsWith(".sqlite"));
   expect(dbBackup).toBeDefined();
+
+  const uploadsBackup = backups.find((f) => f.startsWith("uploads-") && f.endsWith(".tar.gz"));
+  expect(uploadsBackup).toBeDefined();
+  const listing = execFileSync("tar", ["-tzf", path.join(TEST_DIR, "backups", uploadsBackup)], { encoding: "utf8" });
+  expect(listing).toContain("uploads/photo_grande.jpg");
 
   process.env.DB_FILE = path.join(RESTORE_DIR, "data.db");
   process.env.BACKUP_DIR = path.join(TEST_DIR, "backups");

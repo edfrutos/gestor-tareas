@@ -5,44 +5,45 @@ const path = require("path");
 const { exec } = require("child_process");
 const { getDbFile, getUploadDir, getBackupDir, isTestEnv } = require("../config/paths");
 const { openDb } = require("../db/sqlite");
+const { backup: sqliteBackup } = require("node:sqlite");
 
 // Retención: días a conservar (full backups). Por defecto 7.
 const RETENTION_DAYS = Number(process.env.BACKUP_RETENTION_DAYS || 7);
 const INTERVAL_MS = Number(process.env.BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000);
 
 /**
- * Backup de BD usando SQLite Backup API (hot-backup seguro).
- * Fallback a fs.copyFile si la API no está disponible.
+ * Backup de BD con la Backup API de SQLite (`backup()` de node:sqlite):
+ * copia consistente en caliente, incluidos los cambios que aún están en el
+ * fichero -wal. Una copia de fichero (fs.copyFile) los perdería en modo WAL,
+ * así que solo se usa si la API no existe (Node < 22.16).
  */
 function backupDbToFile(dbFile, destPath, cb) {
   openDb()
     .then((db) => {
-      if (typeof db.backup !== "function") {
+      if (typeof sqliteBackup !== "function") {
         fs.copyFile(dbFile, destPath, cb);
         return;
       }
-      const backup = db.backup(destPath);
-      backup.step(-1, (err) => {
-        backup.finish((finErr) => {
-          if (err || finErr) cb(err || finErr);
-          else cb(null);
-        });
-      });
+      sqliteBackup(db, destPath).then(() => cb(null), (err) => cb(err));
     })
     .catch((err) => cb(err));
 }
 
+/**
+ * Copia la BD y los uploads. La promesa se resuelve cuando han terminado
+ * AMBAS copias (y la poda de copias antiguas), nunca antes.
+ */
 function runBackup() {
   const backupDir = getBackupDir();
   if (!backupDir) {
     console.warn("[Backup] Deshabilitado en NODE_ENV=test (nunca respaldar BD de tests)");
-    return;
+    return Promise.resolve();
   }
 
   const dbFile = getDbFile();
   if (path.basename(dbFile) === "test.db") {
     console.warn("[Backup] Rechazado: DB apunta a test.db. Verifica NODE_ENV y DB_FILE.");
-    return;
+    return Promise.resolve();
   }
 
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
@@ -55,12 +56,15 @@ function runBackup() {
   const parentDir = path.dirname(uploadsDir);
   const uploadsBasename = path.basename(uploadsDir);
   const cmd = `tar -czf "${uploadsBackup}" -C "${parentDir}" "${uploadsBasename}"`;
-  exec(cmd, (err) => {
-    if (err) console.error(`[Backup] Uploads Failed: ${err.message}`);
-    else console.log(`[Backup] Uploads Saved: ${uploadsBackup}`);
+  const uploadsDone = new Promise((resolve) => {
+    exec(cmd, (err) => {
+      if (err) console.error(`[Backup] Uploads Failed: ${err.message}`);
+      else console.log(`[Backup] Uploads Saved: ${uploadsBackup}`);
+      resolve();
+    });
   });
 
-  return new Promise((resolve) => {
+  const dbDone = new Promise((resolve) => {
     backupDbToFile(dbFile, dbBackup, (err) => {
       if (err) {
         console.error(`[Backup] DB Failed: ${err.message}`);
@@ -74,9 +78,12 @@ function runBackup() {
       } else {
         console.log(`[Backup] DB Saved: ${dbBackup}`);
       }
-      pruneOldBackups(backupDir);
       resolve();
     });
+  });
+
+  return Promise.all([uploadsDone, dbDone]).then(() => {
+    pruneOldBackups(backupDir);
   });
 }
 
@@ -134,4 +141,4 @@ function init() {
 
 init();
 
-module.exports = { runBackup, pruneOldBackups };
+module.exports = { runBackup, pruneOldBackups, backupDbToFile };
