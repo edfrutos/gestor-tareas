@@ -29,17 +29,21 @@ function backupDbToFile(dbFile, destPath, cb) {
     .catch((err) => cb(err));
 }
 
+/**
+ * Copia la BD y los uploads. La promesa se resuelve cuando han terminado
+ * AMBAS copias (y la poda de copias antiguas), nunca antes.
+ */
 function runBackup() {
   const backupDir = getBackupDir();
   if (!backupDir) {
     console.warn("[Backup] Deshabilitado en NODE_ENV=test (nunca respaldar BD de tests)");
-    return;
+    return Promise.resolve();
   }
 
   const dbFile = getDbFile();
   if (path.basename(dbFile) === "test.db") {
     console.warn("[Backup] Rechazado: DB apunta a test.db. Verifica NODE_ENV y DB_FILE.");
-    return;
+    return Promise.resolve();
   }
 
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
@@ -52,12 +56,15 @@ function runBackup() {
   const parentDir = path.dirname(uploadsDir);
   const uploadsBasename = path.basename(uploadsDir);
   const cmd = `tar -czf "${uploadsBackup}" -C "${parentDir}" "${uploadsBasename}"`;
-  exec(cmd, (err) => {
-    if (err) console.error(`[Backup] Uploads Failed: ${err.message}`);
-    else console.log(`[Backup] Uploads Saved: ${uploadsBackup}`);
+  const uploadsDone = new Promise((resolve) => {
+    exec(cmd, (err) => {
+      if (err) console.error(`[Backup] Uploads Failed: ${err.message}`);
+      else console.log(`[Backup] Uploads Saved: ${uploadsBackup}`);
+      resolve();
+    });
   });
 
-  return new Promise((resolve) => {
+  const dbDone = new Promise((resolve) => {
     backupDbToFile(dbFile, dbBackup, (err) => {
       if (err) {
         console.error(`[Backup] DB Failed: ${err.message}`);
@@ -71,9 +78,12 @@ function runBackup() {
       } else {
         console.log(`[Backup] DB Saved: ${dbBackup}`);
       }
-      pruneOldBackups(backupDir);
       resolve();
     });
+  });
+
+  return Promise.all([uploadsDone, dbDone]).then(() => {
+    pruneOldBackups(backupDir);
   });
 }
 
