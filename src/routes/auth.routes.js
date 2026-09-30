@@ -7,6 +7,7 @@ const multer = require("multer");
 const sharp = require("sharp");
 const { run, get } = require("../db/sqlite");
 const { z } = require("zod");
+const { newPasswordSchema } = require("../schemas/password.schema");
 const requireAuth = require("../middleware/auth.middleware");
 const { notifyPasswordReset } = require("../services/mail.service");
 const { getUploadDir, getThumbsDir, resolveSafe } = require("../config/paths");
@@ -110,7 +111,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   username: z.string().trim().min(3).max(20),
   email: z.string().email().optional().or(z.literal("")),
-  password: z.string().min(6),
+  password: newPasswordSchema,
 });
 
 // Los tokens de reset solo se guardan como hash: con una copia de la BD no
@@ -125,18 +126,18 @@ const forgotPasswordSchema = z.object({
 
 const resetPasswordSchema = z.object({
   token: z.string(),
-  password: z.string().min(6),
+  password: newPasswordSchema,
 });
 
 const changePasswordSchema = z.object({
   currentPassword: z.string(),
-  newPassword: z.string().min(6),
+  newPassword: newPasswordSchema,
 });
 
 const updateMeSchema = z.object({
   email: z.string().email().optional().nullable().or(z.literal("")),
   currentPassword: z.string().optional().or(z.literal("")),
-  newPassword: z.string().min(6).optional().or(z.literal("")),
+  newPassword: newPasswordSchema.optional().or(z.literal("")),
 });
 
 const deleteAccountSchema = z.object({

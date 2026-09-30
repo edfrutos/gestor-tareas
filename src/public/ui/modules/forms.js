@@ -1,5 +1,5 @@
-import { API_BASE, LS_API_KEY } from "./config.js";
-import { fetchJson, getApiKey } from "./api.js";
+import { API_BASE } from "./config.js";
+import { fetchJson } from "./api.js";
 import { $, withBusy, setStatus, setButtonBusy, setGlobalLoading, toast, safeText } from "./utils.js";
 import { loadIssues } from "./list.v2.js";
 import { state, markMine } from "./store.js";
@@ -194,16 +194,5 @@ export function wireForms() {
       state.map.setView([500, 500], 0);
     }
     setStatus("", "info");
-  });
-
-  // API Key
-  const kInp = $("#apiKey");
-  if(kInp) kInp.value = getApiKey();
-  $("#btnSaveKey")?.addEventListener("click", async () => {
-    const v = kInp.value.trim();
-    if(!v) localStorage.removeItem(LS_API_KEY);
-    else localStorage.setItem(LS_API_KEY, v);
-    toast("API Key guardada", "ok");
-    await loadIssues({reset:true});
   });
 }

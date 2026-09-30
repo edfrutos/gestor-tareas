@@ -78,9 +78,12 @@ struct GestorAPI {
 
     /// `PATCH /v1/auth/me`: el propio usuario cambia su email y/o contraseña
     /// (distinto de `updateUser`, que es para que un admin edite a otros).
-    /// `nil` en cualquier campo significa "no tocar"; el backend solo
-    /// devuelve `{ ok: true }`, por eso `me()` se llama después para refrescar.
-    func updateMe(email: String?, currentPassword: String?, newPassword: String?) async throws {
+    /// `nil` en cualquier campo significa "no tocar". El backend devuelve
+    /// `{ ok: true }` (por eso `me()` se llama después para refrescar) y, si
+    /// cambia la contraseña, también `token`: revoca las sesiones anteriores y
+    /// entrega uno nuevo para esta. Lo devuelve la función (o `nil`).
+    @discardableResult
+    func updateMe(email: String?, currentPassword: String?, newPassword: String?) async throws -> String? {
         struct Body: Encodable {
             let email: String?
             let currentPassword: String?
@@ -93,10 +96,13 @@ struct GestorAPI {
                 try c.encodeIfPresent(newPassword, forKey: .newPassword)
             }
         }
-        _ = try await client.sendVoid(
+        struct Response: Decodable { let token: String? }
+        let response = try await client.send(
             .json("PATCH", "/v1/auth/me",
-                  body: Body(email: email, currentPassword: currentPassword, newPassword: newPassword))
+                  body: Body(email: email, currentPassword: currentPassword, newPassword: newPassword)),
+            as: Response.self
         )
+        return response.token
     }
 
     /// `POST /v1/auth/me/avatar` (multipart). Sube/reemplaza la foto de perfil;

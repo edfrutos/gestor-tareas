@@ -14,6 +14,9 @@ final class SessionStore: TokenProviding {
     private(set) var state: State
     /// Mensaje transitorio para la UI (p. ej. "sesión caducada").
     var notice: String?
+    /// Sube cada vez que se sustituye el JWT sin cerrar sesión (cambio de
+    /// contraseña). `MainView` lo observa para reconectar el socket.
+    private(set) var tokenRevision = 0
 
     private let keychain = KeychainService(service: "com.edefrutos.gestortareas")
     private let tokenAccount = "jwt"
@@ -44,6 +47,14 @@ final class SessionStore: TokenProviding {
         keychain.delete(tokenAccount)
         UserDefaults.standard.removeObject(forKey: userKey)
         state = .signedOut
+    }
+
+    /// Sustituye el JWT manteniendo la sesión: al cambiar la contraseña el
+    /// servidor revoca los tokens anteriores y devuelve uno nuevo.
+    func replaceToken(_ token: String) {
+        guard !token.isEmpty else { return }
+        keychain.set(token, for: tokenAccount)
+        tokenRevision += 1
     }
 
     /// Refresca los datos del usuario en sesión (tras editar "Mi perfil"),

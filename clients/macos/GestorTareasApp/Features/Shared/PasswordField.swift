@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Longitud mínima de contraseñas nuevas (registro, cambio, reset, alta por
+/// admin). Debe coincidir con el backend (`src/schemas/password.schema.js`).
+/// El login no la aplica: las contraseñas antiguas más cortas siguen valiendo.
+enum PasswordPolicy {
+    static let minLength = 8
+    static let tooShortMessage = "La contraseña debe tener al menos \(minLength) caracteres."
+}
+
 /// Campo de contraseña con botón de "ojo" para mostrar/ocultar el texto en
 /// claro — igual que el 👁️ de la web (`toggle-pass-btn` en
 /// `src/public/index.html`). Alterna internamente entre `SecureField` y

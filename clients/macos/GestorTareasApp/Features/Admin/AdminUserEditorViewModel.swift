@@ -40,8 +40,8 @@ final class AdminUserEditorViewModel {
                     errorMessage = "El usuario debe tener al menos 3 caracteres."
                     return nil
                 }
-                guard draft.password.count >= 6 else {
-                    errorMessage = "La contraseña debe tener al menos 6 caracteres."
+                guard draft.password.count >= PasswordPolicy.minLength else {
+                    errorMessage = PasswordPolicy.tooShortMessage
                     return nil
                 }
                 return try await api.createUser(username: trimmedUsername,
@@ -53,8 +53,8 @@ final class AdminUserEditorViewModel {
                 let role: String? = draft.role != user.role ? draft.role : nil
                 let email: String? = trimmedEmail != (user.email ?? "") ? trimmedEmail : nil
                 let password: String? = draft.password.isEmpty ? nil : draft.password
-                if let password, password.count < 6 {
-                    errorMessage = "La contraseña debe tener al menos 6 caracteres."
+                if let password, password.count < PasswordPolicy.minLength {
+                    errorMessage = PasswordPolicy.tooShortMessage
                     return nil
                 }
                 guard role != nil || email != nil || password != nil else {

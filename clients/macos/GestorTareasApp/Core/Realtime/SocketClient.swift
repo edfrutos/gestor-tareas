@@ -35,13 +35,14 @@ final class SocketClient {
     private var manager: SocketManager?
     private var socket: SocketIOClient?
     private var connectedURL: URL?
+    private var connectedToken: String?
 
     func connect(baseURL: URL?, token: String?) {
         guard let baseURL else {
             disconnect()
             return
         }
-        guard connectedURL != baseURL else { return }
+        guard connectedURL != baseURL || connectedToken != token else { return }
         disconnect()
 
         // El handshake exige JWT (`socket.service.js::authenticateSocket`); sin
@@ -81,6 +82,7 @@ final class SocketClient {
         self.manager = manager
         self.socket = socket
         connectedURL = baseURL
+        connectedToken = token
         socket.connect()
     }
 
@@ -89,6 +91,7 @@ final class SocketClient {
         manager = nil
         socket = nil
         connectedURL = nil
+        connectedToken = nil
         isConnected = false
     }
 

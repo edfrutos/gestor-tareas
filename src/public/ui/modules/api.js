@@ -1,9 +1,5 @@
-import { API_BASE, LS_API_KEY } from "./config.js";
+import { API_BASE } from "./config.js";
 import { getToken } from "./auth.js";
-
-export function getApiKey() {
-  return (localStorage.getItem(LS_API_KEY) || "").trim();
-}
 
 export async function getIssueLogs(id) {
   return await fetchJson(`${API_BASE}/issues/${id}/logs`);
@@ -27,8 +23,6 @@ export async function fetchJson(url, opts = {}) {
   const token = getToken();
   if (token) headers.set("authorization", `Bearer ${token}`);
 
-  const key = getApiKey();
-  if (key) headers.set("x-api-key", key);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -73,8 +67,6 @@ export async function fetchUpload(url, opts = {}) {
   const token = getToken();
   if (token) headers.set("authorization", `Bearer ${token}`);
 
-  const key = getApiKey();
-  if (key) headers.set("x-api-key", key);
 
   const res = await fetch(url, {
     ...opts,
