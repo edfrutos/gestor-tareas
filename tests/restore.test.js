@@ -65,6 +65,12 @@ test("backup and restore cycle works", async () => {
   const listing = execFileSync("tar", ["-tzf", path.join(TEST_DIR, "backups", uploadsBackup)], { encoding: "utf8" });
   expect(listing).toContain("uploads/photo_grande.jpg");
 
+  // Las copias solo son legibles por su propietario (0600), sea cual sea la
+  // umask del proceso que las crea (aquí la de Jest, normalmente 022).
+  for (const f of [dbBackup, uploadsBackup]) {
+    expect(fs.statSync(path.join(TEST_DIR, "backups", f)).mode & 0o777).toBe(0o600);
+  }
+
   process.env.DB_FILE = path.join(RESTORE_DIR, "data.db");
   process.env.BACKUP_DIR = path.join(TEST_DIR, "backups");
   process.env.RESTORE = "1";

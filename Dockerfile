@@ -42,9 +42,14 @@ COPY src ./src
 # Create runtime directories
 RUN mkdir -p /app/uploads /app/data
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S appuser && \
-    adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G appuser appuser && \
+# Usuario sin privilegios con un uid/gid propios (10001), que no deben
+# coincidir con ninguna cuenta del servidor: los bind mounts (data, uploads,
+# backups) quedan a nombre de ese uid en el host. Con 1001 los ficheros eran
+# del usuario de otra aplicación del servidor.
+ARG APP_UID=10001
+ARG APP_GID=10001
+RUN addgroup -g ${APP_GID} -S appuser && \
+    adduser -S -D -H -u ${APP_UID} -h /app -s /sbin/nologin -G appuser appuser && \
     chown -R appuser:appuser /app
 
 USER appuser

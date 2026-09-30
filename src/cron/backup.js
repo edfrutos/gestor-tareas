@@ -83,6 +83,12 @@ function runBackup() {
   });
 
   return Promise.all([uploadsDone, dbDone]).then(() => {
+    // Las copias contienen la BD completa y todos los uploads: solo el
+    // propietario puede leerlas, aunque el proceso que las crea no tenga la
+    // umask de server.js (p. ej. `npm run backup` con docker exec).
+    for (const f of [dbBackup, uploadsBackup]) {
+      try { fs.chmodSync(f, 0o600); } catch (_e) { /* la copia pudo fallar */ }
+    }
     pruneOldBackups(backupDir);
   });
 }

@@ -1,4 +1,11 @@
 // src/server.js
+
+// Ficheros privados por defecto (antes de cualquier require: al cargar la app
+// ya se crean carpetas y se lanza la primera copia de seguridad). La BD, las
+// copias y los uploads se crean como 600 / carpetas 700 en lugar de 644 / 755:
+// en el servidor nadie más que el usuario del contenedor debe poder leerlos.
+process.umask(0o077);
+
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
