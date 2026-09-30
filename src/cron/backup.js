@@ -5,29 +5,26 @@ const path = require("path");
 const { exec } = require("child_process");
 const { getDbFile, getUploadDir, getBackupDir, isTestEnv } = require("../config/paths");
 const { openDb } = require("../db/sqlite");
+const { backup: sqliteBackup } = require("node:sqlite");
 
 // Retención: días a conservar (full backups). Por defecto 7.
 const RETENTION_DAYS = Number(process.env.BACKUP_RETENTION_DAYS || 7);
 const INTERVAL_MS = Number(process.env.BACKUP_INTERVAL_MS || 24 * 60 * 60 * 1000);
 
 /**
- * Backup de BD usando SQLite Backup API (hot-backup seguro).
- * Fallback a fs.copyFile si la API no está disponible.
+ * Backup de BD con la Backup API de SQLite (`backup()` de node:sqlite):
+ * copia consistente en caliente, incluidos los cambios que aún están en el
+ * fichero -wal. Una copia de fichero (fs.copyFile) los perdería en modo WAL,
+ * así que solo se usa si la API no existe (Node < 22.16).
  */
 function backupDbToFile(dbFile, destPath, cb) {
   openDb()
     .then((db) => {
-      if (typeof db.backup !== "function") {
+      if (typeof sqliteBackup !== "function") {
         fs.copyFile(dbFile, destPath, cb);
         return;
       }
-      const backup = db.backup(destPath);
-      backup.step(-1, (err) => {
-        backup.finish((finErr) => {
-          if (err || finErr) cb(err || finErr);
-          else cb(null);
-        });
-      });
+      sqliteBackup(db, destPath).then(() => cb(null), (err) => cb(err));
     })
     .catch((err) => cb(err));
 }
@@ -134,4 +131,4 @@ function init() {
 
 init();
 
-module.exports = { runBackup, pruneOldBackups };
+module.exports = { runBackup, pruneOldBackups, backupDbToFile };
