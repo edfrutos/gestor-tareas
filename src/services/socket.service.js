@@ -14,16 +14,16 @@ let boundServer = null;
 /**
  * Autenticación del handshake — mismo criterio que `requireAuth()` (REST):
  * JWT válido, o API_KEY, o bypass de desarrollo si se activa explícitamente
- * (config/devAuth.js). El token puede llegar como `auth.token` (clientes
- * modernos, incluida la web) o `query.token` (fallback, por si el cliente
- * Swift/macOS solo puede mandar query params en el handshake).
+ * (config/devAuth.js). El token llega únicamente como `auth.token` en el
+ * handshake (web y cliente macOS). No se acepta por query string para que
+ * el JWT no quede registrado en los logs de acceso del proxy.
  *
  * Antes de esto, `io.emit()` mandaba cada evento a cualquiera que se
  * conectara al socket sin ninguna comprobación — cualquiera que supiera la
  * URL veía en vivo títulos/descripciones/asignaciones de todas las tareas.
  */
 async function authenticateSocket(socket, next) {
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  const token = socket.handshake.auth?.token;
 
   if (token) {
     try {
