@@ -84,7 +84,7 @@ final class APIClient {
 
     // MARK: Implementación
 
-    private func raw(_ request: Request) async throws -> Data {
+            private func raw(_ request: Request) async throws -> Data {
         guard let baseURL else {
             throw APIError.transport(message: "No hay ningún servidor configurado.")
         }
@@ -110,6 +110,11 @@ final class APIClient {
         if request.authorized, let token = tokenProvider?.authToken, !token.isEmpty {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        // La API es dinámica (listas, estadísticas, /health): nunca debe
+        // servirse de la caché local de URLSession. Una respuesta antigua
+        // cacheada (p. ej. un 404 o una lista vacía) dejaba la app sin datos
+        // y en "Sin conexión" sin llegar a consultar al servidor.
+        urlRequest.cachePolicy = .reloadIgnoringLocalCacheData
 
         let data: Data
         let response: URLResponse

@@ -10,6 +10,7 @@ struct MainView: View {
     @State private var path = NavigationPath()
     @State private var showProfile = false
     @State private var showContact = false
+    @State private var monitor = ConnectionMonitor()
 
     enum Panel: String, CaseIterable, Identifiable {
         case issues = "Tareas"
@@ -64,7 +65,7 @@ struct MainView: View {
         }
         .toolbar {
             ToolbarItem(placement: .status) {
-                ConnectionIndicator()
+                ConnectionIndicator(online: monitor.online)
             }
             ToolbarItem(placement: .primaryAction) {
                 accountMenu
@@ -74,10 +75,16 @@ struct MainView: View {
         // existe cuando `session.state == .signedIn`, ver RootView) y se
         // reconecta si cambia la URL del servidor en Preferencias o el JWT
         // (cambio de contraseña: el servidor cierra los sockets con el viejo).
+        // El sondeo de /health vive en `monitor` (tarea propia) y se reinicia
+        // con la misma clave.
         .task(id: "\(settings.serverURLString)|\(session.tokenRevision)") {
             socket.connect(baseURL: settings.baseURL, token: session.authToken)
+            monitor.start(settings: settings, session: session)
         }
-        .onDisappear { socket.disconnect() }
+        .onDisappear {
+            socket.disconnect()
+            monitor.stop()
+        }
         .task { openPendingDeepLink() }
         .onChange(of: router.pendingIssueID) { openPendingDeepLink() }
         .sheet(isPresented: $showContact) {

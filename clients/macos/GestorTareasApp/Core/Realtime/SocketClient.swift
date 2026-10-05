@@ -37,7 +37,7 @@ final class SocketClient {
     private var connectedURL: URL?
     private var connectedToken: String?
 
-    func connect(baseURL: URL?, token: String?) {
+        func connect(baseURL: URL?, token: String?) {
         guard let baseURL else {
             disconnect()
             return
@@ -45,12 +45,11 @@ final class SocketClient {
         guard connectedURL != baseURL || connectedToken != token else { return }
         disconnect()
 
-        // El handshake exige JWT (`socket.service.js::authenticateSocket`); sin
-        // `connectParams` el servidor rechaza la conexión con "unauthorized".
-        var config: SocketIOClientConfiguration = [.log(false), .compress, .reconnects(true)]
-        if let token, !token.isEmpty {
-            config.insert(.connectParams(["token": token]))
-        }
+        // El handshake exige JWT (`socket.service.js::authenticateSocket`). Se
+        // envía en el payload de autenticación de Socket.IO v3+ (llega al
+        // servidor como `handshake.auth.token`), NO en `connectParams`: la query
+        // acaba escrita en los logs de acceso de Apache.
+        let config: SocketIOClientConfiguration = [.log(false), .compress, .reconnects(true)]
         let manager = SocketManager(socketURL: baseURL, config: config)
         let socket = manager.defaultSocket
 
@@ -83,7 +82,12 @@ final class SocketClient {
         self.socket = socket
         connectedURL = baseURL
         connectedToken = token
-        socket.connect()
+
+        if let token, !token.isEmpty {
+            socket.connect(withPayload: ["token": token])
+        } else {
+            socket.connect()
+        }
     }
 
     func disconnect() {

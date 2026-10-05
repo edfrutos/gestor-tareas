@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// Fachada tipada sobre `APIClient` con los endpoints que usa la app.
 /// Se crea de forma efímera desde un contexto `@MainActor` (view models).
@@ -364,14 +365,23 @@ struct GestorAPI {
 
     // MARK: Salud
 
-    /// `true` solo si el servidor responde 2xx con `ok == true`. Cualquier fallo → `false`.
+        /// `true` solo si el servidor responde 2xx con `ok == true`. Cualquier fallo → `false`
+    /// (y se registra el motivo en el log del sistema, categoría `health`).
     func health() async -> Bool {
         do {
             let status: HealthStatus = try await client.send(
                 .init(method: "GET", path: "/health", authorized: false)
             )
+            if !status.ok {
+                Logger(subsystem: Bundle.main.bundleIdentifier ?? "GestorTareas",
+                       category: "health")
+                    .error("health: respuesta 2xx pero ok == false")
+            }
             return status.ok
         } catch {
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "GestorTareas",
+                   category: "health")
+                .error("health error: \(String(describing: error), privacy: .public) | \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
