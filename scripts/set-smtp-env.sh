@@ -27,8 +27,8 @@ SMTP_PORT="${SMTP_PORT:-587}"
 read -r -p "SMTP_USER (login SMTP de Brevo, xxxx@smtp-brevo.com): " SMTP_USER
 read -r -s -p "SMTP_PASS (no se muestra): " SMTP_PASS
 echo
-read -r -p "SMTP_FROM [Gestor de Tareas <no-reply@gtareas.edefrutos2020.com>]: " SMTP_FROM
-SMTP_FROM="${SMTP_FROM:-Gestor de Tareas <no-reply@gtareas.edefrutos2020.com>}"
+read -r -p "SMTP_FROM [Gestor de Tareas <no-reply@efjdev.com>]: " SMTP_FROM
+SMTP_FROM="${SMTP_FROM:-Gestor de Tareas <no-reply@efjdev.com>}"
 
 for v in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM; do
   if [[ -z "${!v}" ]]; then
