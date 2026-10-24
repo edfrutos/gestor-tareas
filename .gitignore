@@ -85,3 +85,4 @@ certs/cert
 pnpm-lock.yaml
 yarn.lock
 bun.lockb
+/data/

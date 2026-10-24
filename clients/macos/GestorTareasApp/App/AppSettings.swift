@@ -45,7 +45,7 @@ final class AppSettings {
     #if DEBUG
     static let fallbackURLString = "https://localhost:8443"
     #else
-    static let fallbackURLString = "https://gtareas.edefrutos2020.com"
+    static let fallbackURLString = "https://gtareas.efjdev.com"
     #endif
 
     var serverURLString: String {
