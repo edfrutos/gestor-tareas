@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# capturas-applestore.sh — captura la ventana de GestorTareas a
+# capturas-GestorTareas.sh — captura la ventana de GestorTareas a
 # 2880×1800 px (16:10) para la ficha de la Mac App Store.
 #
 # Redimensiona la ventana a 1440×900 puntos y captura ese rectángulo. En una
@@ -7,8 +7,8 @@
 # válido para App Store Connect).
 #
 # USO:
-#   scripts/capturas-applestore.sh <nombre>   # → ~/Desktop/appstore-<nombre>.png
-#   scripts/capturas-applestore.sh --sin-redimensionar <nombre>
+#   scripts/capturas-GestorTareas.sh <nombre>   # → ~/Desktop/appstore-<nombre>.png
+#   scripts/capturas-GestorTareas.sh --sin-redimensionar <nombre>
 #
 # Con --sin-redimensionar no mueve ni redimensiona nada: busca la ventana de
 # la app que ya mide 1440×900 y captura su rectángulo con todo lo que haya
