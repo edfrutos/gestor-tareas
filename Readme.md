@@ -2,6 +2,14 @@
 
 **Gestor de Tareas sobre Plano** es una aplicación web diseñada para la gestión de tareas ubicadas sobre un plano técnico o imagen local. Permite notificar problemas o tareas pendientes mediante posicionamiento sobre el plano, fotografías y descripciones detalladas.
 
+## 💻 App para Mac
+
+Además de la versión web, hay un cliente nativo para macOS (SwiftUI, en `clients/macos/`) que trabaja con los mismos datos en tiempo real:
+
+- **Mac App Store:** [GestorTareas](https://apps.apple.com/es/app/gestortareas/id6811349937?mt=12)
+- **Descarga directa:** `.dmg` firmado y notarizado en [GitHub Releases](https://github.com/edfrutos/gestor-tareas/releases/latest)
+- **Web:** [gtareas.efjdev.com](https://gtareas.efjdev.com)
+
 ---
 
 ## 🚀 Características Principales
