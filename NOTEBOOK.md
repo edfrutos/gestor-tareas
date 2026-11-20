@@ -531,7 +531,10 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
     En la próxima versión, poner `https://efjdev.com/privacidad/#gestortareas` (privacidad) y
     `https://efjdev.com/soporte/#gestortareas` (soporte). Mientras tanto, el 301 cubre las antiguas.
   - [ ] Rotar `JWT_SECRET` (también se expuso; al cambiarlo se cierran todas las sesiones).
-  - [ ] Cuando la versión desplegada lleve unos días estable: `docker rmi gestor-tareas:pre-deploy`.
+  - [ ] **2026-11-27**: si `sha-9d052b7` sigue estable, borrar la imagen de vuelta atrás en
+    `edf-developer` con `docker rmi gestor-tareas:pre-deploy` (recordatorio en Google Calendar).
+  - Nota: las comprobaciones de Cursor de los PR (Pull Request Router, Security Reviewer) no se
+    completan hasta el **2026-12-01** por falta de cuota. No son obligatorias para fusionar.
 
 ---
 
