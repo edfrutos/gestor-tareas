@@ -21,10 +21,10 @@ afterAll(async () => {
 
 describe("privacidad y soporte redirigen a efjdev.com", () => {
   test.each([
-    ["/privacy.html", "https://efjdev.com/privacidad/"],
-    ["/privacy", "https://efjdev.com/privacidad/"],
-    ["/support.html", "https://efjdev.com/soporte/"],
-    ["/support", "https://efjdev.com/soporte/"],
+    ["/privacy.html", "https://efjdev.com/privacidad/#gestortareas"],
+    ["/privacy", "https://efjdev.com/privacidad/#gestortareas"],
+    ["/support.html", "https://efjdev.com/soporte/#gestortareas"],
+    ["/support", "https://efjdev.com/soporte/#gestortareas"],
   ])("%s → %s (301)", async (from, to) => {
     const res = await request(app).get(from);
     expect(res.status).toBe(301);
@@ -34,6 +34,6 @@ describe("privacidad y soporte redirigen a efjdev.com", () => {
   test("la query string no altera el destino", async () => {
     const res = await request(app).get("/privacy.html?ref=appstore");
     expect(res.status).toBe(301);
-    expect(res.headers.location).toBe("https://efjdev.com/privacidad/");
+    expect(res.headers.location).toBe("https://efjdev.com/privacidad/#gestortareas");
   });
 });
