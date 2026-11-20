@@ -221,6 +221,18 @@ app.use(compression());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
+// Privacidad y soporte viven en efjdev.com. Se redirige de forma permanente para que
+// los enlaces antiguos (incluidos los de App Store Connect) sigan funcionando.
+const PUBLIC_PAGE_REDIRECTS = {
+  "/privacy.html": "https://efjdev.com/privacidad/#gestortareas",
+  "/privacy": "https://efjdev.com/privacidad/#gestortareas",
+  "/support.html": "https://efjdev.com/soporte/#gestortareas",
+  "/support": "https://efjdev.com/soporte/#gestortareas",
+};
+app.get(Object.keys(PUBLIC_PAGE_REDIRECTS), (req, res) => {
+  res.redirect(301, PUBLIC_PAGE_REDIRECTS[req.path]);
+});
+
 // estáticos
 app.use("/ui", express.static(path.join(__dirname, "public", "ui"), { fallthrough: true }));
 app.use(express.static(path.join(__dirname, "public"), { fallthrough: true }));
