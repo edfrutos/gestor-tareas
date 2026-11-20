@@ -498,6 +498,41 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
   - Estado: 🚧 Hito 1 (lectura completa: login real end-to-end, filtros, detalle con comentarios
     e historial, stats con Swift Charts) sin empezar.
 
+### 2026-11-20 | Fase 41: Publicación en la Mac App Store y web unificada en efjdev.com ✅
+
+- **GestorTareas 0.1.0 aprobada y publicada en la Mac App Store** (2026-11-19). Apple ID
+  `6811349937`: <https://apps.apple.com/es/app/gestortareas/id6811349937?mt=12>. Sigue también la
+  descarga directa (DMG firmado y notarizado en GitHub Releases).
+- **Web efjdev.com (WordPress/Elementor):**
+  - Ficha `/gestortareas/`: distintivo oficial «Descárgalo en el Mac App Store» con enlace a la
+    ficha de la tienda; estado «Disponible en la Mac App Store · También como descarga directa».
+  - Mismo distintivo en las fichas de Replacer, Extractor-URL y Gestor de Correos Gmail; estados de
+    las tarjetas de la portada actualizados.
+  - La URL antigua de los distintivos de Apple (`tools.applemarketingtools.com`) ya no existe y
+    salía como imagen rota. URL vigente:
+    `https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-mac-app-store/black/es-es`.
+- **Privacidad y soporte trasladados a efjdev.com (PR #40):**
+  - Política completa en <https://efjdev.com/privacidad/#gestortareas>, actualizada: el borrado
+    de cuenta se hace desde el perfil, no solo por correo.
+  - Preguntas frecuentes en <https://efjdev.com/soporte/#gestortareas>.
+  - El backend responde con un 301 en `/privacy(.html)` y `/support(.html)` hacia esas páginas;
+    se eliminan `src/public/privacy.html` y `src/public/support.html`. Tests en
+    `tests/public-pages.test.js`.
+  - `gtareas.efjdev.com` queda solo para la app (API y web).
+- **Repositorio:** README con sección «App para Mac» (PR #39); script de capturas renombrado a
+  `scripts/capturas-GestorTareas.sh` (PR #38).
+- **Despliegue en producción** (2026-11-20): imagen `edefrutos/gestor-tareas:sha-9d052b7`.
+  Redirecciones, web y `/health` verificados desde fuera. Procedimiento documentado en
+  `docs/GUIA_OPERACIONES.md` → «Despliegue en producción».
+- **Seguridad:** durante el despliegue se expuso el entorno del contenedor (salida completa de
+  `docker inspect`). Clave SMTP de Brevo **rotada** el mismo día.
+- **Pendiente:**
+  - [ ] App Store Connect: la URL de privacidad solo se puede cambiar al crear una versión nueva.
+    En la próxima versión, poner `https://efjdev.com/privacidad/#gestortareas` (privacidad) y
+    `https://efjdev.com/soporte/#gestortareas` (soporte). Mientras tanto, el 301 cubre las antiguas.
+  - [ ] Rotar `JWT_SECRET` (también se expuso; al cambiarlo se cierran todas las sesiones).
+  - [ ] Cuando la versión desplegada lleve unos días estable: `docker rmi gestor-tareas:pre-deploy`.
+
 ---
 
 ## 6. Observaciones Pendientes (Recordatorio)
@@ -516,7 +551,8 @@ Las funcionalidades de comunicaciones, comentarios, recuperación de contraseña
 1. ~~📂 Capas de Planos~~ (completado en Fase 37).
 2. **🖥️ Cliente nativo macOS (Apple Silicon)** — *línea principal actual.* App SwiftUI que consume
    el API existente; doble canal Mac App Store + Developer ID. Ver `docs/PLAN_APP_MACOS.md`
-   (arquitectura + hitos) y `docs/API.md` (contrato). Estado: Hito 0 sin empezar.
+   (arquitectura + hitos) y `docs/API.md` (contrato). Estado: **publicado en la Mac App Store**
+   (0.1.0, 2026-11-19) y como descarga directa; ver Fase 41.
 3. **🔒 Endurecimiento de dependencias** — resolver `npm audit` (1 crítica, 11 altas): Express 5,
    Helmet 8, nodemailer, con validación de tests.
 4. **📊 Informes por Zona**: Capacidad de generar reportes de incidencias filtrados por las zonas dibujadas en el mapa.
